@@ -7,7 +7,7 @@ description   = "C Utilities for bioinformatics"
 license       = "BSD-3-Clause"
 srcDir        = "src"
 installDirs   = @["pbpkg"]
-bin           = @["pb"]
+bin           = @["falconc"]
 
 
 # Dependencies
