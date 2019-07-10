@@ -12,6 +12,7 @@ pretty:
 	find . -name '*.nim' | xargs -L1 nimpretty --indent=4
 
 # These 3 rules are for mobs:
+# Someday maybe --nimcache:${CURDIR}/.cache-nim
 build:
 	mkdir -p ${NIMBLE_DIR}/pkgs/
 	# We need a no-internet flag for "nimble install".

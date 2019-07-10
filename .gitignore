@@ -1,5 +1,6 @@
 /build/
 /nimbleDir/
+/.cache-nim/
 /pb
 /src/falconc
 /falconc
