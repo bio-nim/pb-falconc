@@ -1,0 +1,794 @@
+==> test/AllSeqTypes.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with parameters of all basic types.
+Options(opt-arg sep :|=|spc):
+  -h, --help                           print this cligen-erated help
+  --help-syntax                        advanced: prepend,plurals,..
+  -b=, --bl=     bools     {}          append 1 val to bl
+  -B=, --Bl=     bools     false,true  append 1 val to Bl
+  -s=, --s=      strings   {}          append 1 val to s
+  -S=, --S=      strings   ho,hey      append 1 val to S
+  -i=, --i=      ints      {}          append 1 val to i
+  -I=, --I=      ints      1,2         append 1 val to I
+  --i1=          int8s     {}          append 1 val to i1
+  --I1=          int8s     3,4         append 1 val to I1
+  --i2=          int16s    {}          append 1 val to i2
+  --I2=          int16s    5,6         append 1 val to I2
+  --i4=          int32s    {}          append 1 val to i4
+  --I4=          int32s    7,8         append 1 val to I4
+  --i8=          int64s    {}          append 1 val to i8
+  --I8=          int64s    9,10        append 1 val to I8
+  -u=, --u=      uints     {}          append 1 val to u
+  -U=, --U=      uints     11,12       append 1 val to U
+  --u1=          uint8s    {}          append 1 val to u1
+  --U1=          uint8s    13,14       append 1 val to U1
+  --u2=          uint16s   {}          append 1 val to u2
+  --U2=          uint16s   15,16       append 1 val to U2
+  --u4=          uint32s   {}          append 1 val to u4
+  --U4=          uint32s   17,18       append 1 val to U4
+  --u8=          uint64s   {}          append 1 val to u8
+  --U8=          uint64s   19,20       append 1 val to U8
+  -f=, --f4=     float32s  {}          append 1 val to f4
+  -F=, --F4=     float32s  23.0,24.0   append 1 val to F4
+  --f8=          float64s  {}          append 1 val to f8
+  --F8=          float64s  25.0,26.0   append 1 val to F8
+
+==> test/AllSetTypes.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with parameters of all basic types.
+Options(opt-arg sep :|=|spc):
+  -h, --help                                  print this cligen-erated help
+  --help-syntax                               advanced: prepend,plurals,..
+  -b=, --bl=     set(bool)    {}              include 1 val in bl
+  -B=, --Bl=     set(bool)    false,true      include 1 val in Bl
+  -i=, --i1=     set(int8)    {}              include 1 val in i1
+  -I=, --I1=     set(int8)    3,4             include 1 val in I1
+  --i2=          set(int16)   {}              include 1 val in i2
+  --I2=          set(int16)   5,6             include 1 val in I2
+  -u=, --u1=     set(uint8)   {}              include 1 val in u1
+  -U=, --U1=     set(uint8)   13,14           include 1 val in U1
+  --u2=          set(uint16)  {}              include 1 val in u2
+  --U2=          set(uint16)  15,16           include 1 val in U2
+  -e=, --e=      set(Color)   {}              include 1 val in e
+  -E=, --E=      set(Color)   red,green,blue  include 1 val in E
+
+==> test/AllTypes.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with parameters of all basic types.
+Options(opt-arg sep :|=|spc):
+  -?, --help                     print this cligen-erated help
+  --help-syntax                  advanced: prepend,plurals,..
+  -a, --aa       bool     false  set aa
+  -b=, --bb=     string   "hi"   set bb
+  -c=, --cc=     string   "ho"   set cc
+  -d=, --dd=     char     'X'    set dd
+  -e=, --ee=     int      1      set ee
+  -f=, --ff=     int8     2      set ff
+  -g=, --gg=     int16    3      set gg
+  -h=, --hh=     int32    4      set hh
+  -i=, --ii=     int64    5      set ii
+  -j=, --jj=     uint     6      set jj
+  -k=, --kk=     uint8    7      set kk
+  -l=, --ll=     uint16   8      set ll
+  -m=, --mm=     uint32   9      set mm
+  -n=, --nn=     uint64   10     set nn
+  -o=, --oo=     float    11.0   set oo
+  -p=, --pp=     float32  12.0   set pp
+  -q=, --qq=     float    13.0   set qq
+
+==> test/BlockedShort.out <==
+Usage:
+  demo [optional-params] 
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  --alpha=       int     1      set alpha
+  --abc=         float   2.0    set abc
+  -a, --aaah     bool    false  set aaah
+  --aloha=       string  ""     set aloha
+
+==> test/CustomCmdName.out <==
+Usage:
+  deeeemo [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  -a=, --alpha=  int     1      set alpha
+  -b=, --beta=   float   2.0    set beta
+  -v, --verb     bool    false  set verb
+  -i=, --item=   string  ""     set item
+
+==> test/CustomType.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  -a=, --alpha=  int   1        set alpha
+  -v, --verb     bool  false    set verb
+  -s=, --stuff=  CSV   "ab,cd"  append 1 val to stuff
+
+==> test/DetectSet.out <==
+Usage:
+  foo [optional-params] 
+Options(opt-arg sep :|=|spc):
+  -h, --help             print this cligen-erated help
+  --help-syntax          advanced: prepend,plurals,..
+  -a=, --alpha=  int  1  set alpha
+  -b=, --beta=   int  2  set beta
+
+==> test/DistinctInt.out <==
+Usage:
+  main [required&optional-params] 
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  -a=, --age=    int  REQUIRED  set age
+
+==> test/DupShort.out <==
+Usage:
+  demo [optional-params] 
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  -z=, --alpha=  int     1      set alpha
+  -a=, --abc=    float   2.0    set abc
+  --aaah         bool    false  set aaah
+  --aloha=       string  ""     set aloha
+
+==> test/EarlySeq.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  -a=, --alpha=  int     1      set alpha
+  -b=, --beta=   float   2.0    set beta
+  -v, --verb     bool    false  set verb
+  -i=, --item=   string  ""     set item
+
+==> test/EchoResult.out <==
+Usage:
+  editDistanceAscii [required&optional-params] 
+Returns the edit distance between `a` and `b`.  This uses the `Levenshtein`:idx:
+distance algorithm with only a linear memory overhead.
+Options(opt-arg sep :|=|spc):
+  -h, --help                       print this cligen-erated help
+  --help-syntax                    advanced: prepend,plurals,..
+  -a=, --a=      string  REQUIRED  set a
+  -b=, --b=      string  REQUIRED  set b
+
+==> test/Enums.out <==
+Usage:
+  demo [required&optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.
+Options(opt-arg sep :|=|spc):
+  -h, --help                           print this cligen-erated help
+  --help-syntax                        advanced: prepend,plurals,..
+  -c=, --c=      Color       REQUIRED  primary color
+  -b=, --bg=     Color       re-d      background color
+  -f=, --fg=     Colors      gre-en    foreround colors
+  --curs=        set(Color)  blue      cursor colors
+  -x=, --x=      int         0         set x
+
+==> test/External.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  -a=, --alpha=  int     1      set alpha
+  -b=, --beta=   float   2.0    set beta
+  -v, --verb     bool    false  set verb
+  -i=, --item=   string  ""     set item
+
+==> test/FancyRepeats.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                     print this cligen-erated help
+  --help-syntax                  advanced: prepend,plurals,..
+  -a=, --alpha=  int      1      set alpha
+  -v=, --verb=   countr   0      set verb
+  -j=, --junk=   strings  rs,tu  append 1 val to junk
+  -s=, --stuff=  strings  ab,cd  append 1 val to stuff
+
+==> test/FullyAutoMulti.out <==
+Infer & generate command-line interace/option/argument parser
+
+Usage:
+  FullyAutoMulti {SUBCMD}  [sub-command options & parameters]
+
+SUBCMDs:
+  help    print comprehensive or per-cmd help
+  demo    demo entry point with varied, meaningless parameters.
+  print   show entry point with varied, meaningless parameters.
+  punt    Another entry point; here we echoResult
+  nel-ly  Yet another entry point; here we block autoEcho
+
+FullyAutoMulti {-h|--help} or with no args at all prints this message.
+FullyAutoMulti --help-syntax gives general cligen syntax help.
+Run "FullyAutoMulti {help SUBCMD|SUBCMD --help}" to see help for just SUBCMD.
+Run "FullyAutoMulti help" to get *comprehensive* help.
+Top-level --version also available
+
+==> test/FullyAutoMultiTopLvl.out <==
+This is a multiple-dispatch command.  Top-level --help/--help-syntax
+is also available.  Usage is like:
+    FullyAutoMulti {SUBCMD} [subcommand-opts & args]
+where subcommand syntaxes are as follows:
+
+  demo [optional-params] [files: string...]
+    demo entry point with varied, meaningless parameters.
+  Options(opt-arg sep :|=|spc):
+      -h, --help                    print this cligen-erated help
+      --help-syntax                 advanced: prepend,plurals,..
+      --version      bool    false  print version
+      -a=, --alpha=  int     1      set alpha
+      -b=, --beta=   float   2.0    set beta
+      -v, --verb     bool    false  on=chatty, off=quiet
+      -i=, --item=   string  ""     set item
+
+  print [optional-params] [paths: string...]
+    show entry point with varied, meaningless parameters.
+  Options(opt-arg sep :|=|spc):
+      -h, --help                   print this cligen-erated help
+      --help-syntax                advanced: prepend,plurals,..
+      --version      bool   false  print version
+      -z=, --gamma=  int    1      set gamma
+      -i=, --iota=   float  2.0    set iota
+      -v, --verb     bool   false  set verb
+
+  punt [optional-params] [names: string...]
+    Another entry point; here we echoResult
+  Options(opt-arg sep :|=|spc):
+      -h, --help                   print this cligen-erated help
+      --help-syntax                advanced: prepend,plurals,..
+      -z=, --zeta=   int    1      set zeta
+      -e=, --eta=    float  2.0    set eta
+      -v, --verb     bool   false  set verb
+
+  nel-ly [optional-params] [names: string...]
+    Yet another entry point; here we block autoEcho
+  Options(opt-arg sep :|=|spc):
+      -h, --help                  print this cligen-erated help
+      --help-syntax               advanced: prepend,plurals,..
+      --version      bool  false  print version
+      --hooves=      int   4      set hooves
+      -r=, --races=  int   9      set races
+      -v, --verb     bool  false  set verb
+
+==> test/HashSets.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with parameters of all basic types.
+Options(opt-arg sep :|=|spc):
+  -h, --help                                print this cligen-erated help
+  --help-syntax                             advanced: prepend,plurals,..
+  -i=, --i1=     hashset(int8)    {}        include 1 val in i1
+  -I=, --I1=     hashset(int8)    2,3       include 1 val in I1
+  --i2=          hashset(int16)   {}        include 1 val in i2
+  --I2=          hashset(int16)   4,5       include 1 val in I2
+  -u=, --u1=     hashset(uint8)   {}        include 1 val in u1
+  -U=, --U1=     hashset(uint8)   6,7       include 1 val in U1
+  --u2=          hashset(uint16)  {}        include 1 val in u2
+  --U2=          hashset(uint16)  8,9       include 1 val in U2
+  -e=, --e=      hashset(Color)   {}        include 1 val in e
+  -E=, --E=      hashset(Color)   red,blue  include 1 val in E
+
+==> test/HelpTabCols.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help     print this cligen-erated help  
+  --help-syntax  advanced: prepend,plurals,..   
+  -z=, --alpha=  growth constant                1
+  -b=, --beta=   shrink target                  2.0
+  -v, --verb     set verb                       false
+  -i=, --item=   set item                       ""
+
+==> test/ImplicitDefault.out <==
+Usage:
+  demo [required&optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                       print this cligen-erated help
+  --help-syntax                    advanced: prepend,plurals,..
+  -a=, --alpha=  int     REQUIRED  set alpha
+  -b, --bypass   bool    false     set bypass
+  -i=, --iteM=   string  ""        set iteM
+
+==> test/InitOb.out <==
+Usage:
+  InitOb [optional-params] [iters: int (loops per slot)]
+do some app
+Options(opt-arg sep :|=|spc):
+  -h, --help                      print this cligen-erated help
+  --help-syntax                   advanced: prepend,plurals,..
+  -n=, --nim=    string  "nimcc"  compiler to use
+  -s, --show     bool    false    show informative compiler info
+
+==> test/InitTup.out <==
+Usage:
+  InitOb [optional-params] 
+do some app
+Options(opt-arg sep :|=|spc):
+  -h, --help                        print this cligen-erated help
+  --help-syntax                     advanced: prepend,plurals,..
+  -n=, --nim=      string  "nimcc"  compiler to use
+  -s=, --srcFile=  string  ""       script to run
+  -S, --show       bool    false    show informative compiler info
+
+==> test/ListDecl.out <==
+Usage:
+  demo [required&optional-params] [args: int...]
+demo entry point with varied, meaningless parameters.
+Options(opt-arg sep :|=|spc):
+  -h, --help                      print this cligen-erated help
+  --help-syntax                   advanced: prepend,plurals,..
+  -a=, --alpha=  float  REQUIRED  set alpha
+  -b=, --beta=   float  1.0       set beta
+  -v, --verb     bool   false     set verb
+
+==> test/Mandatory.out <==
+Usage:
+  demo [required&optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                       print this cligen-erated help
+  --help-syntax                    advanced: prepend,plurals,..
+  -a=, --alpha=  int     REQUIRED  set alpha
+  -b=, --beta=   float   2.0       set beta
+  -v, --verb     bool    false     set verb
+  -i=, --item=   string  REQUIRED  set item
+
+==> test/MandatoryNoPos.out <==
+Usage:
+  demo [required&optional-params] 
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                       print this cligen-erated help
+  --help-syntax                    advanced: prepend,plurals,..
+  -a=, --alpha=  int     REQUIRED  set alpha
+  -b=, --beta=   float   2.0       set beta
+  -v, --verb     bool    false     set verb
+  -i=, --item=   string  REQUIRED  set item
+
+==> test/ManualMulti.out <==
+Usage:
+  ManualMulti demo|show [subcommand-args]
+
+    This is a multiple-dispatch cmd.  Subcommand syntax:
+
+    ManualMulti demo [optional-params] [files: string...]
+          This does the demo.
+    
+    Options:
+          -h, --help                    print this cligen-erated help
+          --help-syntax                 advanced: prepend,plurals,..
+          -a=, --alpha=  int     1      This is a very long parameter help
+                                        string which ordinarily should be
+                                        auto-wrapped by alignTable into a
+                                        multi-line format unless you have eagle
+                                        eyes, a gigantic monitor, or maybe a
+                                        little bit of both. :-)
+          -b=, --beta=   float   2.0    This is more modest, but might still
+                                        wrap around once or twice or so.
+          -v, --verb     bool    false  on=chatty, off=quiet. 'Nuff said.
+          -i=, --item=   string  ""     set item
+
+    ManualMulti show [optional-params] [paths: string...]
+          This shows me something.
+    
+    Options:
+          -h, --help                   print this cligen-erated help
+          --help-syntax                advanced: prepend,plurals,..
+          -g=, --gamma=  int    1      set gamma
+          -i=, --iota=   float  2.0    set iota
+          -v, --verb     bool   false  set verb
+
+==> test/MultMultMult.out <==
+module doc
+
+Usage:
+  MultMultMult {SUBCMD}  [sub-command options & parameters]
+where {SUBCMD} is one of:
+  help   print comprehensive or per-cmd help
+  apple  apple SUB-SUB commands
+  whoa   Another entry point; here we echoResult
+  nelly  Yet another entry point; here we block autoEcho
+
+MultMultMult {-h|--help} or with no args at all prints this message.
+MultMultMult --help-syntax gives general cligen syntax help.
+Run "MultMultMult {help SUBCMD|SUBCMD --help}" to see help for just SUBCMD.
+Run "MultMultMult help" to get *comprehensive* help.
+Top-level --version also available
+
+==> test/MultiFlag.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.
+Options(opt-arg sep :|=|spc):
+  -h, --help                  print this cligen-erated help
+  --help-syntax               advanced: prepend,plurals,..
+  -a, --alpha    bool  true   set alpha
+  -b=, --beta=   int   2      set beta
+  -v, --verb     bool  false  set verb
+
+==> test/MultiMulti.out <==
+NAME
+  Test sub-sub-command CLI instantiation.
+
+USAGE
+  MultiMulti {SUBCMD}  [sub-command options & parameters]
+
+SUBCOMMANDS
+  help   print comprehensive or per-cmd help
+  whoa   Another entry point; here we echoResult
+  apple  apple/apple help for sub-sub commands
+  nelly  Yet another entry point; here we block autoEcho
+
+MultiMulti {-h|--help} or with no args at all prints this message.
+MultiMulti --help-syntax gives general cligen syntax help.
+Run "MultiMulti {help SUBCMD|SUBCMD --help}" to see help for just SUBCMD.
+Run "MultiMulti help" to get *comprehensive* help.
+Top-level --version also available
+
+AUTHOR
+  Charles Blake
+
+==> test/MultiMultiTopLvl.out <==
+This is a multiple-dispatch command.  Top-level --help/--help-syntax
+is also available.  Usage is like:
+    MultiMulti {SUBCMD} [subcommand-opts & args]
+where subcommand syntaxes are as follows:
+
+  whoa [optional-params] [names: string...]
+    Another entry point; here we echoResult
+  Options(opt-arg sep :|=|spc):
+      -h, --help                   print this cligen-erated help
+      --help-syntax                advanced: prepend,plurals,..
+      --version      bool   false  print version
+      -z=, --zeta=   int    1      set zeta
+      -e=, --eta=    float  2.0    set eta
+      -v, --verb     bool   false  set verb
+
+    apple/apple help for sub-sub commands
+  
+
+  nelly [optional-params] [names: string...]
+    Yet another entry point; here we block autoEcho
+  Options(opt-arg sep :|=|spc):
+      -h, --help                  print this cligen-erated help
+      --help-syntax               advanced: prepend,plurals,..
+      --version      bool  false  print version
+      --hooves=      int   4      set hooves
+      -r=, --races=  int   9      set races
+      -v, --verb     bool  false  set verb
+
+==> test/NoPositional.out <==
+Usage:
+  demo [optional-params] 
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  -a=, --alpha=  int     1      set alpha
+  -b=, --beta=   float   2.0    set beta
+  -v, --ve-rb    bool    false  set ve_rb
+  -i=, --item=   string  ""     set item
+
+==> test/NoShort.out <==
+Usage:
+  demo [optional-params] 
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  --alpha=       int     1      set alpha
+  --abc=         float   2.0    set abc
+  --aaah         bool    false  set aaah
+  --aloha=       string  ""     set aloha
+
+==> test/OneCharParams.out <==
+Usage:
+  demo [optional-params] [b: string...]
+This tests if single character parameters work as expected
+Options(opt-arg sep :|=|spc):
+  -h, --help                         print this cligen-erated help
+  --help-syntax                      advanced: prepend,plurals,..
+  -u=, --u=      int     1           set u
+  -c=, --c=      string  "bad name"  set c
+  -g=, --g=      string  "ho"        set g
+
+==> test/ParseOnly.out <==
+fooParse:
+  (paramName: "help", unparsedVal: "", message: "Usage:\n  foo [required&optional-params] [rest: int...]\nOptions(opt-arg sep :|=|spc):\n  -h, --help                    print this cligen-erated help\n  --help-syntax                 advanced: prepend,plurals,..\n  -a=, --alpha=  int  REQUIRED  set alpha\n  -b=, --beta=   int  2         set beta\n", status: clHelpOnly)
+  (paramName: "alpha", unparsedVal: "", message: "Missing alpha", status: clMissing)
+would not have called foo
+User requested help.  Here you go
+Usage:
+  foo [required&optional-params] [rest: int...]
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  -a=, --alpha=  int  REQUIRED  set alpha
+  -b=, --beta=   int  2         set beta
+
+
+==> test/PerParam.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                     print this cligen-erated help
+  --help-syntax                  advanced: prepend,plurals,..
+  -z=, --al-pha=  int     1      growth constant
+  --be-ta=        float   2.0    shrink target
+  -v, --verb      bool    false  set verb
+  -i=, --item=    string  ""     set item
+
+==> test/QualifiedMulti.out <==
+Usage:
+  QualifiedMulti {SUBCMD}  [sub-command options & parameters]
+where {SUBCMD} is one of:
+  help  print comprehensive or per-cmd help
+  get   
+  put   
+
+QualifiedMulti {-h|--help} or with no args at all prints this message.
+QualifiedMulti --help-syntax gives general cligen syntax help.
+Run "QualifiedMulti {help SUBCMD|SUBCMD --help}" to see help for just SUBCMD.
+Run "QualifiedMulti help" to get *comprehensive* help.
+
+==> test/QualifiedSym.out <==
+Usage:
+  get [optional-params] 
+Options(opt-arg sep :|=|spc):
+  -h, --help             print this cligen-erated help
+  --help-syntax          advanced: prepend,plurals,..
+  -a=, --a=      int  1  set a
+
+==> test/ResultInt.out <==
+Usage:
+  editDistanceAscii [required&optional-params] 
+Returns the edit distance between `a` and `b`.  This uses the `Levenshtein`:idx:
+distance algorithm with only a linear memory overhead.
+Options(opt-arg sep :|=|spc):
+  -h, --help                       print this cligen-erated help
+  --help-syntax                    advanced: prepend,plurals,..
+  --version      bool    false     print version
+  -a=, --a=      string  REQUIRED  set a
+  -b=, --b=      string  REQUIRED  set b
+
+==> test/ReturnEmpty.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  -a=, --alpha=  int     1      set alpha
+  -b=, --beta=   float   2.0    set beta
+  -v, --verb     bool    false  set verb
+  -i=, --item=   string  ""     set item
+
+==> test/ReturnInt.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  -a=, --alpha=  int     1      set alpha
+  -b=, --beta=   float   2.0    set beta
+  -v, --verb     bool    false  set verb
+  -i=, --item=   string  ""     set item
+
+==> test/ReturnNonInt.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  -a=, --alpha=  int     1      set alpha
+  -b=, --beta=   float   2.0    set beta
+  -v, --verb     bool    false  set verb
+  -i=, --item=   string  ""     set item
+
+==> test/ReturnNonIntNoAuto.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  -a=, --alpha=  int     1      set alpha
+  -b=, --beta=   float   2.0    set beta
+  -v, --verb     bool    false  set verb
+  -i=, --item=   string  ""     set item
+
+==> test/ReturnString.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  -a=, --alpha=  int     1      set alpha
+  -b=, --beta=   float   2.0    set beta
+  -v, --verb     bool    false  set verb
+  -i=, --item=   string  ""     set item
+
+==> test/SemiAutoMulti.out <==
+cligen.nim(565, 12) Hint: 'keyCount' is declared but not used [XDeclaredButNotUsed]
+Usage:
+  multi [optional-params] [subCmd: string...]
+Run command with no parameters for a full help message.
+Options(opt-arg sep :|=|spc):
+  -h, --help         print this cligen-erated help
+  --help-syntax      advanced: prepend,plurals,..
+
+==> test/SemiMultMult.out <==
+Usage:
+  multi [optional-params] [cmdLine: string...]
+Run command with no parameters for a full help message.
+Options(opt-arg sep :|=|spc):
+  -h, --help         print this cligen-erated help
+  --help-syntax      advanced: prepend,plurals,..
+
+==> test/SeqInt.out <==
+Usage:
+  demo [optional-params] [args: int...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 3 4" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  -a=, --alpha=  int     1      set alpha
+  -b=, --beta=   char    '\n'   set beta
+  -v, --verb     bool    false  set verb
+  -i=, --item=   string  ""     set item
+
+==> test/SubScope.out <==
+Usage:
+  SubScope {SUBCMD}  [sub-command options & parameters]
+where {SUBCMD} is one of:
+  help  print comprehensive or per-cmd help
+  get   
+  put   
+
+SubScope {-h|--help} or with no args at all prints this message.
+SubScope --help-syntax gives general cligen syntax help.
+Run "SubScope {help SUBCMD|SUBCMD --help}" to see help for just SUBCMD.
+Run "SubScope help" to get *comprehensive* help.
+
+==> test/Suppress.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                 print this cligen-erated help
+  --help-syntax              advanced: prepend,plurals,..
+  -a=, --alpha=  int    1    growth constant
+  -b=, --beta=   float  2.0  shrink target
+
+==> test/TwoNondefaultedSeq.out <==
+test/TwoNondefaultedSeq.nim(9, 11) template/generic instantiation of `dispatch` from here
+cligen.nim(668, 14) template/generic instantiation of `dispatchCf` from here
+cligen.nim(654, 14) template/generic instantiation of `dispatchGen` from here
+cligen.nim(185, 16) Warning: cligen only supports one seq param for positional args; using `args`, not `stuff`.  Use `positional` parameter to `dispatch` to override this. [User]
+Usage:
+  demo [required&optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.
+Options(opt-arg sep :|=|spc):
+  -h, --help                        print this cligen-erated help
+  --help-syntax                     advanced: prepend,plurals,..
+  -a=, --alpha=  int      1         set alpha
+  -v, --verb     bool     false     set verb
+  -s=, --stuff=  strings  REQUIRED  append 1 val to stuff
+
+==> test/TwoNondefaultedSeqSwap.out <==
+Usage:
+  demo [required&optional-params] [ stuff (0 or more strings) ]
+demo entry point with varied, meaningless parameters.
+Options(opt-arg sep :|=|spc):
+  -h, --help                        print this cligen-erated help
+  --help-syntax                     advanced: prepend,plurals,..
+  -a=, --alpha=  int      1         set alpha
+  -v, --verb     bool     false     set verb
+  --args=        strings  REQUIRED  append 1 val to args
+
+==> test/UserAliases.out <==
+Usage:
+  UserAliases [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters with an alias system. E.g.,
+USERALIASES='"-Dk=-a9 -b3.0" "-DK=-Rk -v 1 2"' ./UserAliases -RK 3 4 or
+USERALIASES_CONFIG=UserAliases.cf ./UserAliases -RK 3 4
+Options(opt-arg sep :|=|spc):
+  -h, --help                     print this cligen-erated help
+  --help-syntax                  advanced: prepend,plurals,..
+  -D=, --Def=     string  ""     define key="val ..." alias
+  -R=, --Ref=     string  ""     reference an alias
+  -a=, --al-pha=  int     1      growth constant
+  -b=, --bet-a=   float   2.0    shrink target
+  -v, --verb      bool    false  set verb
+  -i=, --item=    string  ""     set item
+
+==> test/UserDispIdCollide.out <==
+Usage:
+  demo [optional-params] [args: string...]
+This tests if things work when a wrapped user-proc uses identifiers also used in
+our generated dispatch proc.
+Options(opt-arg sep :|=|spc):
+  -h, --help                           print this cligen-erated help
+  --help-syntax                        advanced: prepend,plurals,..
+  -u=, --usage=    int     1           set usage
+  -c=, --cmdline=  string  "bad name"  set cmdline
+  -g=, --getopt=   string  "ho"        set getopt
+
+==> test/Version.out <==
+Usage:
+  Version [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options(opt-arg sep :|=|spc):
+  -h, --help                    print this cligen-erated help
+  --help-syntax                 advanced: prepend,plurals,..
+  --version      bool    false  print version
+  -a=, --alpha=  int     1      set alpha
+  -i=, --item=   string  "hi"   set item
