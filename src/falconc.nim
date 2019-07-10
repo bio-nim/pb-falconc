@@ -1,9 +1,9 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
-#import pbpkg/zev
-from pbpkg/align import nil
-from pbpkg/raptor_db import nil
-from pbpkg/rotate import nil
-from pbpkg/phasr import nil
+#import falconcpkg/zev
+from falconcpkg/align import nil
+from falconcpkg/raptor_db import nil
+from falconcpkg/rotate import nil
+from falconcpkg/phasr import nil
 
 proc dataset(extras: seq[string]) =
     echo "pb dataset"
