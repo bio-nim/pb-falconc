@@ -14,27 +14,27 @@ from strutils import nil
 from ./util import nil
 
 # If we wanted to parse into memory, we could use these.
-type
-    FileRecord = tuple
-        file_id: int64
-        file_path: string
-        file_format: string
-    SequenceRecord = tuple
-        seq_id: int64
-        header: string
-        seq_len: int64
-        file_id: int64
-        start_offset_in_file: int64
-        data_length: int64
-    BlockRecord = tuple
-        block_id: int64
-        seq_id_start: int64
-        seq_id_end: int64
-    Db = object
-        version: string
-        files: seq[FileRecord]
-        seqs: seq[SequenceRecord]
-        blocks: seq[BlockRecord]
+#type
+#    FileRecord = tuple
+#        file_id: int64
+#        file_path: string
+#        file_format: string
+#    SequenceRecord = tuple
+#        seq_id: int64
+#        header: string
+#        seq_len: int64
+#        file_id: int64
+#        start_offset_in_file: int64
+#        data_length: int64
+#    BlockRecord = tuple
+#        block_id: int64
+#        seq_id_start: int64
+#        seq_id_end: int64
+#    Db = object
+#        version: string
+#        files: seq[FileRecord]
+#        seqs: seq[SequenceRecord]
+#        blocks: seq[BlockRecord]
 
 #proc toSequenceRecord(fields: seq[string]): SequenceRecord =
 #    # should use strutils.parseInt()

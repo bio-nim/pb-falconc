@@ -23,7 +23,6 @@ type
 
 proc checkEmptyFile(fin: string): bool =
  var finfo = getFileInfo(fin)
- let fh = open(fin)
  if finfo.size == 0:
   return true
  return false

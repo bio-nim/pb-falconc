@@ -10,7 +10,7 @@ from ./util import log
 proc logRec(record: Record) =
     # I think len == stop-start+1, but I need to verify. ~cd
     var s: string
-    hts.sequence(record, s)
+    discard hts.sequence(record, s)
     log(format("$# $# ($#) [$# .. $#] $# seqlen=$#", record.tid, record.chrom, record.qname, record.start, record.stop,
         ($record.cigar).substr(0, 32), s.len()))
 
@@ -47,7 +47,7 @@ proc clips*(cigar: hts.Cigar): tuple[left: int, right: int] =
 
 proc calc_query_pos*(record: hts.Record): tuple[qstart: int, qend: int, qlen: int] =
     var q: string # temp
-    hts.sequence(record, q)
+    discard hts.sequence(record, q)
     
     var qlen: int = len(q)
     var qstart: int = 0
