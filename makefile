@@ -13,10 +13,17 @@ pretty:
 
 # These 3 rules are for mobs:
 build:
-	cd vendor/nim-networkx; nimble install
-	nimble build
+	mkdir -p ${NIMBLE_DIR}/pkgs/
+	# We need a no-internet flag for "nimble install".
+	# For now, we install manually.
+	rsync -av vendor/nim-networkx/src/ ${NIMBLE_DIR}/pkgs/networkx-1.0.0/
+	rsync -av vendor/nim-heap/ ${NIMBLE_DIR}/pkgs/binaryheap-0.1.1/
+	rsync -av vendor/hts-nim/src/ ${NIMBLE_DIR}/pkgs/hts-0.2.15/
+	rsync -av vendor/cligen/ ${NIMBLE_DIR}/pkgs/cligen-0.9.34/
+	nim c src/falconc.nim # uses NIMBLE_DIR
 install:
 	mkdir -p ${PREFIX}/bin
-	mv -f ./falconc ${PREFIX}/bin
+	mv -f src/falconc ${PREFIX}/bin
 clean:
-	rm -rf ./falconc ${NIMBLE_DIR}
+	rm -rf ~/.cache/nim/falconc* # race-condition here
+	rm -rf src/falconc ${NIMBLE_DIR}
