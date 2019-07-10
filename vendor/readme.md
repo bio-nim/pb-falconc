@@ -1,26 +1,26 @@
-# https://medium.com/@porteneuve/mastering-git-subtrees-943d29a798ec
+# PB Utilities
+So far, these are just Nim re-writes of
+http://bitbucket.pacificbiosciences.com:7990/users/zkronenberg/repos/utils/
 
-git remote add nim-kmers https://github.com/bio-nim/nim-kmers.git
-git remote add nim-networkx https://github.com/bio-nim/nim-networkx.git
-git fetch nim-kmers
-git fetch nim-networkx
+## Set up
 
-# To start from upstream:
-#git read-tree --prefix=vendor/nim-kmers -u nim-kmers/master
-#git read-tree --prefix=vendor/nim-networkx -u nim-networkx/nodi
+    source module.sh
+    export NIMBLE_DIR=$(pwd)/.git/nimble  # recommended
 
-# To update from upstream:
-#git merge -s subtree --squash nim-networkx/nodi
-## git merge -X subtree=vendor/nim-networkx --squash nim-networkx/nodi
-#git commit
+## Test
+To run unit-tests in the "tests/" directory:
 
-# To modify from here:
-#git checkout -B backport nim-networkx/nodi
-#git cherry-pick -x --strategy=subtree (commits)
-# --strategy=subtree is not usually needed.
+    nimble test
 
-# To create a new subtree from an existing directory:
-#git co -B split
-#git filter-branch --subdirectory-filter vendor/mything
-#git remote add mything URL
-#git push -u mything split:master
+## Test integration
+
+    nimble integ  # redundant with our unit-tests, but you get the idea
+
+## Install
+
+    nimble install
+
+## Debug and develop
+
+    make
+    make integ
