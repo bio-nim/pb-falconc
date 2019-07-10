@@ -20,7 +20,7 @@ build:
 	rsync -av vendor/nim-heap/ ${NIMBLE_DIR}/pkgs/binaryheap-0.1.1/
 	rsync -av vendor/hts-nim/src/ ${NIMBLE_DIR}/pkgs/hts-0.2.15/
 	rsync -av vendor/cligen/ ${NIMBLE_DIR}/pkgs/cligen-0.9.34/
-	nim c src/falconc.nim # uses NIMBLE_DIR
+	nim c --listCmd src/falconc.nim # uses NIMBLE_DIR
 install:
 	mkdir -p ${PREFIX}/bin
 	mv -f src/falconc ${PREFIX}/bin
