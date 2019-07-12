@@ -11,6 +11,7 @@ case "${bamboo_planRepository_branchName}" in
   develop|master)
     export PREFIX_ARG="/mnt/software/f/falconc/${bamboo_planRepository_branchName}"
     PREFIX=${PREFIX_ARG} make install
+    module load htslib
     ${PREFIX_ARG}/bin/falconc --help
     ;;
   *)
