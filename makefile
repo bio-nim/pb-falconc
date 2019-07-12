@@ -9,7 +9,7 @@ default:
 test:
 	nimble test --debug # uses "tests/" directory by default
 pretty:
-	find . -name '*.nim' | xargs -L1 nimpretty --indent=4
+	find src -name '*.nim' | xargs -L1 nimpretty --indent=4
 
 # These 3 rules are for mobs/bamboo:
 # Someday maybe --nimcache:${CURDIR}/.cache-nim
