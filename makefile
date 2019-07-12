@@ -11,7 +11,7 @@ test:
 pretty:
 	find . -name '*.nim' | xargs -L1 nimpretty --indent=4
 
-# These 3 rules are for mobs:
+# These 3 rules are for mobs/bamboo:
 # Someday maybe --nimcache:${CURDIR}/.cache-nim
 build:
 	mkdir -p ${NIMBLE_DIR}/pkgs/
@@ -21,10 +21,14 @@ build:
 	rsync -av vendor/nim-heap/ ${NIMBLE_DIR}/pkgs/binaryheap-0.1.1/
 	rsync -av vendor/hts-nim/src/ ${NIMBLE_DIR}/pkgs/hts-0.2.15/
 	rsync -av vendor/cligen/ ${NIMBLE_DIR}/pkgs/cligen-0.9.34/
-	nim c --listCmd src/falconc.nim # uses NIMBLE_DIR
+	nim c --listCmd -d:release src/falconc.nim # uses NIMBLE_DIR
 install:
 	mkdir -p ${PREFIX}/bin
 	mv -f src/falconc ${PREFIX}/bin
 clean:
-	rm -rf ~/.cache/nim/falconc* # race-condition here
+	#rm -rf ~/.cache/nim/falconc* # race-condition here
 	rm -rf src/falconc ${NIMBLE_DIR}
+
+#These might control the cache-dir:
+# XDG_CACHE_HOME
+# XDG_CONFIG_HOME
