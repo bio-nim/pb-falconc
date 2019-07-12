@@ -46,7 +46,7 @@ public class PlanSpec {
                                 new ScriptTask()
                                     .description("build")
                                     .location(ScriptTaskProperties.Location.FILE)
-                                    .fileFromPath("build.sh"))
+                                    .fileFromPath("bamboo_build.sh"))
                             .requirements(new Requirement("system.os")
                                     .matchValue("linux")
                                     .matchType(Requirement.MatchType.EQUALS))))
