@@ -1,34 +1,18 @@
+include common.makefile
+
 PREFIX?=${CURDIR}
 NIMBLE_DIR?=${CURDIR}/nimbleDir
 export NIMBLE_DIR
 # or use --nimbleDir:${NIMBLE_DIR} everywhere
 NIMBLE_INSTALL=nimble install --debug -y
 
-D=/pbi/flash/cdunn/bb/dipsim
-run:
-	./falconc phasr -a $D/alignments/aln.0.001_0.001.sort.bam -r $D/rangen/random.fa -o results
-
+default: build
 nim:
 	nim c --listCmd -d:release src/falconc.nim # uses NIMBLE_DIR
-all:
-	${MAKE} sub
-	${NIMBLE_INSTALL}
-quick:
-	nim c -r tests/t_kmers.nim
-integ:
-	${MAKE} -C integ-tests
-	nimble integ --debug # slow, for now
-help:
-	nimble -h
-	nimble tasks
 test:
-	nimble test --debug # uses "tests/" directory by default
-sub:
-	#cd repos/cligen; nimble develop  # so we never need to reinstall after edits
-	#cd vendor/nim-kmers; ${NIMBLE_INSTALL}
-	cd vendor/nim-networkx; ${NIMBLE_INSTALL}
-pretty:
-	find src tests integ-tests -name '*.nim' | xargs -L1 nimpretty --indent=4
+	${MAKE} -C tests/
+integ:
+	${MAKE} -C integ-tests/
 rsync:
 	mkdir -p ${NIMBLE_DIR}/pkgs/
 	rsync -av vendor/nim-networkx/src/ ${NIMBLE_DIR}/pkgs/networkx-1.0.0/

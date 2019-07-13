@@ -1,30 +1,55 @@
 # Falcon C Utilities
 
 ## Requirements
-We need **htslib** at runtime (via `dlopen()`).
+We need **htslib** and **zlib** at runtime (via `dlopen()`).
+
+## Set up
+
+    source bash/module.sh
+    export NIMBLE_DIR=$(pwd)/.git/NIMBLE_DIR  # e.g.
+
+## Two universes
+
+### Internet
+
+With web access, we can use **nimble** to install **nim** dependencies.
+
+However, one dependency is not yet in nimble: **networkx**.
+You can "nimble install" networkx via
+
+    make -f nimble.makefile sub
+
+(We should probably copy networkx under src/ until it is a nimble-package. TODO.)
+
+After that, all the standard "nimble" commands work. The `nimble.makefile`
+shows how to run those, but `nimble --help` should suffice.
+
+### Non-internet
+
+When we build for mobs or bamboo, we lack web access.
 
 All the **nim** dependencies are under `vendor/` as
 "subtrees". (See `vendor/readme.md`)
 
-## Set up
+To install from "vendor", use
 
-    source module.sh
-    export NIMBLE_DIR=$(pwd)/.git/nimble  # recommended
+    make rsync
 
-## Test
-To run unit-tests in the "tests/" directory:
+Then, the standard "nimble" commands will *not* work,
+but the standard "nim" commands will!
 
-    nimble test
+    make rsync
+    nim c src/falconc.nim
 
-## Test integration
+Or simply:
 
-    nimble integ  # redundant with our unit-tests, but you get the idea
+    make test
+    make integ  # currently broken
+    make build
+    make install
 
-## Install
+### Note: No mixing!
 
-    nimble install
+You must use *either* `nimble` *or* `rsync/nim`.
 
-## Debug and develop
-
-    make
-    make integ
+"nimble" will not work properly on the rsynced vendor packages.
