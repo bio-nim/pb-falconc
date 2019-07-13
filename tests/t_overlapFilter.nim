@@ -6,7 +6,7 @@ import falconcpkg/overlapFilter
  000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained
 ]#
 
-suite "parseOK":
+suite "overlapFilter parseOK":
     let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained"
     let parsed = parseOvl(record1)
     test "ids":
@@ -29,7 +29,7 @@ suite "parseOK":
         check parsed.l1 == 9656
         check parsed.l2 == 12247
 
-suite "containedOK":
+suite "overlapFilter containedOK":
     test "contained":
         let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained"
         let parsed = parseOvl(record1)
@@ -39,7 +39,7 @@ suite "containedOK":
         let parsed = parseOvl(record1)
         check contained(parsed) == false
 
-suite "idtOK":
+suite "overlapFilter idtOK":
     let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained"
     let parsed = parseOvl(record1)
     test "ranges":
@@ -49,7 +49,7 @@ suite "idtOK":
         check lowIdt(parsed, 98.67) == false
         check lowIdt(parsed, 98.68) == true
 
-suite "overlapFraction":
+suite "overlapFilter Fraction":
     test "lOverlap false":
         let record1 = "000000010 000000578 -13654 99.69 0 0 13668 15613 1 0 13654 16307 overlap"
         let parsed = parseOvl(record1)
@@ -59,7 +59,7 @@ suite "overlapFraction":
         let parsed = parseOvl(record1)
         check checkFractionOverlap(parsed, 10.0, 90.0) == true
 
-suite "terminatedAlignments":
+suite "overlapFilter terminatedAlignments":
     test "readA pass start":
         let record1 = "000000001 000002664 -5006 98.58 0 0 5004 9656 1 0 5006 10117 overlap"
         let parsed = parseOvl(record1)

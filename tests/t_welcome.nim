@@ -9,5 +9,5 @@
 import falconcpkg/welcome
 import unittest
 
-test "correct welcome":
+test "welcome":
     check getWelcomeMessage() == "Hello, World!"
