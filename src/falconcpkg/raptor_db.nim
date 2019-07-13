@@ -62,11 +62,13 @@ type
 
 proc initSeqLineWriter(sout: File, block_size_MB: int): SeqLineWriter =
     let block_size = block_size_MB * 1024 * 1024
-    return SeqLineWriter(num_seq_lines: 0, sout: sout, num_bases_written: 0, block_size: block_size,
+    return SeqLineWriter(num_seq_lines: 0, sout: sout, num_bases_written: 0,
+            block_size: block_size,
         block_start_bases: 0, block_start_id: 0, num_blocks: 0)
 proc write_block(w: var SeqLineWriter) =
     let curr_bases_in_block = w.num_bases_written - w.block_start_bases;
-    let line = fmt("B\t{w.num_blocks}\t{w.block_start_id}\t{w.num_seq_lines}\t{curr_bases_in_block}\n")
+    let line = fmt(
+            "B\t{w.num_blocks}\t{w.block_start_id}\t{w.num_seq_lines}\t{curr_bases_in_block}\n")
     w.sout.write(line)
     inc w.num_blocks
     w.block_start_id = w.num_seq_lines
@@ -126,7 +128,7 @@ proc stream(sin, sout: File, blacklist: sets.HashSet[string]) =
             continue
 
 
-proc filter*(blacklist_fn: string="") =
+proc filter*(blacklist_fn: string = "") =
     ## Read/write raptor-db to/from stdin/stdout.
     ## Exclude zmws in blacklist.
     util.log("filter sans ", blacklist_fn)
@@ -139,6 +141,7 @@ proc filter*(blacklist_fn: string="") =
         for zmw in lines(sin):
             util.log(fmt("Skipping ({zmw})"))
             if sets.contains(blacklist, zmw):
-                util.raiseEx(fmt("Found a repeat in blacklist '{blacklist_fn}': '{zmw}'\n Something is wrong!"))
+                util.raiseEx(fmt(
+                        "Found a repeat in blacklist '{blacklist_fn}': '{zmw}'\n Something is wrong!"))
             sets.incl(blacklist, zmw)
     stream(stdin, stdout, blacklist)

@@ -15,18 +15,19 @@ from ./util import raiseEx
 import networkx/classes/wgraph
 import networkx/classes/graph
 from networkx/algorithms/components/connectedc import connected
-from "./kmers" import pot_t, spot_t, Dna, dna_to_kmers, initSpot, difference, uniqueShared, nuniq #import kmers
+from "./kmers" import pot_t, spot_t, Dna, dna_to_kmers, initSpot, difference,
+    uniqueShared, nuniq       #import kmers
 
 type
- opts = object
-  kmersize, iterations: int
-  delta: float
-  out_fn: string
+    opts = object
+        kmersize, iterations: int
+        delta: float
+        out_fn: string
 
 var globalOpts = opts()
 
 var inverse = newTable[int, string]() # readid -> name
-var rpos    = newTable[string, int]()
+var rpos = newTable[string, int]()
 
 proc getWithin(u: Node, g: ref Graph[int], phase: TableRef[int, int]): float =
     var
@@ -37,52 +38,53 @@ proc getWithin(u: Node, g: ref Graph[int], phase: TableRef[int, int]): float =
         inc(totalc)
         phases.inc(phase[v])
         if phase[u] == phase[v]:
-             within += w
+            within += w
         totalw += w
 
     result = float(within)/float(totalw)
 
 
-proc ranScore(n: int, scores: var seq[float]): float=
- result = 0
- shuffle(scores)
- for i in 1..n:
-   result += scores[i]
- result = result / float(n)
+proc ranScore(n: int, scores: var seq[float]): float =
+    result = 0
+    shuffle(scores)
+    for i in 1..n:
+        result += scores[i]
+    result = result / float(n)
 
 proc switchState(n: Node, g: ref Graph[int], p: TableRef[int, int],
         ploidy: int, iter: int, temp: float) =
 
-        var
-         phaseW = initTable[int, int]()
-         phaseC = initTable[int, int]()
-         phaseD = initTable[int, float]()
-         denSum : float = 0
+    var
+        phaseW = initTable[int, int]()
+        phaseC = initTable[int, int]()
+        phaseD = initTable[int, float]()
+        denSum: float = 0
 
-        for i in 0..ploidy-1:
-          phaseW[i] = 0
-          phaseC[i] = 0
-          phaseD[i] = 0.0
+    for i in 0..ploidy-1:
+        phaseW[i] = 0
+        phaseC[i] = 0
+        phaseD[i] = 0.0
 
-        for v, w in successors(g, n):
-          phaseW[p[v]] += w
-          phaseC[p[v]] += 1
+    for v, w in successors(g, n):
+        phaseW[p[v]] += w
+        phaseC[p[v]] += 1
 
-        for i in 0..ploidy-1:
-          phaseD[i] = float(phaseW[i]) / float(phaseC[i])
-          denSum += phaseD[i]
+    for i in 0..ploidy-1:
+        phaseD[i] = float(phaseW[i]) / float(phaseC[i])
+        denSum += phaseD[i]
 
-        for i in 0..ploidy-1:
-         phaseD[i] /= denSum
+    for i in 0..ploidy-1:
+        phaseD[i] /= denSum
 
-        var newPhase = (p[n] + 1 + rand(ploidy - 2)) mod ploidy
-        var prop: float = pow(E, ((phaseD[newPhase] - phaseD[p[n]])/temp))
+    var newPhase = (p[n] + 1 + rand(ploidy - 2)) mod ploidy
+    var prop: float = pow(E, ((phaseD[newPhase] - phaseD[p[n]])/temp))
 
-        if iter mod 1000 == 0:
-         echo prop, " ", phaseD[newPhase], " ", " ", phaseD[p[n]], " ", temp, " ", iter
+    if iter mod 1000 == 0:
+        echo prop, " ", phaseD[newPhase], " ", " ", phaseD[p[n]], " ", temp,
+            " ", iter
 
-        if prop > rand(1.0):
-         p[n] = newPhase
+    if prop > rand(1.0):
+        p[n] = newPhase
 
 
 
@@ -116,12 +118,12 @@ proc algo(
 
     var nSeq = newSeq[Node]()
     for v in nodes(g):
-     nSeq.add(v)
+        nSeq.add(v)
 
     var
-     temp, minTemp, alpha: float = 0
-    temp    = 1.0
-    alpha   = 0.90
+        temp, minTemp, alpha: float = 0
+    temp = 1.0
+    alpha = 0.90
     minTemp = 0.0001
 
 
@@ -131,7 +133,7 @@ proc algo(
             switchState(v, g, phase, ploidy = ploidy, i, temp)
             stats[v].total += 1
             stats[v].hist[phase[v]] += 1
-          #  echo "PD\t{i}\t{v}\t{phase[v]}\t{inverse[v]}".fmt
+        #  echo "PD\t{i}\t{v}\t{phase[v]}\t{inverse[v]}".fmt
         var score = overallScore(g, phase)
         if (i mod 100) == 0:
             echo fmt("currently at i={i}, score={score:0.3f}")
@@ -152,12 +154,12 @@ proc algo(
                 frqRes[rid] = histf[i]
         # Read was removed before algorithm (zero weights across all edges). This shoudl not be hit, but will remain for satefy.
         if not (rid in frqRes):
-         output.write("-1\t-1\t-1\t\t0.0\t{inverse[rid]}\n".fmt)
-         continue
+            output.write("-1\t-1\t-1\t\t0.0\t{inverse[rid]}\n".fmt)
+            continue
         # If the Frequency is not high enough node is removed.
         if frqRes[rid] < globalOpts.delta:
-         output.write("-1\t-1\t-1\t\t{frqRes[rid]}\t{inverse[rid]}\n".fmt)
-         wgraph.remove_node(g, rid.Node)
+            output.write("-1\t-1\t-1\t\t{frqRes[rid]}\t{inverse[rid]}\n".fmt)
+            wgraph.remove_node(g, rid.Node)
 
     var seen = sets.initHashSet[int]()
     var phaseBlock = 0
@@ -169,7 +171,8 @@ proc algo(
             if seen.contains(n):
                 continue
             seen.incl(n)
-            output.write("{n}\t{phaseBlock}\t{result[n]}\t{frqRes[n]}\t{inverse[n]}\n".fmt)
+            output.write(
+                    "{n}\t{phaseBlock}\t{result[n]}\t{frqRes[n]}\t{inverse[n]}\n".fmt)
     output.close()
 
 proc showRec(record: Record) =
@@ -304,7 +307,8 @@ iterator overlaps(b: hts.Bam, klen: int, rseq: string): Pileup =
                 let gotAnother = nextBamRecord(next, b, new_record)
                 if not gotAnother:
                     break     # but keep processing the queue
-                queue.addLast(processRecord(new_record, globalOpts.kmersize, rseq))
+                queue.addLast(processRecord(new_record, globalOpts.kmersize,
+                        rseq))
 
         # Yield the current record.
         #echo fmt("Yield at [{current.start}, {current.stop}) for current_queue_index={current_queue_index}")
@@ -322,7 +326,8 @@ proc jaccardDist*(a, b: ProcessedRecord): float =
     #echo format(" num/den=$#/($#+$#) == $#", num, da, db, num/den)
     return num/den
 
-proc readaln*(bfn: string; fasta: string): tuple[t:TableRef[string, int], g:ref Graph[int]] =
+proc readaln*(bfn: string; fasta: string): tuple[t: TableRef[string, int],
+        g: ref Graph[int]] =
     var b: hts.Bam
 
     let g = newGraph[int]()
@@ -364,24 +369,26 @@ proc readaln*(bfn: string; fasta: string): tuple[t:TableRef[string, int], g:ref 
 
 
 
-proc main*(aln_fn: string, ref_fn: string, out_fn: string, iterations = 1000, kmersize = 21, delta=0.75) =
+proc main*(aln_fn: string, ref_fn: string, out_fn: string, iterations = 1000,
+        kmersize = 21, delta = 0.75) =
     ##Phase PacBio CCS/HIFI reads.
 
     globalOpts.iterations = iterations
-    globalOpts.kmersize   = kmersize
-    globalOpts.delta      = delta
-    globalOpts.out_fn     = out_fn
+    globalOpts.kmersize = kmersize
+    globalOpts.delta = delta
+    globalOpts.out_fn = out_fn
 
     #prime random
     randomize()
 
 
-    echo "[INFO] input reference (fasta):", ref_fn, "\n[INFO] alignment (reads):", aln_fn
+    echo "[INFO] input reference (fasta):", ref_fn,
+        "\n[INFO] alignment (reads):", aln_fn
     if strutils.find(ref_fn, "fa") == -1:
         echo format("[WARN] Bad fasta filename? '$#'", ref_fn)
     var refx: hts.Fai
     if not hts.open(refx, ref_fn):
-     raiseEx(format("[FATAL] Could not open '$#'", ref_fn))
+        raiseEx(format("[FATAL] Could not open '$#'", ref_fn))
     #assert refx.len() == 1
     let reference_dna = refx.get(refx[0])
     var gdat = readaln(aln_fn, reference_dna)

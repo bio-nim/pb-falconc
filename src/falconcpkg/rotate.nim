@@ -9,7 +9,7 @@ import logging
 import os
 
 
-var logger* = newConsoleLogger(fmtStr="[$time] - $levelname: ")
+var logger* = newConsoleLogger(fmtStr = "[$time] - $levelname: ")
 addHandler(logger)
 
 type
@@ -22,10 +22,10 @@ type
         minv*: float
 
 proc checkEmptyFile(fin: string): bool =
- var finfo = getFileInfo(fin)
- if finfo.size == 0:
-  return true
- return false
+    var finfo = getFileInfo(fin)
+    if finfo.size == 0:
+        return true
+    return false
 
 proc calcSkew*(dna: string, win: int, step: int): skewDat =
     var sk: skewDat
@@ -61,7 +61,7 @@ proc printSkew*(seqname: string, sk: skewDat) =
                 2), " ", i.accum.formatFloat(ffDecimal, 2), "\n")
     output.close()
 
-proc randomize*(input: string, output: string, seed: int64=0) =
+proc randomize*(input: string, output: string, seed: int64 = 0) =
     ##randomly rotates left rotates the sequence and writes to the output file.
     if seed != 0:
         random.randomize(seed)
@@ -100,16 +100,16 @@ proc reorient(fin: string, fon: string, wl: string, w: int, s: int,
 
     var output = open(fon, fmWrite)
     defer:
-     output.close()
+        output.close()
 
     if checkEmptyFile(fin):
-     logger.log(lvlNotice, "Empty input, output will be empty.")
-     return
+        logger.log(lvlNotice, "Empty input, output will be empty.")
+        return
 
     var fai: Fai
     if not fai.open(fin):
-     logger.log(lvlFatal, "Problem loading fasta file")
-     quit 1
+        logger.log(lvlFatal, "Problem loading fasta file")
+        quit 1
 
     var whiteList = loadWhiteList(wl)
 
@@ -135,7 +135,7 @@ proc main*(input: string, output: string, wl = "", window = 500, step = 200,
         print = false) =
     ##reorients circular sequences based on gc-skew distribution and writes to output.
     if input == "" or output == "":
-        logger.log(lvlFatal, "Missing input or output required options." )
+        logger.log(lvlFatal, "Missing input or output required options.")
         quit 1
     logger.log(lvlInfo, "Reorienting.")
     reorient(input, output, wl, window, step, print)

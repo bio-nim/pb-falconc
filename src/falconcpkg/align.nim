@@ -11,7 +11,8 @@ proc logRec(record: Record) =
     # I think len == stop-start+1, but I need to verify. ~cd
     var s: string
     discard hts.sequence(record, s)
-    log(format("$# $# ($#) [$# .. $#] $# seqlen=$#", record.tid, record.chrom, record.qname, record.start, record.stop,
+    log(format("$# $# ($#) [$# .. $#] $# seqlen=$#", record.tid, record.chrom,
+            record.qname, record.start, record.stop,
         ($record.cigar).substr(0, 32), s.len()))
 
 type
@@ -45,10 +46,11 @@ proc clips*(cigar: hts.Cigar): tuple[left: int, right: int] =
 
     return (left, right)
 
-proc calc_query_pos*(record: hts.Record): tuple[qstart: int, qend: int, qlen: int] =
-    var q: string # temp
+proc calc_query_pos*(record: hts.Record): tuple[qstart: int, qend: int,
+        qlen: int] =
+    var q: string             # temp
     discard hts.sequence(record, q)
-    
+
     var qlen: int = len(q)
     var qstart: int = 0
     var qend: int = qlen
@@ -112,11 +114,12 @@ proc update_counts(bam_fn: string, params: Params,
 #    for line in lines(fn):
 #        sets.incl(result, line)
 
-proc align_filter*(bams_fofn: string, all_subread_names_fn="", min_len= -1, min_frac=0.70) =
+proc align_filter*(bams_fofn: string, all_subread_names_fn = "", min_len = -1,
+        min_frac = 0.70) =
     ## Print subreads which have decent alignments in any of the bam inputs.
     if min_len != -1:
         log("WARNING: --min-len ignored")
-    var params = Params(min_frac:min_frac)
+    var params = Params(min_frac: min_frac)
     log(params)
     #var all_subread_names = find_all(all_subread_names_fn)
     #log("all_subread_names.len=", sets.len(all_subread_names))
@@ -132,7 +135,8 @@ proc align_filter*(bams_fofn: string, all_subread_names_fn="", min_len= -1, min_
     #for key in sets.items(unmapped):
     #    tables.inc(exclusions, key)
     #log("exclusions.len=", tables.len(exclusions))
-    var sorted_exclusions: seq[string] = sequtils.toSeq(tables.keys(exclusions))
+    var sorted_exclusions: seq[string] = sequtils.toSeq(tables.keys(
+            exclusions))
     algorithm.sort(sorted_exclusions)
     for key in sorted_exclusions:
         #log("Count of '", key, "': ", everything[key])

@@ -1,26 +1,32 @@
+include common.makefile
+
 PREFIX?=${CURDIR}
 NIMBLE_DIR?=${CURDIR}/nimbleDir
 export NIMBLE_DIR
 # or use --nimbleDir:${NIMBLE_DIR} everywhere
 NIMBLE_INSTALL=nimble install --debug -y
 
-default:
-	${NIMBLE_INSTALL}
+default: build
+nim:
+	nim c --listCmd -d:release src/falconc.nim # uses NIMBLE_DIR
 test:
-	nimble test --debug # uses "tests/" directory by default
-pretty:
-	find . -name '*.nim' | xargs -L1 nimpretty --indent=4
+	${MAKE} -C tests/
+integ:
+	${MAKE} -C integ-tests/
+rsync:
+	mkdir -p ${NIMBLE_DIR}/pkgs/
+	rsync -av vendor/nim-networkx/src/ ${NIMBLE_DIR}/pkgs/networkx-1.0.0/
+	rsync -av vendor/nim-heap/ ${NIMBLE_DIR}/pkgs/binaryheap-0.1.1/
+	rsync -av vendor/hts-nim/src/ ${NIMBLE_DIR}/pkgs/hts-0.2.15/
+	rsync -av vendor/msgpack4nim/ ${NIMBLE_DIR}/pkgs/msgpack4nim-0.2.9/
+	rsync -av vendor/cligen/ ${NIMBLE_DIR}/pkgs/cligen-0.9.34/
 
 # These 3 rules are for mobs/bamboo:
 # Someday maybe --nimcache:${CURDIR}/.cache-nim
 build:
-	mkdir -p ${NIMBLE_DIR}/pkgs/
 	# We need a no-internet flag for "nimble install".
-	# For now, we install manually.
-	rsync -av vendor/nim-networkx/src/ ${NIMBLE_DIR}/pkgs/networkx-1.0.0/
-	rsync -av vendor/nim-heap/ ${NIMBLE_DIR}/pkgs/binaryheap-0.1.1/
-	rsync -av vendor/hts-nim/src/ ${NIMBLE_DIR}/pkgs/hts-0.2.15/
-	rsync -av vendor/cligen/ ${NIMBLE_DIR}/pkgs/cligen-0.9.34/
+	# For now, we rsync and install manually.
+	${MAKE} rsync
 	nim c --listCmd -d:release src/falconc.nim # uses NIMBLE_DIR
 install:
 	mkdir -p ${PREFIX}/bin
@@ -32,3 +38,5 @@ clean:
 #These might control the cache-dir:
 # XDG_CACHE_HOME
 # XDG_CONFIG_HOME
+
+.PHONY: test

@@ -243,7 +243,7 @@ proc cmp_seeds(a, b: seed_t): int =
 
 # Actual implementation, private.
 #
-proc make_searchable(seeds: var seq[seed_t], ht: var tables.TableRef[Bin, int]) =
+proc make_searchable(seeds: var seq[seed_t]; ht: var tables.TableRef[Bin, int]) =
     seeds.sort(cmp_seeds)
     ht = newTable[Bin, int]()
     #let dups = sets.initHashSet[Bin]()
@@ -274,7 +274,7 @@ proc initSpot*(kms: var pot_t): spot_t =
     result.word_size = kms.word_size
     shallowCopy(result.seeds, kms.seeds)
     #kms.seeds = @[]
-    kms = nil  # simpler, obvious move-construction
+    kms = nil                 # simpler, obvious move-construction
     make_searchable(result.seeds, result.ht)
 
 ##  Check for the presence or absence of a kmer in a
@@ -292,16 +292,16 @@ proc haskmer*(target: spot_t; query: Bin): bool =
 ## @param pot_t * - a pointer to a pot_t
 ## @return int - number of shared kmers
 #
-proc uniqueShared*(a,b: spot_t): int =
- result = 0
+proc uniqueShared*(a, b: spot_t): int =
+    result = 0
 
- for k in a.ht.keys():
-  if(haskmer(b, k)):
-   inc(result)
+    for k in a.ht.keys():
+        if(haskmer(b, k)):
+            inc(result)
 
 ## Find (target - remove), without altering target.
 #
-proc difference*(target: pot_t, remove: spot_t): pot_t =
+proc difference*(target: pot_t; remove: spot_t): pot_t =
     new(result)
     result.word_size = target.word_size
 
@@ -346,4 +346,4 @@ proc search*(target: spot_t; query: pot_t): deques.Deque[seed_pair_t] =
 ## TODO: add test coverage
 #
 proc nuniq*(pot: spot_t): int =
-  return len(pot.ht)
+    return len(pot.ht)
