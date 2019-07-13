@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 type module >& /dev/null || . /mnt/software/Modules/current/init/bash
 set -e
 source bash/module.sh
