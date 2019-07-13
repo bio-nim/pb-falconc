@@ -12,4 +12,13 @@ bin           = @["falconc"]
 
 # Dependencies
 
-requires "nim >= 0.20.0"
+requires "nim >= 0.20.0", "cligen", "hts", "networkx", "bitvector >= 0.4.10", "msgpack4nim"
+
+task integ, "Runs integration tests":
+  var cmd = ""
+  cmd = "nim c -r integ-tests/kmer_test1"
+  echo cmd
+  exec cmd
+  #cmd = "nim c -r integ-tests/phasr_test.nim"
+  #echo cmd
+  #exec cmd
