@@ -95,11 +95,11 @@ proc `$`(o: overlap): string =
     if o.strand1: strand1 = 1
     if o.strand2: strand2 = 1
 
-    result = "{o.ridA:09} {o.ridB:09} {o.score} {o.idt:.2f} {strand1} {o.start1} {o.end1} {o.l1} {strand2} {o.start2} {o.end2} {o.l2} {o.tag}".fmt
+    result = "{o.ridA:09} {o.ridB:09} {o.score} {o.idt:.3f} {strand1} {o.start1} {o.end1} {o.l1} {strand2} {o.start2} {o.end2} {o.l2} {o.tag}".fmt
 
 proc lowIdt*(o: overlap, idt: float): bool =
-    ##Check if percent idenity is below threshold
-    #This is a edge filter
+    ##Check if percent identity is below threshold
+    #This is a overlap filter
     if o.idt < idt:
         return true
     return false
@@ -147,8 +147,8 @@ proc missingTerminus*(o: overlap): bool =
 
 iterator abOvl(): seq[overlap] =
     var readA: int = -1
-    #This isn't guaranteed - most/all line lenghts were < 80?
-    var buff = newString(100)
+    #The buffer len of 500 should be adjusted if more fields are added.
+    var buff = newString(500)
     var ovls = newSeq[overlap]()
     discard readLine(stdin, buff)
     var ov = parseOvl(buff)
@@ -194,10 +194,6 @@ proc summarize(filterLog: string) =
      -----------B-----------
        ---A---
 
-    Gap in coverage read:
-     The coverage along the A-read drops below the default or user defined
-     cutoff (--minDepth 2)
-
     Low/High overlap count read:
      The number of overlaping B-reads is low/high on either side of the A-read.
      This filter is controlled by --minCov/--maxCov with defaults 2/200. In the
@@ -215,6 +211,8 @@ proc summarize(filterLog: string) =
     Gap in coverage read:
      There is a region along the A-read that has low coverage. The --gapFilt
      flag toggles this filter. The cutoff is controlled by (--minDepth 2).
+     Chimeric reads tend to have gaps in coverage since they contain sequences
+     not see in other reads.
 
 
     """
@@ -239,7 +237,7 @@ proc gapInCoverage(ovls: seq[overlap], minCov: int, minIdt: float): bool =
 
     positions.sort()
 
-    var posCount = initTable[int, int]()
+    var posCoverage = initTable[int, int]()
 
     var cov = 0
     for i in positions:
@@ -247,11 +245,11 @@ proc gapInCoverage(ovls: seq[overlap], minCov: int, minIdt: float): bool =
             inc(cov)
         else:
             dec(cov)
-        discard posCount.hasKeyOrPut(i.pos, 0)
-        posCount[i.pos] = cov
+        discard posCoverage.hasKeyOrPut(i.pos, 0)
+        posCoverage[i.pos] = cov
 
     #need a little buffer so counts can climb, 500bp from start and end
-    for k, v in posCount:
+    for k, v in posCoverage:
         if v < minCov and ((ep - k) > 500) and (k > 500):
             return true
     return false
@@ -394,7 +392,7 @@ proc runStage1*(
  maxCov: int = 200,
  minCov: int = 2,
  minLen: int = 6000,
- minidt: float = 95.0,
+ minIdt: float = 95.0,
  gapFilt: bool = false,
  minDepth: int = 2,
  blacklist: string) =
@@ -425,7 +423,7 @@ proc runStage2*(
 proc runner*(db: string,
  lasJson: string,
  idtStage1: float = 90.0,
- idtStage2: float = 95.5,
+ idtStage2: float = 90.0,
  minLen: int = 6000,
  minCov: int = 2,
  maxCov: int = 200,

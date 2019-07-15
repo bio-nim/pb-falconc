@@ -1,10 +1,12 @@
 # Falcon C Utilities
+ TODO: WHAT do they do?
 
 ## Requirements
-We need **htslib** and **zlib** at runtime (via `dlopen()`).
+- **nim (0.20.0 or greater)**
+- **htslib** at runtime
+- **zlib** at runtime (via `dlopen()`)
 
 ## Set up
-
     source bash/module.sh
     export NIMBLE_DIR=$(pwd)/.git/NIMBLE_DIR  # e.g.
 
