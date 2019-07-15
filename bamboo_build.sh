@@ -36,7 +36,6 @@ fi
 make rsync
 make test
 make build
-git clean -xdf .
 
 # Install
 
@@ -50,3 +49,5 @@ case "${bamboo_planRepository_branchName}" in
   *)
     ;;
 esac
+
+git clean -xdf .
