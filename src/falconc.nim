@@ -64,8 +64,8 @@ when isMainModule:
         [overlapFilter.runner, cmdName = "overlaps-runner",
          help = {
           "lasJson": "List of las files from falcon, e.g ../1-preads_ovl/las-merge-combine/las_fofn.json",
-          "idtStage1": "Stage one percent identity filter, formated as percentage, overlaps < %idt are skipped",
-          "idtStage1": "Stage two percent identify filter",
+          "idtStage1": "Stage one percent identity filter, formatted as percentage, overlaps < %idt are skipped",
+          "idtStage2": "Stage two percent identify filter",
           "minLen": "Minimum read length, reads shorter than minLen will be discarded",
           "minCov": "Minimum number of overlaps on either side of a read",
           "maxCov": "Maximum number of overlaps on either side of a read",
