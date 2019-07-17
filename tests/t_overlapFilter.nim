@@ -10,8 +10,8 @@ suite "overlapFilter parseOK":
     let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained"
     let parsed = parseOvl(record1)
     test "ids":
-        check parsed.ridA == 000000001
-        check parsed.ridB == 000001050
+        check parsed.ridA == "000000001"
+        check parsed.ridB == "000001050"
     test "score":
         check parsed.score == -9662
     test "idt":
