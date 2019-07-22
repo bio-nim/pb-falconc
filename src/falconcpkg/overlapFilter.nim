@@ -163,6 +163,8 @@ iterator abOvl(sin: Stream): seq[overlap] =
         ovls.add(ov)
     yield ovls
 
+
+
 proc summarize(filterLog: string, readsToFilter: var Table[string, int]) =
     var readFilterCounts = initCountTable[string]()
     for k, v in readsToFilter:
@@ -225,42 +227,90 @@ proc summarize(filterLog: string, fn: string) =
     fstream.unpack(readsToFilterSum)
     summarize(filterLog, readsToFilterSum)
 
-proc gapInCoverage(ovls: seq[overlap], minCov: int, minIdt: float): bool =
-    ##caculates the coverage in a linear pass. If the start or end < minCov there
+proc gapInCoverage(ovls: seq[overlap], minDepth: int, minIdt: float): bool =
+    ##Calculates the coverage in a linear pass. If the start or end < minCov there
 ##is a gap. The first and last position are skipped
     type PosAndTag = tuple
-        pos: int
+        pos: int #read a position
         tag: bool #starts are true ends are false
+        cli: bool #if start == 0 or end == len; is it a clipped read
+        loc: bool #is this a local align
+    type Info = tuple
+        cov: int #coverage
+        cco: int #clean cov
+        cli: int #clip
 
-    let slop = 50
-    var positions = newSeq[PosAndTag]()
     var ep = ovls[0].l1
+    var an = ovls[0].ridA
+    var clippedCount = 0
+    var passOvls = 0
+    var positions = newSeq[PosAndTag]()
 
     for i in ovls:
-        if i.idt < minIdt:
+        if i.idt < 95.0:
             continue
-        positions.add( (i.start1 + slop, true))
-        positions.add( (i.end1 - slop, false))
+        var clipped = (i.start2 != 0) and (i.end2 != i.l2)
+        var loc = (i.tag == "u")
+        positions.add( (i.start1, true, clipped, loc))
+        positions.add( (i.end1, false, clipped, loc))
 
     positions.sort()
 
-    var posCoverage = initTable[int, int]()
+    var runningClip, runningCov, runningClean = 0
+    var posInfo = initOrderedTable[int, Info]()
+    var cleanCovSum = 0
 
-    var cov = 0
-    for i in positions:
-        if i.tag == true:
-            inc(cov)
+    for i in 0 .. (positions.len() - 1):
+        if positions[i].tag:
+            inc(runningCov)
+            if not positions[i].loc:
+                inc(runningClean)
+            if positions[i].cli:
+                inc(runningClip)
         else:
-            dec(cov)
-        discard posCoverage.hasKeyOrPut(i.pos, 0)
-        posCoverage[i.pos] = cov
+            dec(runningCov)
+            dec(runningClip)
+            if not positions[i].loc:
+                dec(runningClean)
+        posInfo[positions[i].pos] = (runningCov, runningClean, max(0,
+                runningClip))
+        cleanCovSum += runningClean
 
-    #need a little buffer so counts can climb, 500bp from start and end
-    for k, v in posCoverage:
-        if v < minCov and ((ep - k) > 500) and (k > 500):
-            return true
+    var avgCleanCov = float(cleanCovSum) / float(positions.len())
+
+    if avgCleanCov < 5:
+        return false
+
+    var hasCovDip = false
+    var clipHigh = false
+    var lastOkCov = 0
+    var lastOkPos = 0
+    var count = 0
+
+    var clipCans = newSeq[int]()
+    var depthCans = newSeq[int]()
+    for i, j in posInfo:
+        if (j.cco - j.cli) < 5 and (j.cli > 2):
+            clipHigh = true
+            clipCans.add(i)
+        if j.cco >= minDepth:
+            if (count - lastOkCov) > 1 and (lastOkCov != 0):
+                hasCovDip = true
+                depthCans.add(i)
+                depthCans.add(lastOkPos)
+            lastOkCov = count
+            lastOkPos = i
+        inc(count)
+        #echo "{an} {i} {j.cov} allCov".fmt
+        #echo "{an} {i} {j.cco} cleanCov".fmt
+        #echo "{an} {i} {j.cli} clipCov".fmt
+    if clipHigh and hasCovDip:
+        for dp in depthCans:
+            for cp in clipCans:
+                #stderr.writeLine("POSS: {dp} {cp}".fmt)
+                if abs(dp - cp) < 500:
+                    return true
     return false
-
 
 proc stage1Filter*(overlaps: seq[overlap],
 maxDiff: int,
@@ -281,8 +331,11 @@ readsToFilter: var Table[string, int]) =
         if gapInCoverage(overlaps, minDepth, minIdt):
             discard readsToFilter.hasKeyOrPut(ridA, 0)
             readsToFilter[ridA] = readsToFilter[ridA] or GREAD
+            #stderr.writeLine("YES {ridA}".fmt)
 
     for i in overlaps:
+        if i.tag == "u":
+            continue
         if i.idt < minIdt:
             continue
         if(i.l1 < minLen):
@@ -353,6 +406,8 @@ proc stage2Filter(overlaps: seq[overlap],
             continue
         if i.ridB in readsToFilter:
             continue
+        if i.tag == "u":
+            continue
         if i.start1 == 0:
             left.add((i.score, i.l2 - (i.end2 - i.start2), i))
         elif i.end1 == i.l1:
@@ -417,7 +472,8 @@ proc doStage1(args: Stage1) =
     var readsToFilter1 = initTable[string, int]()
     for i in abOvl(args.sin):
         stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
-                args.minDepth, args.gapFilt, args.minIdt, readsToFilter1)
+                args.minDepth, args.gapFilt,
+                args.minIdt, readsToFilter1)
     var fstream = newFileStream(args.blacklist, fmWrite)
     defer: fstream.close()
     fstream.pack(readsToFilter1)
