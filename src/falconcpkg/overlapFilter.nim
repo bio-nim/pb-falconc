@@ -560,10 +560,6 @@ proc falconRunner*(db: string,
         msgpckFofnS1.writeLine("{counter}.stage1.tmp.msgpck".fmt)
     close(msgpckFofnS1)
 
-    #let stage1rv = execProcesses(stage1, options = {poEchoCmd}, n = nProc)
-    #if stage1rv != 0:
-    #    quit "[FATAL] stage one had a failure!"
-
     for x in stage1:
         spawn startStage1(x)
     sync()
@@ -575,10 +571,6 @@ proc falconRunner*(db: string,
                                  "falconc m4filt-merge-blacklist -b blacklist_msgpck.stage1.fofn -o merged_blacklist.stage1.msgpck")
     if merge1 != 0:
         quit "[FATAL] merge one failure!"
-
-    #let stage2rv = execProcesses(stage2, options = {poEchoCmd}, n = nProc)
-    #if stage2rv != 0:
-    #    quit "[FATAL] stage two had a failure!"
 
     for x in stage2:
         spawn startStage2(x)
@@ -663,10 +655,6 @@ proc ipaRunner*(ovlsFofn: string,
         msgpckFofnS1.writeLine("{counter}.stage1.tmp.msgpck".fmt)
     close(msgpckFofnS1)
 
-    #let stage1rv = execProcesses(stage1, options = {poEchoCmd}, n = nProc)
-    #if stage1rv != 0:
-    #    quit "[FATAL] stage one had a failure!"
-
     for x in stage1:
         spawn startStage1(x)
     sync()
@@ -674,10 +662,6 @@ proc ipaRunner*(ovlsFofn: string,
     let merge1 = execCmd("falconc m4filt-merge-blacklist -b blacklist_msgpck.stage1.fofn -o merged_blacklist.stage1.msgpck")
     if merge1 != 0:
         quit "[FATAL] merge one failure!"
-
-    #let stage2rv = execProcesses(stage2, options = {poEchoCmd}, n = nProc)
-    #if stage2rv != 0:
-    #    quit "[FATAL] stage two had a failure!"
 
     for x in stage2:
         spawn startStage2(x)
