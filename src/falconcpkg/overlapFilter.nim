@@ -70,7 +70,7 @@ type
 
 
 
-var readsToFilter = initTable[string, int]()
+#var readsToFilter = initTable[string, int]()
 
 proc parseOvl*(s: string): overlap =
     var ovl: overlap
@@ -147,16 +147,16 @@ proc missingTerminus*(o: overlap): bool =
 
 
 
-iterator abOvl(): seq[overlap] =
+iterator abOvl(sin: Stream): seq[overlap] =
     var readA: string
     #The buffer len of 500 should be adjusted if more fields are added.
     var buff = newString(500)
     var ovls = newSeq[overlap]()
-    discard readLine(stdin, buff)
+    discard readLine(sin, buff)
     var ov = parseOvl(buff)
     readA = ov.ridA
     ovls.add(ov)
-    while(readLine(stdin, buff)):
+    while(readLine(sin, buff)):
         ov = parseOvl(buff)
         if ov.ridA != readA:
             yield ovls
@@ -166,7 +166,7 @@ iterator abOvl(): seq[overlap] =
         ovls.add(ov)
     yield ovls
 
-proc summarize(filterLog: string) =
+proc summarize(filterLog: string, readsToFilter: var Table[string, int]) =
     var readFilterCounts = initCountTable[string]()
     for k, v in readsToFilter:
         if (v and CREAD) > 0: readFilterCounts.inc("contained read")
@@ -220,6 +220,12 @@ proc summarize(filterLog: string) =
     """
     fout.write(report)
 
+proc summarize(filterLog: string, fn: string) =
+    var readsToFilterSum = initTable[string, int]()
+    var fstream = newFileStream(fn, fmRead)
+    fstream.unpack(readsToFilterSum)
+    summarize(filterLog, readsToFilterSum)
+
 proc gapInCoverage(ovls: seq[overlap], minCov: int, minIdt: float): bool =
     ##caculates the coverage in a linear pass. If the start or end < minCov there
 ##is a gap. The first and last position are skipped
@@ -264,7 +270,8 @@ minOvlp: int,
 minLen: int,
 minDepth: int,
 gapFilt: bool,
-minIdt: float) =
+minIdt: float,
+readsToFilter: var Table[string, int]) =
 
     var fivePrimeCount, threePrimeCount: int = 0
     var ridA = overlaps[0].ridA
@@ -333,7 +340,8 @@ proc comp(x, y: ScoredOverlap): int =
 
 proc stage2Filter(overlaps: seq[overlap],
  minIdt: float,
- bestN: int): seq[string] =
+ bestN: int,
+ readsToFilter: var Table[string, int]): seq[string] =
 
     var left, right: seq[ScoredOverlap]
     result = newSeq[string]()
@@ -364,7 +372,8 @@ proc stage2Filter(overlaps: seq[overlap],
         if i >= bestN and right[i].mRange > 1000:
             break
 
-proc mergeBlacklists*(blistFofn: string, outFn: string) =
+proc mergeBlacklists*(blistFofn: string,
+ readsToFilter: var Table[string, int]) =
     let f = open(blistFofn, fmRead)
     defer: f.close()
 
@@ -380,15 +389,49 @@ proc mergeBlacklists*(blistFofn: string, outFn: string) =
                 readsToFilter[k] = (readsToFilter[k] or v)
             else:
                 readsToFilter[k] = v
-    var fstream = newFileStream(outFn, fmWrite)
-    fstream.pack(readsToFilter)
 
-proc dumpBlacklist*(blacklist: string) =
-    var fstream = newFileStream(blacklist, fmRead)
-    fstream.unpack(readsToFilter)
+proc dumpBlacklist*(readsToFilter: var Table[string, int]) =
     for k, v in readsToFilter:
         echo "{k:09} {v}".fmt
 
+type
+    Stage1 = ref object
+        icmd: string
+        sin: Stream
+        maxDiff: int
+        maxCov: int
+        minCov: int
+        minLen: int
+        minIdt: float
+        gapFilt: bool
+        minDepth: int
+        blacklist: string
+    Stage2 = ref object
+        icmd: string
+        sin: Stream
+        minIdt: float
+        bestN: int
+        blacklistIn: string
+        filteredOutput: string
+proc doStage1(args: Stage1) =
+    var readsToFilter1 = initTable[string, int]()
+    for i in abOvl(args.sin):
+        stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen, args.minDepth, args.gapFilt,
+                args.minIdt, readsToFilter1)
+    var fstream = newFileStream(args.blacklist, fmWrite)
+    fstream.pack(readsToFilter1)
+proc doStage2(args: Stage2) =
+    var readsToFilter2 = initTable[string, int]()
+    var fstream = newFileStream(args.blacklistIn, fmRead)
+    fstream.unpack(readsToFilter2)
+
+    var output = open(args.filteredOutput, fmWrite)
+    defer: output.close()
+
+    for i in abOvl(args.sin):
+        let lines = stage2Filter(i, args.minIdt, args.bestN, readsToFilter2)
+        for l in lines:
+            output.writeLine(l)
 proc runStage1*(
  maxDiff: int = 100,
  maxCov: int = 200,
@@ -397,30 +440,48 @@ proc runStage1*(
  minIdt: float = 95.0,
  gapFilt: bool = false,
  minDepth: int = 2,
- blacklist: string) =
-
-    for i in abOvl():
-        stage1Filter(i, maxDiff, maxCov, minCov, minLen, minDepth, gapFilt,
-                minIdt)
-    var fstream = newFileStream(blacklist, fmWrite)
-    fstream.pack(readsToFilter)
+ blacklist: string
+    ) =
+    var args = Stage1(
+        maxDiff:maxDiff,
+        maxCov:maxCov,
+        minCov:minCov,
+        minLen:minLen,
+        minIdt:minIdt,
+        gapFilt:gapFilt,
+        minDepth:minDepth,
+        blacklist:blacklist)
+    args.sin = newFileStream(stdin)
+    doStage1(args)
 
 proc runStage2*(
  minIdt: float = 90.0,
  bestN: int = 10,
  blacklistIn: string,
- filteredOutput: string) =
+ filteredOutput: string
+    ) =
+    var args = Stage2(
+        minIdt:minIdt,
+        bestN:bestN,
+        filteredOutput:filteredOutput,
+        blacklistIn:blacklistIn)
+    args.sin = newFileStream(stdin)
+    doStage2(args)
 
-    var fstream = newFileStream(blacklistIn, fmRead)
+proc runMergeBlacklists*(blistFofn: string, outFn: string) =
+    var readsToFilter = initTable[string, int]()
+
+    mergeBlacklists(blistFofn, readsToFilter)
+
+    var fstream = newFileStream(outFn, fmWrite)
+    fstream.pack(readsToFilter)
+
+proc runDumpBlacklist*(blacklist: string) =
+    var readsToFilter = initTable[string, int]()
+    var fstream = newFileStream(blacklist, fmRead)
     fstream.unpack(readsToFilter)
 
-    var output = open(filteredOutput, fmWrite)
-    defer: output.close()
-
-    for i in abOvl():
-        let lines = stage2Filter(i, minIdt, bestN)
-        for l in lines:
-            output.writeLine(l)
+    dumpBlacklist(readsToFilter)
 
 proc falconRunner*(db: string,
  lasJson: string,
@@ -494,10 +555,7 @@ proc falconRunner*(db: string,
             outFile.writeLine(line)
     outFile.writeLine("---")
 
-    var fstream = newFileStream("merged_blacklist.stage1.msgpck", fmRead)
-    fstream.unpack(readsToFilter)
-
-    summarize(filterLog)
+    summarize(filterLog, "merged_blacklist.stage1.msgpck")
 
 proc ipaRunner*(ovlsFofn: string,
  idtStage1: float = 90.0,
@@ -562,9 +620,8 @@ proc ipaRunner*(ovlsFofn: string,
         for line in ov.lines:
             outFile.writeLine(line)
     outFile.writeLine("---")
-    var fstream = newFileStream("merged_blacklist.stage1.msgpck", fmRead)
-    fstream.unpack(readsToFilter)
-    summarize(filterLog)
+
+    summarize(filterLog, "merged_blacklist.stage1.msgpck")
 
 
 proc main() =
