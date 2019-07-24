@@ -433,6 +433,18 @@ proc doStage2(args: Stage2) =
         let lines = stage2Filter(i, args.minIdt, args.bestN, readsToFilter2)
         for l in lines:
             output.writeLine(l)
+proc startStage1(args: Stage1) =
+    var p = startProcess(command=args.icmd, options={poEvalCommand, poStdErrToStdOut})
+    var argsx = args
+    argsx.sin = p.outputStream
+    doStage1(argsx)
+    p.close()
+proc startStage2(args: Stage2) =
+    var p = startProcess(command=args.icmd, options={poEvalCommand, poStdErrToStdOut})
+    var argsx = args
+    argsx.sin = p.outputStream
+    doStage2(argsx)
+    p.close()
 proc runStage1*(
  maxDiff: int = 100,
  maxCov: int = 200,
@@ -558,10 +570,6 @@ proc falconRunner*(db: string,
 
     summarize(filterLog, "merged_blacklist.stage1.msgpck")
 
-proc startStage1(args: Stage1) =
-    discard
-proc startStage2(args: Stage2) =
-    discard
 proc ipaRunner*(ovlsFofn: string,
  idtStage1: float = 90.0,
  idtStage2: float = 90.0,
