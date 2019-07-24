@@ -147,16 +147,16 @@ proc missingTerminus*(o: overlap): bool =
 
 
 
-iterator abOvl(): seq[overlap] =
+iterator abOvl(sin: Stream): seq[overlap] =
     var readA: string
     #The buffer len of 500 should be adjusted if more fields are added.
     var buff = newString(500)
     var ovls = newSeq[overlap]()
-    discard readLine(stdin, buff)
+    discard readLine(sin, buff)
     var ov = parseOvl(buff)
     readA = ov.ridA
     ovls.add(ov)
-    while(readLine(stdin, buff)):
+    while(readLine(sin, buff)):
         ov = parseOvl(buff)
         if ov.ridA != readA:
             yield ovls
@@ -396,7 +396,8 @@ proc dumpBlacklist*(readsToFilter: var Table[string, int]) =
 
 type
     Stage1 = ref object
-        stream: FileStream  # not yet used
+        icmd: string
+        sin: Stream
         maxDiff: int
         maxCov: int
         minCov: int
@@ -406,14 +407,15 @@ type
         minDepth: int
         blacklist: string
     Stage2 = ref object
-        stream: FileStream  # not yet used
+        icmd: string
+        sin: Stream
         minIdt: float
         bestN: int
         blacklistIn: string
         filteredOutput: string
 proc doStage1(args: Stage1) =
     var readsToFilter1 = initTable[string, int]()
-    for i in abOvl():
+    for i in abOvl(args.sin):
         stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen, args.minDepth, args.gapFilt,
                 args.minIdt, readsToFilter1)
     var fstream = newFileStream(args.blacklist, fmWrite)
@@ -426,7 +428,7 @@ proc doStage2(args: Stage2) =
     var output = open(args.filteredOutput, fmWrite)
     defer: output.close()
 
-    for i in abOvl():
+    for i in abOvl(args.sin):
         let lines = stage2Filter(i, args.minIdt, args.bestN, readsToFilter2)
         for l in lines:
             output.writeLine(l)
@@ -449,6 +451,7 @@ proc runStage1*(
         gapFilt:gapFilt,
         minDepth:minDepth,
         blacklist:blacklist)
+    args.sin = newFileStream(stdin)
     doStage1(args)
 
 proc runStage2*(
@@ -462,6 +465,7 @@ proc runStage2*(
         bestN:bestN,
         filteredOutput:filteredOutput,
         blacklistIn:blacklistIn)
+    args.sin = newFileStream(stdin)
     doStage2(args)
 
 proc runMergeBlacklists*(blistFofn: string, outFn: string) =
