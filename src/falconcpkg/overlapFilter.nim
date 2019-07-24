@@ -1,3 +1,4 @@
+import threadpool
 import sets
 import tables
 from strutils import split, parseInt, parseFloat, parseBool
@@ -557,6 +558,10 @@ proc falconRunner*(db: string,
 
     summarize(filterLog, "merged_blacklist.stage1.msgpck")
 
+proc startStage1(args: Stage1) =
+    discard
+proc startStage2(args: Stage2) =
+    discard
 proc ipaRunner*(ovlsFofn: string,
  idtStage1: float = 90.0,
  idtStage2: float = 90.0,
@@ -583,34 +588,66 @@ proc ipaRunner*(ovlsFofn: string,
             continue
         m4s.add(l)
 
-    var stage1 = newSeq[string]()
-    var stage2 = newSeq[string]()
+    var stage1 = newSeq[Stage1]()
+    var stage2 = newSeq[Stage2]()
     var ovls = newSeq[string]()
 
-    var gapFiltOpts = ""
-    if gapFilt:
-        gapFiltOpts = "--minDepth {minDepth} --gapFilt".fmt
+    let minDepthGapFilt =
+        if gapFilt:
+            minDepth
+        else:
+            0
     var counter = 0
     var msgpckFofnS1 = open("blacklist_msgpck.stage1.fofn", fmWrite)
     for ms in m4s:
         inc(counter)
-        stage1.add("cat {ms} | falconc m4filt-stage1 --minIdt {idtStage1} {gapFiltOpts} --minLen {minLen} --minCov {minCov} --maxCov {maxCov} --maxDiff {maxDiff} --blacklist {counter}.stage1.tmp.msgpck".fmt)
-        stage2.add("cat {ms} | falconc m4filt-stage2 --minIdt {idtStage2} --bestN {bestN}  --blacklistIn merged_blacklist.stage1.msgpck --filteredOutput {counter}.tmp.ovl".fmt)
+        let icmd = "cat {ms}".fmt
+
+        let blacklist = "{counter}.stage1.tmp.msgpck".fmt
+        let args1 = Stage1(
+            icmd:icmd,
+            maxDiff:maxDiff,
+            maxCov:maxCov,
+            minCov:minCov,
+            minLen:minLen,
+            minIdt:idtStage1,
+            gapFilt:gapFilt,
+            minDepth:minDepthGapFilt,
+            blacklist:blacklist)
+        stage1.add(args1)
+
+        let blacklistIn = "merged_blacklist.stage1.msgpck"
+        let args2 = Stage2(
+            icmd:icmd,
+            minIdt:idtStage2,
+            bestN:bestN,
+            filteredOutput:"{counter}.tmp.ovl".fmt,
+            blacklistIn:blacklistIn)
+        stage2.add(args2)
+
         ovls.add("{counter}.tmp.ovl".fmt)
         msgpckFofnS1.writeLine("{counter}.stage1.tmp.msgpck".fmt)
     close(msgpckFofnS1)
 
-    let stage1rv = execProcesses(stage1, options = {poEchoCmd}, n = nProc)
-    if stage1rv != 0:
-        quit "[FATAL] stage one had a failure!"
+    #let stage1rv = execProcesses(stage1, options = {poEchoCmd}, n = nProc)
+    #if stage1rv != 0:
+    #    quit "[FATAL] stage one had a failure!"
+
+    for x in stage1:
+        spawn startStage1(x)
+    sync()
 
     let merge1 = execCmd("falconc m4filt-merge-blacklist -b blacklist_msgpck.stage1.fofn -o merged_blacklist.stage1.msgpck")
     if merge1 != 0:
         quit "[FATAL] merge one failure!"
 
-    let stage2rv = execProcesses(stage2, options = {poEchoCmd}, n = nProc)
-    if stage2rv != 0:
-        quit "[FATAL] stage two had a failure!"
+    #let stage2rv = execProcesses(stage2, options = {poEchoCmd}, n = nProc)
+    #if stage2rv != 0:
+    #    quit "[FATAL] stage two had a failure!"
+
+    for x in stage2:
+        spawn startStage2(x)
+    sync()
 
     var outFile = open(outputFn, fmWrite)
     defer: outFile.close()
