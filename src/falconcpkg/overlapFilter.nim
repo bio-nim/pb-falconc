@@ -535,13 +535,14 @@ proc falconRunner*(db: string,
             0
 
     var counter = 0
-    var msgpckFofnS1 = open("blacklist_msgpck.stage1.fofn", fmWrite)
+    let blacklist_msgpack = "blacklist_fofn.stage1.msgpack"
+    var msgpackFofnS1 = open(blacklist_msgpack, fmWrite)
 
     for las in js:
         inc(counter)
         let icmd = "LA4Falcon -mo {db} {las.getStr()}".fmt
 
-        let blacklist = "{counter}.stage1.tmp.msgpck".fmt
+        let blacklist = "{counter}.stage1.tmp.msgpack".fmt
         let args1 = Stage1(
             icmd:icmd,
             maxDiff:maxDiff,
@@ -554,7 +555,7 @@ proc falconRunner*(db: string,
             blacklist:blacklist)
         stage1.add(args1)
 
-        let blacklistIn = "merged_blacklist.stage1.msgpck"
+        let blacklistIn = "merged_blacklist.stage1.msgpack"
         let args2 = Stage2(
             icmd:icmd,
             minIdt:idtStage2,
@@ -564,20 +565,15 @@ proc falconRunner*(db: string,
         stage2.add(args2)
 
         ovls.add("{counter}.tmp.ovl".fmt)
-        msgpckFofnS1.writeLine("{counter}.stage1.tmp.msgpck".fmt)
-    msgpckFofnS1.close()
+        msgpackFofnS1.writeLine("{counter}.stage1.tmp.msgpack".fmt)
+    msgpackFofnS1.close()
 
     for x in stage1:
         spawn startStage1(x)
     sync()
 
-    let merge1 = execCmd(
-
-
-
-                                 "falconc m4filt-merge-blacklist -b blacklist_msgpck.stage1.fofn -o merged_blacklist.stage1.msgpck")
-    if merge1 != 0:
-        quit "[FATAL] merge one failure!"
+    let merged_blacklist_msgpack = "merged_blacklist.stage1.msgpack"
+    runMergeBlacklists(blacklist_msgpack, merged_blacklist_msgpack)
 
     for x in stage2:
         spawn startStage2(x)
@@ -593,7 +589,7 @@ proc falconRunner*(db: string,
             outFile.writeLine(line)
     outFile.writeLine("---")
 
-    summarize(filterLog, "merged_blacklist.stage1.msgpck")
+    summarize(filterLog, merged_blacklist_msgpack)
 
 proc ipaRunner*(ovlsFofn: string,
  idtStage1: float = 90.0,
@@ -632,12 +628,14 @@ proc ipaRunner*(ovlsFofn: string,
         else:
             0
     var counter = 0
-    var msgpckFofnS1 = open("blacklist_msgpck.stage1.fofn", fmWrite)
+    let blacklist_msgpack = "blacklist_fofn.stage1.msgpack"
+    var msgpackFofnS1 = open(blacklist_msgpack, fmWrite)
+
     for ms in m4s:
         inc(counter)
         let icmd = "cat {ms}".fmt
 
-        let blacklist = "{counter}.stage1.tmp.msgpck".fmt
+        let blacklist = "{counter}.stage1.tmp.msgpack".fmt
         let args1 = Stage1(
             icmd:icmd,
             maxDiff:maxDiff,
@@ -650,7 +648,7 @@ proc ipaRunner*(ovlsFofn: string,
             blacklist:blacklist)
         stage1.add(args1)
 
-        let blacklistIn = "merged_blacklist.stage1.msgpck"
+        let blacklistIn = "merged_blacklist.stage1.msgpack"
         let args2 = Stage2(
             icmd:icmd,
             minIdt:idtStage2,
@@ -660,16 +658,15 @@ proc ipaRunner*(ovlsFofn: string,
         stage2.add(args2)
 
         ovls.add("{counter}.tmp.ovl".fmt)
-        msgpckFofnS1.writeLine("{counter}.stage1.tmp.msgpck".fmt)
-    msgpckFofnS1.close()
+        msgpackFofnS1.writeLine("{counter}.stage1.tmp.msgpack".fmt)
+    msgpackFofnS1.close()
 
     for x in stage1:
         spawn startStage1(x)
     sync()
 
-    let merge1 = execCmd("falconc m4filt-merge-blacklist -b blacklist_msgpck.stage1.fofn -o merged_blacklist.stage1.msgpck")
-    if merge1 != 0:
-        quit "[FATAL] merge one failure!"
+    let merged_blacklist_msgpack = "merged_blacklist.stage1.msgpack"
+    runMergeBlacklists(blacklist_msgpack, merged_blacklist_msgpack)
 
     for x in stage2:
         spawn startStage2(x)
@@ -684,7 +681,7 @@ proc ipaRunner*(ovlsFofn: string,
             outFile.writeLine(line)
     outFile.writeLine("---")
 
-    summarize(filterLog, "merged_blacklist.stage1.msgpck")
+    summarize(filterLog, merged_blacklist_msgpack)
 
 
 proc main() =
