@@ -178,6 +178,7 @@ proc summarize(filterLog: string, readsToFilter: var Table[string, int]) =
         if (v and GREAD) > 0: readFilterCounts.inc("gap in coverage")
 
     var fout = open(filterLog, fmWrite)
+    defer: fout.close()
     fout.writeLine("filtered reads:", len(readsToFilter))
     for k, v in readFilterCounts:
         fout.writeLine("flag: ", k, " :count:", v)
@@ -224,6 +225,7 @@ proc summarize(filterLog: string, readsToFilter: var Table[string, int]) =
 proc summarize(filterLog: string, fn: string) =
     var readsToFilterSum = initTable[string, int]()
     var fstream = newFileStream(fn, fmRead)
+    defer: fstream.close()
     fstream.unpack(readsToFilterSum)
     summarize(filterLog, readsToFilterSum)
 
@@ -383,6 +385,7 @@ proc mergeBlacklists*(blistFofn: string,
     while f.readLine(bFile):
         var tmp = initTable[string, int]()
         var fstream = newFileStream(bFile, fmRead)
+        defer: fstream.close()
         echo "[INFO] merging blacklist file: {bFile}".fmt
         fstream.unpack(tmp)
         for k, v in tmp:
@@ -420,10 +423,12 @@ proc doStage1(args: Stage1) =
         stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen, args.minDepth, args.gapFilt,
                 args.minIdt, readsToFilter1)
     var fstream = newFileStream(args.blacklist, fmWrite)
+    defer: fstream.close()
     fstream.pack(readsToFilter1)
 proc doStage2(args: Stage2) =
     var readsToFilter2 = initTable[string, int]()
     var fstream = newFileStream(args.blacklistIn, fmRead)
+    defer: fstream.close()
     fstream.unpack(readsToFilter2)
 
     var output = open(args.filteredOutput, fmWrite)
@@ -487,11 +492,13 @@ proc runMergeBlacklists*(blistFofn: string, outFn: string) =
     mergeBlacklists(blistFofn, readsToFilter)
 
     var fstream = newFileStream(outFn, fmWrite)
+    defer: fstream.close()
     fstream.pack(readsToFilter)
 
 proc runDumpBlacklist*(blacklist: string) =
     var readsToFilter = initTable[string, int]()
     var fstream = newFileStream(blacklist, fmRead)
+    defer: fstream.close()
     fstream.unpack(readsToFilter)
 
     dumpBlacklist(readsToFilter)
@@ -558,7 +565,7 @@ proc falconRunner*(db: string,
 
         ovls.add("{counter}.tmp.ovl".fmt)
         msgpckFofnS1.writeLine("{counter}.stage1.tmp.msgpck".fmt)
-    close(msgpckFofnS1)
+    msgpckFofnS1.close()
 
     for x in stage1:
         spawn startStage1(x)
@@ -608,6 +615,7 @@ proc ipaRunner*(ovlsFofn: string,
 
     #fofn of m4 files generated in the IPA WDL
     let fh = open(ovlsFofn, fmRead)
+    defer: fh.close()
     var m4s = newSeq[string]()
     for l in fh.lines:
         if isEmptyFile(l):
@@ -653,7 +661,7 @@ proc ipaRunner*(ovlsFofn: string,
 
         ovls.add("{counter}.tmp.ovl".fmt)
         msgpckFofnS1.writeLine("{counter}.stage1.tmp.msgpck".fmt)
-    close(msgpckFofnS1)
+    msgpckFofnS1.close()
 
     for x in stage1:
         spawn startStage1(x)
