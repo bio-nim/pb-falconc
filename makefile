@@ -1,6 +1,5 @@
 include common.makefile
 
-XDG_CACHE_HOME?=~/.cache
 PREFIX?=${CURDIR}
 NIMBLE_DIR?=${CURDIR}/nimbleDir
 export NIMBLE_DIR
@@ -29,7 +28,6 @@ build:
 	# We need a no-internet flag for "nimble install".
 	# For now, we rsync and install manually.
 	${MAKE} rsync
-	rm -rf ${XDG_CACHE_HOME}/nim/*
 	nim c --listCmd --threads:on -d:release -d:cGitSha1=$R src/falconc.nim # uses NIMBLE_DIR
 install:
 	mkdir -p ${PREFIX}/bin
