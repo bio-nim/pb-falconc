@@ -633,7 +633,7 @@ proc ipaRunner*(ovlsFofn: string,
 
     for ms in m4s:
         inc(counter)
-        let icmd = "cat {ms}".fmt
+        let icmd = "/bin/cat {ms}".fmt
 
         let blacklist = "{counter}.stage1.tmp.msgpck".fmt
         let args1 = Stage1(
