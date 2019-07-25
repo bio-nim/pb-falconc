@@ -6,6 +6,11 @@ from falconcpkg/rotate import nil
 from falconcpkg/phasr import nil
 from falconcpkg/overlapFilter import nil
 
+const cToolVersion = "0.1.0"
+const cGitSha1 {.strdefine.} = "0000000000000000000000000000000000000000"
+
+proc version() =
+    echo cToolVersion & "@" & cGitSha1
 proc dataset(extras: seq[string]) =
     echo "falconc dataset"
 proc kmers(int_dummy: int = 42, string_dummy: string = "hello") =
@@ -20,7 +25,7 @@ proc utils(extras: seq[string], float_req: float) =
 when isMainModule:
     import cligen
     dispatchMulti(
-        # [zev],
+        [version],
         [dataset, short = {}, help = {}],
         [kmers, short = {"int_dummy": 'd'}, help = {}],
         [utils, short = {}, help = {"float_req": "special help message"}],
