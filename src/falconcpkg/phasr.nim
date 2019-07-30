@@ -16,7 +16,7 @@ import networkx/classes/wgraph
 import networkx/classes/graph
 from networkx/algorithms/components/connectedc import connected
 from "./kmers" import pot_t, spot_t, Dna, dna_to_kmers, initSpot, difference,
-    uniqueShared, nuniq       #import kmers
+    uniqueShared, nuniq #import kmers
 
 type
     opts = object
@@ -98,17 +98,17 @@ proc overallScore(g: ref Graph[int], p: TableRef[int, int]): float =
 
 type
     PhaseStats = object
-        hist: seq[int]        # time spent in each phase
-        total: int            # total time
+        hist: seq[int] # time spent in each phase
+        total: int     # total time
 
 proc algo(
     rn: TableRef[string, int], # rn:  name -> readid
-    g: ref Graph[int]         # Node is readid
+    g: ref Graph[int] # Node is readid
     ): Table[int, int] = # phase-block-id -> local-phase-id (up to ploidy)
 
 
     var phase = newTable[int, int]() # Node -> local-phase-id
-    var stats = newTable[int, PhaseStats]() # Node -> local-phase-id
+    var stats = newTable[int, PhaseStats]()             # Node -> local-phase-id
 
     const ploidy = 2
 
@@ -195,14 +195,14 @@ proc processRecord(record: Record, klen: int, rseq: Dna): ProcessedRecord =
     # complement to remove kmers that are in the reference where the read maps.
     var rsubseq = rseq.substr(record.start - klen + 1,
             record.stop-1 + klen - 1) # TODO(CD): Use a slice?
-    #var rsubseq = rseq.substr(record.start, record.stop-1)  # TODO(CD): Use a slice?
+                                      #var rsubseq = rseq.substr(record.start, record.stop-1)  # TODO(CD): Use a slice?
     var refkmers = dna_to_kmers(rsubseq, klen)
     #echo "refkmers.len=", refkmers.seeds.len(), "(", rsubseq.len(), "), kmers.len=", kmers.seeds.len(), "(", qseq.len(), ")", (record.stop-record.start)
     var refspot = initSpot(refkmers)
     var filtKmers = difference(kmers, refspot)
     #[echo " Filtered kmers.len=", filtKmers.seeds.len(), " from ",
-            kmers.seeds.len(), " for read ", record.qname
-            ]#
+        kmers.seeds.len(), " for read ", record.qname
+        ]#
     var finalKmers = initSpot(filtKmers)
     return ProcessedRecord(rec: record, kmers: finalKmers)
 
@@ -228,7 +228,7 @@ proc filterPileup(queue: Deque[ProcessedRecord], cqi: int): Pileup =
         max_stop = current.rec.start
     for pr in queue.items():
         if pr == current or pr.rec.start >= current_stop:
-            continue          # must overlap on the right
+            continue # must overlap on the right
         if min_start > pr.rec.start:
             min_start = pr.rec.start
         if max_stop < pr.rec.stop:
@@ -279,13 +279,14 @@ iterator overlaps(b: hts.Bam, klen: int, rseq: string): Pileup =
             var new_record: hts.Record = nil
             let gotAnother = nextBamRecord(next, b, new_record)
             if not gotAnother:
-                break         # None left!
+                break # None left!
             queue.addLast(processRecord(new_record, globalOpts.kmersize, rseq))
         assert queue.len() > current_queue_index
         let current = queue[current_queue_index].rec
 
         # Flush (pop from left) any records which do not overlap current.
-        while queue.peekFirst().rec.stop <= current.start: # and assume current is not zero-length
+        while queue.peekFirst().rec.stop <=
+                current.start: # and assume current is not zero-length
             discard queue.popFirst()
             current_queue_index -= 1
             assert current == queue[current_queue_index].rec
@@ -306,7 +307,7 @@ iterator overlaps(b: hts.Bam, klen: int, rseq: string): Pileup =
                 var new_record: hts.Record = nil
                 let gotAnother = nextBamRecord(next, b, new_record)
                 if not gotAnother:
-                    break     # but keep processing the queue
+                    break # but keep processing the queue
                 queue.addLast(processRecord(new_record, globalOpts.kmersize,
                         rseq))
 
