@@ -416,8 +416,8 @@ type
 proc doStage1(args: Stage1) =
     var readsToFilter1 = initTable[string, int]()
     for i in abOvl(args.sin):
-        stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen, args.minDepth, args.gapFilt,
-                args.minIdt, readsToFilter1)
+        stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+                args.minDepth, args.gapFilt, args.minIdt, readsToFilter1)
     var fstream = newFileStream(args.blacklist, fmWrite)
     defer: fstream.close()
     fstream.pack(readsToFilter1)
@@ -435,13 +435,15 @@ proc doStage2(args: Stage2) =
         for l in lines:
             output.writeLine(l)
 proc startStage1(args: Stage1) =
-    var p = startProcess(command=args.icmd, options={poEvalCommand, poStdErrToStdOut})
+    var p = startProcess(command = args.icmd, options = {poEvalCommand,
+            poStdErrToStdOut})
     var argsx = args
     argsx.sin = p.outputStream
     doStage1(argsx)
     p.close()
 proc startStage2(args: Stage2) =
-    var p = startProcess(command=args.icmd, options={poEvalCommand, poStdErrToStdOut})
+    var p = startProcess(command = args.icmd, options = {poEvalCommand,
+            poStdErrToStdOut})
     var argsx = args
     argsx.sin = p.outputStream
     doStage2(argsx)
@@ -457,14 +459,14 @@ proc runStage1*(
  blacklist: string
     ) =
     var args = Stage1(
-        maxDiff:maxDiff,
-        maxCov:maxCov,
-        minCov:minCov,
-        minLen:minLen,
-        minIdt:minIdt,
-        gapFilt:gapFilt,
-        minDepth:minDepth,
-        blacklist:blacklist)
+        maxDiff: maxDiff,
+        maxCov: maxCov,
+        minCov: minCov,
+        minLen: minLen,
+        minIdt: minIdt,
+        gapFilt: gapFilt,
+        minDepth: minDepth,
+        blacklist: blacklist)
     args.sin = newFileStream(stdin)
     doStage1(args)
 
@@ -475,10 +477,10 @@ proc runStage2*(
  filteredOutput: string
     ) =
     var args = Stage2(
-        minIdt:minIdt,
-        bestN:bestN,
-        filteredOutput:filteredOutput,
-        blacklistIn:blacklistIn)
+        minIdt: minIdt,
+        bestN: bestN,
+        filteredOutput: filteredOutput,
+        blacklistIn: blacklistIn)
     args.sin = newFileStream(stdin)
     doStage2(args)
 
@@ -542,24 +544,24 @@ proc falconRunner*(db: string,
 
         let blacklist = "{counter}.stage1.tmp.msgpck".fmt
         let args1 = Stage1(
-            icmd:icmd,
-            maxDiff:maxDiff,
-            maxCov:maxCov,
-            minCov:minCov,
-            minLen:minLen,
-            minIdt:idtStage1,
-            gapFilt:gapFilt,
-            minDepth:minDepthGapFilt,
-            blacklist:blacklist)
+            icmd: icmd,
+            maxDiff: maxDiff,
+            maxCov: maxCov,
+            minCov: minCov,
+            minLen: minLen,
+            minIdt: idtStage1,
+            gapFilt: gapFilt,
+            minDepth: minDepthGapFilt,
+            blacklist: blacklist)
         stage1.add(args1)
 
         let blacklistIn = "merged_blacklist.stage1.msgpck"
         let args2 = Stage2(
-            icmd:icmd,
-            minIdt:idtStage2,
-            bestN:bestN,
-            filteredOutput:"{counter}.tmp.ovl".fmt,
-            blacklistIn:blacklistIn)
+            icmd: icmd,
+            minIdt: idtStage2,
+            bestN: bestN,
+            filteredOutput: "{counter}.tmp.ovl".fmt,
+            blacklistIn: blacklistIn)
         stage2.add(args2)
 
         ovls.add("{counter}.tmp.ovl".fmt)
@@ -637,24 +639,24 @@ proc ipaRunner*(ovlsFofn: string,
 
         let blacklist = "{counter}.stage1.tmp.msgpck".fmt
         let args1 = Stage1(
-            icmd:icmd,
-            maxDiff:maxDiff,
-            maxCov:maxCov,
-            minCov:minCov,
-            minLen:minLen,
-            minIdt:idtStage1,
-            gapFilt:gapFilt,
-            minDepth:minDepthGapFilt,
-            blacklist:blacklist)
+            icmd: icmd,
+            maxDiff: maxDiff,
+            maxCov: maxCov,
+            minCov: minCov,
+            minLen: minLen,
+            minIdt: idtStage1,
+            gapFilt: gapFilt,
+            minDepth: minDepthGapFilt,
+            blacklist: blacklist)
         stage1.add(args1)
 
         let blacklistIn = "merged_blacklist.stage1.msgpck"
         let args2 = Stage2(
-            icmd:icmd,
-            minIdt:idtStage2,
-            bestN:bestN,
-            filteredOutput:"{counter}.tmp.ovl".fmt,
-            blacklistIn:blacklistIn)
+            icmd: icmd,
+            minIdt: idtStage2,
+            bestN: bestN,
+            filteredOutput: "{counter}.tmp.ovl".fmt,
+            blacklistIn: blacklistIn)
         stage2.add(args2)
 
         ovls.add("{counter}.tmp.ovl".fmt)

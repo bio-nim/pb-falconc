@@ -48,7 +48,7 @@ proc clips*(cigar: hts.Cigar): tuple[left: int, right: int] =
 
 proc calc_query_pos*(record: hts.Record): tuple[qstart: int, qend: int,
         qlen: int] =
-    var q: string             # temp
+    var q: string # temp
     discard hts.sequence(record, q)
 
     var qlen: int = len(q)
@@ -106,13 +106,13 @@ proc update_counts(bam_fn: string, params: Params,
             #log("exclude:" & key)
         #log(format("$# $#/$#=$#", key, reflentotal, qlen, frac))
 
-#proc find_all(fn: string): sets.HashSet[string] =
-#    #result = sets.initHashSet[string]()
-#    if fn == "":
-#        return
-#    log(format("Reading from '$#'", fn))
-#    for line in lines(fn):
-#        sets.incl(result, line)
+    #proc find_all(fn: string): sets.HashSet[string] =
+    #    #result = sets.initHashSet[string]()
+    #    if fn == "":
+    #        return
+    #    log(format("Reading from '$#'", fn))
+    #    for line in lines(fn):
+    #        sets.incl(result, line)
 
 proc align_filter*(bams_fofn: string, all_subread_names_fn = "", min_len = -1,
         min_frac = 0.70) =

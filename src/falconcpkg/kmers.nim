@@ -10,8 +10,8 @@ from ./util import raiseEx, PbError
 export PbError
 
 type
-    Dna* = string             # someday, this might be an array
-    Bin* = uint64             # compact bitvector of DNA
+    Dna* = string # someday, this might be an array
+    Bin* = uint64 # compact bitvector of DNA
     ##  In bitvector, A is 0, C is 1, G is two, and T is 3.
 
     ##  kmer - a uint64 supporting a maximum of 32 DNA bases.
@@ -32,7 +32,7 @@ type
     ##  seeds - a pointer to the kmers
     ##  n  - the number of kmers in the database (h)
     pot_t* = ref object of RootObj
-        word_size*: uint8     # <=32
+        word_size*: uint8 # <=32
         seeds*: seq[seed_t]
 
     ##  searchable seed-pot
@@ -274,7 +274,7 @@ proc initSpot*(kms: var pot_t): spot_t =
     result.word_size = kms.word_size
     shallowCopy(result.seeds, kms.seeds)
     #kms.seeds = @[]
-    kms = nil                 # simpler, obvious move-construction
+    kms = nil # simpler, obvious move-construction
     make_searchable(result.seeds, result.ht)
 
 ##  Check for the presence or absence of a kmer in a
