@@ -5,6 +5,7 @@ from falconcpkg/raptor_db import nil
 from falconcpkg/rotate import nil
 from falconcpkg/phasr import nil
 from falconcpkg/overlapFilter import nil
+from falconcpkg/pbcromwell import nil
 
 const cToolVersion = "0.1.0"
 const cGitSha1 {.strdefine.} = "0000000000000000000000000000000000000000"
@@ -99,5 +100,7 @@ when isMainModule:
           "filterLog": "Write read filter stats to this file",
           "outputFn": "Final m4 overlap file",
             }
+        ],
+        [pbcromwell.remove_las, cmdName = "pbcromwell-rm-las",
         ],
     )
