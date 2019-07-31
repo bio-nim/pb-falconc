@@ -50,4 +50,5 @@ case "${bamboo_planRepository_branchName}" in
     ;;
 esac
 
-git clean -xdf .
+#git clean -xdf .
+# Wait. We want to keep .xml maybe.
