@@ -32,8 +32,9 @@ proc adjustThreadPool*(n: int) =
         size = cpuinfo.countProcessors()
     if size > threadpool.MaxThreadPoolSize:
         size = threadpool.MaxThreadPoolSize
-    log("ThreadPoolsize=#, MaxThreadPoolSize=#, NumCpus=#",
-        size, threadpool.MaxThreadPoolSize, cpuinfo.countProcessors())
+    log("ThreadPoolsize=", size,
+        ", MaxThreadPoolSize=", threadpool.MaxThreadPoolSize,
+        ", NumCpus=", cpuinfo.countProcessors())
     threadpool.setMaxPoolSize(size)
 
 iterator walk*(dir: string, followlinks=false, relative=false): string =
