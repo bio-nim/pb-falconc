@@ -27,11 +27,18 @@ proc log*(words: varargs[string, `$`]) =
 
 proc adjustThreadPool*(n: int) =
     ## n==0 => use ncpus
+    ## n==-1 => do not alter threadpool size (to avoid a weird problem for now)
     var size = n
     if n == 0:
         size = cpuinfo.countProcessors()
     if size > threadpool.MaxThreadPoolSize:
         size = threadpool.MaxThreadPoolSize
+    if size == -1:
+        log("ThreadPoolsize=", size,
+            " (i.e. do not change)",
+            ", MaxThreadPoolSize=", threadpool.MaxThreadPoolSize,
+            ", NumCpus=", cpuinfo.countProcessors())
+        return
     log("ThreadPoolsize=", size,
         ", MaxThreadPoolSize=", threadpool.MaxThreadPoolSize,
         ", NumCpus=", cpuinfo.countProcessors())
