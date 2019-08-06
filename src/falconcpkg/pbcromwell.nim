@@ -32,8 +32,9 @@ proc remove*(fn: string, dry_run: bool, verbose: bool=false) =
     if not dry_run:
         os.removeFile(fn)  # can raise
 
-proc remove_las*(run_dir: string, verbose: bool=true, dry_run: bool=true) =
-    ## So below
+proc remove_las*(run_dir: string, verbose: bool=false, dry_run: bool=false) =
+    ## Remove all .las files except final stage of merge. Unzip is still possible.
+    ## (Someday, we will add a flag to delete the final stage too, optionally.)
     if verbose:
         util.log("Deleting some las files under directory '" & run_dir & "' ...")
         if dry_run:
