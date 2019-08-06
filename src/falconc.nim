@@ -102,5 +102,6 @@ when isMainModule:
             }
         ],
         [pbcromwell.remove_las, cmdName = "pbcromwell-rm-las",
+         short = {"dry_run" : 'n'},
         ],
     )
