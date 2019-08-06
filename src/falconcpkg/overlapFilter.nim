@@ -1,4 +1,4 @@
-import threadpool
+#import threadpool
 import sets
 import tables
 from strutils import split, parseInt, parseFloat, parseBool
@@ -625,15 +625,17 @@ proc falconRunner*(db: string,
     msgpackFofnS1.close()
 
     for x in stage1:
-        spawn startStage1(x)
-    sync()
+        #threadpool.spawn startStage1(x)
+        startStage1(x)
+    #threadpool.sync()
 
     let merged_blacklist_msgpack = "merged_blacklist.stage1.msgpck"
     runMergeBlacklists(blacklist_msgpack, merged_blacklist_msgpack)
 
     for x in stage2:
-        spawn startStage2(x)
-    sync()
+        #threadpool.spawn startStage2(x)
+        startStage2(x)
+    #threadpool.sync()
 
     var outFile = open(outputFn, fmWrite)
     defer: outFile.close()
@@ -720,15 +722,17 @@ proc ipaRunner*(ovlsFofn: string,
     msgpackFofnS1.close()
 
     for x in stage1:
-        spawn startStage1(x)
-    sync()
+        #threadpool.spawn startStage1(x)
+        startStage1(x)
+    #threadpool.sync()
 
     let merged_blacklist_msgpack = "merged_blacklist.stage1.msgpck"
     runMergeBlacklists(blacklist_msgpack, merged_blacklist_msgpack)
 
     for x in stage2:
-        spawn startStage2(x)
-    sync()
+        #threadpool.spawn startStage2(x)
+        startStage2(x)
+    #threadpool.sync()
 
     var outFile = open(outputFn, fmWrite)
     defer: outFile.close()
