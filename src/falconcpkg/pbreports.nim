@@ -24,26 +24,8 @@ proc get_all_ctgs*(fasta_fn: string): tables.Table[string, int] =
         util.raiseEx("Could not open FASTA '" & fasta_fn & "'")
     return get_all_ctgs(idx)
 
-#proc get_all_ctgs*(sin: streams.Stream): seq[string] =
-#    ## Get the first word after '>' on each such line (i.e. FASTA header names)
-#    var line: string  # sans \n
-#    while streams.readLine(sin, line):
-#        if not strutils.startsWith(line, '>'):
-#            continue
-#        var i = 1
-#        while line[i] != ' ' and line[i] != '\n':
-#            i += 1
-#        assert i != 0
-#        let word = line[1 .. i]
-#        result.add(word)
-#proc get_all_ctgs*(fasta_fn: string): seq[string] =
-#    let snarfed = system.readFile(fasta_fn)
-#    var sin = streams.newStringStream(snarfed)
-#    defer: streams.close(sin)
-#    return get_all_ctgs(sin)
-
-
 proc get_circ_ctgs*(sin: streams.Stream): seq[string] =
+    ## Simple textfile reader, one ctg per line
     var ctg: string
     while streams.readLine(sin, ctg):
         add(result, ctg)

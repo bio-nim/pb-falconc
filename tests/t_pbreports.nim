@@ -59,16 +59,6 @@ let expected_report = %*
     }
 
 suite "pbreports":
-    test "get_circ_ctgs":
-        block:
-            let sin = streams.newStringStream("one\ntwo\n")  # with trailing newline
-            check toSeq(pbreports.get_circ_ctgs(sin)) == @["one", "two"]
-        block:
-            let sin = streams.newStringStream("one\ntwo")  # missing trailing newline
-            check toSeq(pbreports.get_circ_ctgs(sin)) == @["one", "two"]
-        block:
-            let sin = streams.newStringStream("")  # empty
-            check toSeq(pbreports.get_circ_ctgs(sin)) == newSeq[string]()
     test "get_report":
         let all_ctgs = {"C1":10, "C2":20, "L1":15, "L2":25}.toTable()
         let circ_ctgs = @["C1", "C2"]
