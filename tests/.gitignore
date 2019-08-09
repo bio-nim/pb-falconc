@@ -2,4 +2,6 @@
 /t_kmers
 /t_gc
 /t_overlapFilter
+/t_pbcromwell
+/t_pbreports
 /all

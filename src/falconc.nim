@@ -6,6 +6,7 @@ from falconcpkg/rotate import nil
 from falconcpkg/phasr import nil
 from falconcpkg/overlapFilter import nil
 from falconcpkg/pbcromwell import nil
+from falconcpkg/pbreports import nil
 
 const cToolVersion = "0.1.0"
 const cGitSha1 {.strdefine.} = "0000000000000000000000000000000000000000"
@@ -103,5 +104,11 @@ when isMainModule:
         ],
         [pbcromwell.remove_las, cmdName = "pbcromwell-rm-las",
          short = {"dry_run" : 'n'},
+        ],
+        [pbreports.circ, cmdName = "pbreports-circ",
+         help = {
+          "fasta_fn": "FASTA filename, preferably indexed (with .fai)",
+          "circ_fn": "Text list of circular contigs (newline-delimited)",
+         }
         ],
     )
