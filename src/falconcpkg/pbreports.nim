@@ -10,7 +10,7 @@ from hts import `[]`
 import json
 
 proc get_all_ctgs(fasta: hts.Fai): tables.Table[string, int] =
-    ## Given indexed FASTA, return all names.
+    ## Given indexed FASTA, return all name->length.
     # (Hard to test, but very fast, since htslib can fseek to each header.)
     let n = hts.len(fasta)
     result = tables.initTable[string, int]()
