@@ -8,12 +8,15 @@ from falconcpkg/overlapFilter import nil
 from falconcpkg/pbcromwell import nil
 from falconcpkg/pbreports import nil
 from falconcpkg/stats import nil
+import cligen
 
-const cToolVersion = "0.1.0"
-const cGitSha1 {.strdefine.} = "0000000000000000000000000000000000000000"
+const
+    cNimbleData = staticRead("../falconc.nimble")
+    cGitSha1 {.strdefine.} = staticExec("git describe --tags HEAD")
+    cToolVersion = cNimbleData.fromNimble("version")
 
 proc version() =
-    echo cToolVersion & "@" & cGitSha1
+    echo cToolVersion & "+git." & cGitSha1
 proc dataset(extras: seq[string]) =
     echo "falconc dataset"
 proc kmers(int_dummy: int = 42, string_dummy: string = "hello") =
@@ -26,7 +29,6 @@ proc utils(extras: seq[string], float_req: float) =
 #    echo "finished"
 
 when isMainModule:
-    import cligen
     dispatchMulti(
         [version],
         [dataset, short = {}, help = {}],
