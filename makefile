@@ -23,12 +23,13 @@ rsync:
 
 # These 3 rules are for mobs/bamboo:
 # Someday maybe --nimcache:${CURDIR}/.cache-nim
-build: R=$(shell git rev-parse HEAD)
+#build: R=$(shell git rev-parse HEAD)
 build:
 	# We need a no-internet flag for "nimble install".
 	# For now, we rsync and install manually.
 	${MAKE} rsync
-	nim c --listCmd --threads:on -d:release -d:cGitSha1=$R src/falconc.nim # uses NIMBLE_DIR
+	#nim c --listCmd --threads:on -d:release -d:cGitSha1=$R src/falconc.nim # uses NIMBLE_DIR
+	nim c --listCmd --threads:on -d:release src/falconc.nim # uses NIMBLE_DIR
 install:
 	mkdir -p ${PREFIX}/bin
 	mv -f src/falconc ${PREFIX}/bin
