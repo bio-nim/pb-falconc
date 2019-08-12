@@ -5,6 +5,7 @@ from hts import `[]`
 from json import `%*`
 from math import nil
 from sequtils import nil
+from strformat import nil
 from tables import `[]=`
 
 proc get_all_ctgs(fasta: hts.Fai): tables.Table[string, int32] =
@@ -85,6 +86,21 @@ proc to_json*(st: Stats): string =
         }
     return json.pretty(j, indent=4)
 
+proc to_table*(st: Stats): string =
+    result = strformat.fmt"""Assembly statistics
+{st.sum:>10}  sum
+{math.round(st.mean):>11.0f} mean
+{st.median:>10}  median
+{st.max:>10}  max
+{st.nl100.nx:>10}  min (aka N100)
+{st.nl100.lx:>10}  number (aka L100)
+{st.nl90.nx:>10}  N90
+{st.nl90.lx:>10}  L90
+{st.nl50.nx:>10}  N50
+{st.nl50.lx:>10}  L50
+{math.round(st.esize):>11.0f} E-Size (aka expected size of contig for a random base)
+"""
+
 proc calc_stats*(unsorted_lengths: seq[int32]): Stats =
     var lengths = algorithm.sorted(unsorted_lengths, order=algorithm.Descending)
     if lengths.len() == 0:
@@ -115,4 +131,4 @@ proc assembly*(fasta_fn: string) =
     let name2length = get_all_ctgs(fasta_fn)
     var lengths = sequtils.toSeq(tables.values(name2length))
     let stats = calc_stats(lengths)
-    echo to_json(stats)
+    echo to_table(stats)
