@@ -131,14 +131,14 @@ proc reorient(fin: string, fon: string, wl: string, w: int, s: int,
         output.write(wrapWords(full_sequence), "\n")
 
 
-proc main*(input: string, output: string, wl = "", window = 500, step = 200,
+proc main*(input_fn: string, output_fn: string, wl_fn = "", window = 500, step = 200,
         print = false) =
     ##reorients circular sequences based on gc-skew distribution and writes to output.
-    if input == "" or output == "":
+    if input_fn == "" or output_fn == "":
         logger.log(lvlFatal, "Missing input or output required options.")
         quit 1
     logger.log(lvlInfo, "Reorienting.")
-    reorient(input, output, wl, window, step, print)
+    reorient(input_fn, output_fn, wl_fn, window, step, print)
 
 when isMainModule:
     main()
