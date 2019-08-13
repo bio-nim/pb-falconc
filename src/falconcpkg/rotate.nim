@@ -86,7 +86,7 @@ proc randomize*(input: string, output: string, seed: int64 = 0) =
         outfh.write(wrapWords(full_sequence), "\n")
 
 
-proc loadWhiteList(fin: string): HashSet[string] =
+proc loadWhiteList*(fin: string): HashSet[string] =
     var whitelist = initHashSet[string]()
     if fin == "":
         return whitelist
