@@ -93,7 +93,7 @@ proc loadWhiteList*(fin: string): WhiteList =
     ## If filename is blank, return nil, to indicate that everything is whitelisted.
     var whitelist: WhiteList
     if fin == "":
-        return whitelist  # nil
+        return whitelist # nil
     new(whitelist)
     whitelist.specific = initHashSet[string]()
     echo "whitelist:"
@@ -143,8 +143,8 @@ proc reorient(fin: string, fon: string, wl: string, w: int, s: int,
         output.write(wrapWords(full_sequence), "\n")
 
 
-proc main*(input_fn: string, output_fn: string, wl_fn = "", window = 500, step = 200,
-        print = false) =
+proc main*(input_fn: string, output_fn: string, wl_fn = "", window = 500,
+        step = 200, print = false) =
     ##reorients circular sequences based on gc-skew distribution and writes to output.
     if input_fn == "" or output_fn == "":
         logger.log(lvlFatal, "Missing input or output required options.")

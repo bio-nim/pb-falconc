@@ -106,17 +106,17 @@ when isMainModule:
             }
         ],
         [pbcromwell.remove_las, cmdName = "pbcromwell-rm-las",
-         short = {"dry_run" : 'n'},
+         short = {"dry_run": 'n'},
         ],
         [pbreports.circ, cmdName = "pbreports-circ",
          help = {
           "fasta_fn": "FASTA filename, preferably indexed (with .fai)",
           "circ_fn": "Text list of circular contigs (newline-delimited)",
-         }
+            }
         ],
         [stats.assembly, cmdName = "stats-assembly",
          help = {
           "fasta_fn": "FASTA filename, preferably indexed (with .fai)",
-         }
+            }
         ],
     )
