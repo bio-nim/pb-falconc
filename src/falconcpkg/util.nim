@@ -45,9 +45,10 @@ proc adjustThreadPool*(n: int) =
     #    ", NumCpus=", cpuinfo.countProcessors())
     #threadpool.setMaxPoolSize(size)
 
-iterator walk*(dir: string, followlinks=false, relative=false): string =
+iterator walk*(dir: string, followlinks = false, relative = false): string =
     ## similar to python os.walk(), but always topdown and no "onerror"
     let followFilter = if followLinks: {os.pcDir, os.pcLinkToDir} else: {os.pcDir}
     let yieldFilter = {os.pcFile, os.pcLinkToFile}
-    for p in os.walkDirRec(dir, yieldFilter=yieldFilter, followFilter=followFilter, relative=relative):
+    for p in os.walkDirRec(dir, yieldFilter = yieldFilter,
+            followFilter = followFilter, relative = relative):
         yield p

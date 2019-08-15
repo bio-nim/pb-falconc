@@ -8,5 +8,6 @@ each:
 	nim c -r t_pbcromwell.nim
 	nim c -r t_pbreports.nim
 	nim c -r t_stats.nim
+	nim c -r t_rotate.nim
 
 .PHONY: all

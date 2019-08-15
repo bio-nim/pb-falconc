@@ -84,7 +84,7 @@ proc to_json*(st: Stats): string =
             "L50": st.nl50.lx,
             "esize": math.round(st.esize),
         }
-    return json.pretty(j, indent=4)
+    return json.pretty(j, indent = 4)
 
 proc to_table*(st: Stats): string =
     result = strformat.fmt"""Assembly statistics
@@ -102,7 +102,8 @@ proc to_table*(st: Stats): string =
 """
 
 proc calc_stats*(unsorted_lengths: seq[int32]): Stats =
-    var lengths = algorithm.sorted(unsorted_lengths, order=algorithm.Descending)
+    var lengths = algorithm.sorted(unsorted_lengths,
+            order = algorithm.Descending)
     if lengths.len() == 0:
         return
     result.number = lengths.len().int32

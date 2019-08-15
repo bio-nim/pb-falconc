@@ -85,15 +85,27 @@ proc randomize*(input: string, output: string, seed: int64 = 0) =
                  ran, "/", chrom_len, "\n")
         outfh.write(wrapWords(full_sequence), "\n")
 
+type
+    WhiteList = ref object
+        specific: HashSet[string]
 
-proc loadWhiteList(fin: string): HashSet[string] =
-    var whitelist = initHashSet[string]()
+proc loadWhiteList*(fin: string): WhiteList =
+    ## If filename is blank, return nil, to indicate that everything is whitelisted.
+    var whitelist: WhiteList
     if fin == "":
-        return whitelist
+        return whitelist # nil
+    new(whitelist)
+    whitelist.specific = initHashSet[string]()
+    echo "whitelist:"
     for l in fin.lines:
         echo l
-        whitelist.incl(l)
+        whitelist.specific.incl(l)
     return whitelist
+
+proc whitelisted*(whitelist: WhiteList, chrom_name: string): bool =
+    if isNil(whitelist):
+        return true
+    return whitelist.specific.contains(chrom_name)
 
 proc reorient(fin: string, fon: string, wl: string, w: int, s: int,
         print: bool) =
@@ -111,14 +123,14 @@ proc reorient(fin: string, fon: string, wl: string, w: int, s: int,
         logger.log(lvlFatal, "Problem loading fasta file")
         quit 1
 
-    var whiteList = loadWhiteList(wl)
+    let whiteList = loadWhiteList(wl)
 
     for i in 0..<fai.len:
         var chrom_name = fai[i]
         var chrom_len = fai.chrom_len(chrom_name)
         var full_sequence = fai.get(chrom_name)
         var sdf = calcSkew(full_sequence, w, s)
-        if not (whiteList.contains(chrom_name)) and (whiteList.len > 0):
+        if not whitelisted(whiteList, chrom_name):
             sdf.data[sdf.mini].pos = 0
         if print:
             printSkew(chrom_name, sdf)
@@ -131,14 +143,14 @@ proc reorient(fin: string, fon: string, wl: string, w: int, s: int,
         output.write(wrapWords(full_sequence), "\n")
 
 
-proc main*(input: string, output: string, wl = "", window = 500, step = 200,
-        print = false) =
+proc main*(input_fn: string, output_fn: string, wl_fn = "", window = 500,
+        step = 200, print = false) =
     ##reorients circular sequences based on gc-skew distribution and writes to output.
-    if input == "" or output == "":
+    if input_fn == "" or output_fn == "":
         logger.log(lvlFatal, "Missing input or output required options.")
         quit 1
     logger.log(lvlInfo, "Reorienting.")
-    reorient(input, output, wl, window, step, print)
+    reorient(input_fn, output_fn, wl_fn, window, step, print)
 
 when isMainModule:
     main()

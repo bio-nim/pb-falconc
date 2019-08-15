@@ -38,9 +38,9 @@ when isMainModule:
         [raptor_db.filter, cmdName = "raptor-db-filter"],
         [rotate.main, cmdName = "circ-orient",
             help = {
-       "input": "fasta file of circular sequences",
-       "output": "fasta file output",
-       "wl": "white list of sequences to rotate, one per line, no spaces, no trailing spaces",
+       "input_fn": "fasta file of circular sequences",
+       "output_fn": "fasta file output",
+       "wl_fn": "white list of sequences to rotate, one per line, no spaces, no trailing spaces",
        "window": "window size to caculate gc-skew",
        "step": "window step",
        "print": "print skew data to files, one per sequence"
@@ -106,17 +106,17 @@ when isMainModule:
             }
         ],
         [pbcromwell.remove_las, cmdName = "pbcromwell-rm-las",
-         short = {"dry_run" : 'n'},
+         short = {"dry_run": 'n'},
         ],
         [pbreports.circ, cmdName = "pbreports-circ",
          help = {
           "fasta_fn": "FASTA filename, preferably indexed (with .fai)",
           "circ_fn": "Text list of circular contigs (newline-delimited)",
-         }
+            }
         ],
         [stats.assembly, cmdName = "stats-assembly",
          help = {
           "fasta_fn": "FASTA filename, preferably indexed (with .fai)",
-         }
+            }
         ],
     )

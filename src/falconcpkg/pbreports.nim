@@ -31,7 +31,7 @@ proc get_circ_ctgs*(sin: streams.Stream): seq[string] =
         add(result, ctg)
 
 proc get_circ_ctgs(collected_circ_txt_fn: string): seq[string] =
-    let snarfed = system.readFile(collected_circ_txt_fn)  # fast
+    let snarfed = system.readFile(collected_circ_txt_fn) # fast
     var sin = streams.newStringStream(snarfed)
     defer: streams.close(sin)
     return get_circ_ctgs(sin)
@@ -73,29 +73,30 @@ proc get_report*(unsorted_columns: seq[Column]): json.JsonNode =
                         "header": "Contig",
                         "id": "microbial_asm_polishing_report.contigs_table.contig",
                         "values": values_contig
-                    },
-                    {
-                        "header": "Length",
-                        "id": "microbial_asm_polishing_report.contigs_table.length",
-                        "values": values_length
-                    },
-                    {
-                        "header": "Circular?",
-                        "id": "microbial_asm_polishing_report.contigs_table.circular",
-                        "values": values_circular
-                    }
-                ],
+        },
+        {
+            "header": "Length",
+            "id": "microbial_asm_polishing_report.contigs_table.length",
+            "values": values_length
+        },
+        {
+            "header": "Circular?",
+            "id": "microbial_asm_polishing_report.contigs_table.circular",
+            "values": values_circular
+        }
+    ],
                 "id": "microbial_asm_polishing_report.contigs_table",
                 "title": "Polished contigs from Microbial Assembly"
-                },
-            ],
+        },
+    ],
             "tags": [],
             "title": "Microbial Assembly Polishing Report",
             "uuid": uuid,
             "version": version
         }
 
-proc get_report*(all_ctgs: tables.Table[string, int], circ_ctgs: seq[string]): json.JsonNode =
+proc get_report*(all_ctgs: tables.Table[string, int], circ_ctgs: seq[
+        string]): json.JsonNode =
     var columns = newSeq[Column]()
     let circs = sets.toHashSet[string](circ_ctgs)
     for ctg, length in tables.pairs(all_ctgs):
@@ -110,4 +111,4 @@ proc circ*(fasta_fn: string, circ_fn: string) =
     let all_ctgs = get_all_ctgs(fasta_fn)
     let circ_ctgs = get_circ_ctgs(circ_fn)
     let j = get_report(all_ctgs, circ_ctgs)
-    echo json.pretty(j, indent=4)
+    echo json.pretty(j, indent = 4)
