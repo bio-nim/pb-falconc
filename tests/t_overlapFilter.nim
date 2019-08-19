@@ -1,6 +1,6 @@
 import unittest
 import falconcpkg/overlapFilter
-import chimera_test_data
+import ./chimera_test_data
 import streams
 
 #[
