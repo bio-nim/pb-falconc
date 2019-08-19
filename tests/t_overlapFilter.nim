@@ -1,5 +1,7 @@
 import unittest
 import falconcpkg/overlapFilter
+import ./chimera_test_data
+import streams
 
 #[
  A-read contained
@@ -84,3 +86,17 @@ suite "overlapFilter terminatedAlignments":
         let record1 = "000000001 000002664 -5006 98.58 0 0 5004 9656 1 10 5006 10117 overlap"
         let parsed = parseOvl(record1)
         check missingTerminus(parsed) == true
+
+suite "chimera filter":
+    test "5600 tp marked":
+        for i in abOvl(tp_5600):
+            check gapInCoverage(i, 4, 90.0) == true
+    test "15210 tp marked":
+        for i in abOvl(tp_15210):
+            check gapInCoverage(i, 4, 90.0) == true
+    test "32757 fp not marked":
+        for i in abOvl(fp_32757):
+            check gapInCoverage(i, 4, 90.0) == false
+    test "17238 fp not marked":
+        for i in abOvl(fp_17238):
+            check gapInCoverage(i, 4, 90.0) == false
