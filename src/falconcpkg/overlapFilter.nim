@@ -37,13 +37,13 @@ LA4falcon Columns:
 ]#
 
 #Bitfield for read classification
-const CREAD = 1               # contained read
-const SREAD = 2               # small read
-const ZREAD = 4               # self hit
-const LREAD = 8               # one side has a low edge count
-const HREAD = 16              # one side has a high edge count
-const BREAD = 32              # read balance is off
-const GREAD = 64              # read has unspanned bases, putative chimera
+const CREAD = 1 # contained read
+const SREAD = 2 # small read
+const ZREAD = 4 # self hit
+const LREAD = 8 # one side has a low edge count
+const HREAD = 16 # one side has a high edge count
+const BREAD = 32 # read balance is off
+const GREAD = 64 # read has unspanned bases, putative chimera
 
 type
     overlap* = object
@@ -231,14 +231,14 @@ proc gapInCoverage*(ovls: seq[overlap], minDepth: int, minIdt: float): bool =
     ##Calculates the coverage in a linear pass. If the start or end < minCov there
 ##is a gap. The first and last position are skipped
     type PosAndTag = tuple
-        pos: int              #read a position
-        tag: bool             #starts are true ends are false
-        cli: bool             #if start == 0 or end == len; is it a clipped read
-        loc: bool             #is this a local align
+        pos: int #read a position
+        tag: bool #starts are true ends are false
+        cli: bool #if start == 0 or end == len; is it a clipped read
+        loc: bool #is this a local align
     type Info = tuple
-        cov: int              #coverage
-        cco: int              #clean cov
-        cli: int              #clip
+        cov: int #coverage
+        cco: int #clean cov
+        cli: int #clip
 
     var ep = ovls[0].l1
     var an = ovls[0].ridA
