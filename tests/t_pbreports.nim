@@ -60,7 +60,7 @@ let expected_report = %*
 
 suite "pbreports":
     test "get_report":
-        let all_ctgs = {"C1":10, "C2":20, "L1":15, "L2":25}.toTable()
+        let all_ctgs = {"C1": 10, "C2": 20, "L1": 15, "L2": 25}.toTable()
         let circ_ctgs = @["C1", "C2"]
         let j = pbreports.get_report(all_ctgs, circ_ctgs)
         j["uuid"] = % "???"

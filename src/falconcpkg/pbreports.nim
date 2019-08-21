@@ -73,22 +73,22 @@ proc get_report*(unsorted_columns: seq[Column]): json.JsonNode =
                         "header": "Contig",
                         "id": "microbial_asm_polishing_report.contigs_table.contig",
                         "values": values_contig
-        },
-        {
-            "header": "Length",
-            "id": "microbial_asm_polishing_report.contigs_table.length",
-            "values": values_length
-        },
-        {
-            "header": "Circular?",
-            "id": "microbial_asm_polishing_report.contigs_table.circular",
-            "values": values_circular
-        }
-    ],
+                    },
+                    {
+                        "header": "Length",
+                        "id": "microbial_asm_polishing_report.contigs_table.length",
+                        "values": values_length
+                    },
+                    {
+                        "header": "Circular?",
+                        "id": "microbial_asm_polishing_report.contigs_table.circular",
+                        "values": values_circular
+                    }
+                ],
                 "id": "microbial_asm_polishing_report.contigs_table",
                 "title": "Polished contigs from Microbial Assembly"
-        },
-    ],
+                },
+            ],
             "tags": [],
             "title": "Microbial Assembly Polishing Report",
             "uuid": uuid,

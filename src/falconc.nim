@@ -38,19 +38,19 @@ when isMainModule:
         [raptor_db.filter, cmdName = "raptor-db-filter"],
         [rotate.main, cmdName = "circ-orient",
             help = {
-       "input_fn": "fasta file of circular sequences",
-       "output_fn": "fasta file output",
-       "wl_fn": "white list of sequences to rotate, one per line, no spaces, no trailing spaces",
-       "window": "window size to caculate gc-skew",
-       "step": "window step",
-       "print": "print skew data to files, one per sequence"
+        "input_fn": "fasta file of circular sequences",
+        "output_fn": "fasta file output",
+        "wl_fn": "white list of sequences to rotate, one per line, no spaces, no trailing spaces",
+        "window": "window size to caculate gc-skew",
+        "step": "window step",
+        "print": "print skew data to files, one per sequence"
         },
     ],
         [rotate.randomize, cmdName = "circ-randomize",
             help = {
-       "input": "fasta file of circular sequences",
-       "output": "fasta file output",
-       "seed": "set seed, if non-zero",
+        "input": "fasta file of circular sequences",
+        "output": "fasta file output",
+        "seed": "set seed, if non-zero",
         },
     ],
         [phasr.main, cmdName = "phasr",

@@ -49,7 +49,8 @@ suite "kmers":
         let hits = kmers.search(spot, qms)
         check hits.len() == 4
         #check sets.toSet(seqUtils.toSeq(hits)).len() == 4 # 4 unique items
-        check sets.len(sets.toHashSet(seqUtils.toSeq(deques.items(hits)))) == 4 # same as above
+        check sets.len(sets.toHashSet(seqUtils.toSeq(deques.items(hits)))) ==
+                4 # same as above
 
 suite "kmers difference":
     let
