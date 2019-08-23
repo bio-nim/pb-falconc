@@ -6,4 +6,4 @@
 /src/falconc
 /falconc
 /.cache-nim/
-/test.xml
+/tests/falconc_unit_tests_junit.xml
