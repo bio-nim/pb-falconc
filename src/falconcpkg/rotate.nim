@@ -98,7 +98,7 @@ proc loadWhiteList*(fin: string): WhiteList =
     whitelist.specific = initHashSet[string]()
     echo "whitelist:"
     for l in fin.lines:
-        echo l
+        echo " whitelisted: ", l
         whitelist.specific.incl(l)
     return whitelist
 

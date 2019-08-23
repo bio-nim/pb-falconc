@@ -50,5 +50,5 @@ case "${bamboo_planRepository_branchName}" in
     ;;
 esac
 
+#clean removes the results of the test file we need
 #git clean -xdf .
-# Wait. We want to keep .xml maybe.
