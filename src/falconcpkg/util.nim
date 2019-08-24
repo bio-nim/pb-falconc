@@ -1,5 +1,5 @@
 # vim: sts=4:ts=4:sw=4:et:tw=0
-from cpuinfo import nil
+#from cpuinfo import nil
 from os import nil
 #from threadpool import nil
 

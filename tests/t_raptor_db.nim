@@ -3,8 +3,8 @@
 import falconcpkg/raptor_db
 
 from falconcpkg/util import nil
-import json
 import streams
+import strformat
 import strutils
 import unittest
 
@@ -50,88 +50,94 @@ S	9	seq/9/0_100000	100000	0	90000	100000
 B	0	0	10	100000
 """
 
-let test_data = %* [
-    { # 9x coverage of a 10kbp genome is 90kbp, and the longest read is 100kbp.
-        "input_data": input_data_str,
-        "genome_size": 10000,
-        "coverage": 9,
-        "cmd_params": ["--fail-low-cov"],
-        "exp_success": true,
-        "exp_out": "100000",
-    },
-    { # 15x coverage of a 10kbp genome is 150kbp.
-        "input_data": input_data_str,
-        "genome_size": 10000,
-        "coverage": 15,
-        "cmd_params": ["--fail-low-cov"],
-        "exp_success": true,
-        "exp_out": "90000",
-    },
-    { # 40x coverage of a 10kbp genome is 400kbp.
-        "input_data": input_data_str,
-        "genome_size": 10000,
-        "coverage": 40,
-        "cmd_params": ["--fail-low-cov"],
-        "exp_success": true,
-        "exp_out": "60000",
-    },
-    { # 40x coverage of a 10kbp genome is 400kbp. Not using "--fail-low-cov".
-        "input_data": input_data_str,
-        "genome_size": 10000,
-        "coverage": 40,
-        "cmd_params": [],
-        "exp_success": true,
-        "exp_out": "60000",
-    },
-    { # 60x coverage of a 10kbp genome is 600kbp. Expected failure.
-        "input_data": input_data_str,
-        "genome_size": 10000,
-        "coverage": 60,
-        "cmd_params": ["--fail-low-cov"],
-        "exp_success": false,
-        "exp_out": "10000",
-    },
-    { # 60x coverage of a 10kbp genome is 600kbp. Should not fail, because the "--fail-low-cov" is not specified.
-        "input_data": input_data_str,
-        "genome_size": 10000,
-        "coverage": 60,
-        "cmd_params": [],
-        "exp_success": true,
-        "exp_out": "10000",
-    },
-    { # Zero cutoff. Expected failure.
-        "input_data": input_data_str,
-        "genome_size": 10000,
-        "coverage": 0,
-        "cmd_params": ["--fail-low-cov"],
-        "exp_success": false,
-        "exp_out": "0",
-    },
-    { # Negative cutoff. Expected failure.
-        "input_data": input_data_str,
-        "genome_size": 10000,
-        "coverage": -100,
-        "cmd_params": ["--fail-low-cov"],
-        "exp_success": false,
-        "exp_out": "0",
-    },
-    { # Zero genome size. Expected failure.
-        "input_data": input_data_str,
-        "genome_size": 0,
-        "coverage": 30,
-        "cmd_params": ["--fail-low-cov"],
-        "exp_success": false,
-        "exp_out": "0",
-    },
-    { # Negative genome size. Expected failure.
-        "input_data": input_data_str,
-        "genome_size": -100,
-        "coverage": 30,
-        "cmd_params": ["--fail-low-cov"],
-        "exp_success": false,
-        "exp_out": "0",
-    },
+type
+    TestData = object
+        comment: string
+        input_data: string
+        genome_size: int64
+        coverage: float
+        fail_low_cov: bool
+        exp_out: int64
+        expect: string
+
+let test_data = [
+    TestData(comment: "9x coverage of a 10kbp genome is 90kbp, and the longest read is 100kbp.",
+        input_data: input_data_str,
+        genome_size: 10000,
+        coverage: 9,
+        fail_low_cov: true,
+        exp_out: 100000,
+    ),
+    TestData(comment: "15x coverage of a 10kbp genome is 150kbp.",
+        input_data: input_data_str,
+        genome_size: 10000,
+        coverage: 15,
+        fail_low_cov: true,
+        exp_out: 90000,
+    ),
+    TestData(comment: "40x coverage of a 10kbp genome is 400kbp.",
+        input_data: input_data_str,
+        genome_size: 10000,
+        coverage: 40,
+        fail_low_cov: true,
+        exp_out: 60000,
+    ),
+    TestData(comment: "40x coverage of a 10kbp genome is 400kbp. Not using --fail-low-cov.",
+        input_data: input_data_str,
+        genome_size: 10000,
+        coverage: 40,
+        fail_low_cov: true,
+        exp_out: 60000,
+    ),
+    TestData(comment: "60x coverage of a 10kbp genome is 600kbp. Expected failure.",
+        input_data: input_data_str,
+        genome_size: 10000,
+        coverage: 60,
+        fail_low_cov: true,
+        exp_out: 10000,
+        expect: "GenomeCoverageError",
+    ),
+    TestData(comment: "60x coverage of a 10kbp genome is 600kbp. Should not fail, because the --fail-low-cov is not specified.",
+        input_data: input_data_str,
+        genome_size: 10000,
+        coverage: 60,
+        fail_low_cov: false,
+        exp_out: 10000,
+    ),
+    TestData(comment: "Zero cutoff. Expected failure.",
+        input_data: input_data_str,
+        genome_size: 10000,
+        coverage: 0,
+        fail_low_cov: true,
+        exp_out: 0,
+        expect: "AssertionError",
+    ),
+    TestData(comment: "Negative cutoff. Expected failure.",
+        input_data: input_data_str,
+        genome_size: 10000,
+        coverage: -100,
+        fail_low_cov: true,
+        exp_out: 0,
+        expect: "AssertionError",
+    ),
+    TestData(comment: "Zero genome size. Expected failure.",
+        input_data: input_data_str,
+        genome_size: 0,
+        coverage: 30,
+        fail_low_cov: true,
+        exp_out: 0,
+        expect: "AssertionError",
+    ),
+    TestData(comment: "Negative genome size. Expected failure.",
+        input_data: input_data_str,
+        genome_size: -100,
+        coverage: 30,
+        fail_low_cov: true,
+        exp_out: 0,
+        expect: "AssertionError",
+    ),
 ]
+
 
 suite "raptor_db":
 
@@ -188,3 +194,23 @@ suite "raptor_db":
 
         expect(util.TooFewFieldsError):
             discard get_length_cutoff(sin, 100, 30)
+    test "ivan's tests":
+        for d in test_data:
+            let sin = streams.newStringStream(d.input_data)
+            if "" == d.expect:
+                let cutoff = get_length_cutoff(sin, d.genome_size, d.coverage, fail_low_cov=d.fail_low_cov)
+                let msg = fmt("expected={d.exp_out} != got={cutoff}:\n {d.comment}")
+                assert d.exp_out == cutoff, msg
+            else:
+                var msg: string
+                try:
+                    let cutoff = get_length_cutoff(sin, d.genome_size, d.coverage, fail_low_cov=d.fail_low_cov)
+                    msg = fmt"Got cutoff={cutoff} instead of expected exception"
+                except Exception as exc:
+                    if exc.name == d.expect:
+                        #echo "Got right!", type(exc), " was of ", type(d.expect)
+                        msg = ""
+                    else:
+                        msg = fmt"Got wrong {exc.name}, not {d.expect}"
+                if "" != msg:
+                    assert false, msg & "\n " & d.comment
