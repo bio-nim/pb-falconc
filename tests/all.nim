@@ -27,7 +27,9 @@ include "t_pbcromwell.nim"
 include "t_pbreports.nim"
 include "t_stats.nim"
 include "t_rotate.nim"
+include "t_raptor_db.nim"
 
 #cleanup
 unittest.close(report_of)
 close(xray_of)
+#quit(programResult)

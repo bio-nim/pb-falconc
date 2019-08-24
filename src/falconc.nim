@@ -36,6 +36,12 @@ when isMainModule:
         [utils, short = {}, help = {"float_req": "special help message"}],
         [align.align_filter, cmdName = "align-filter"],
         [raptor_db.filter, cmdName = "raptor-db-filter"],
+        [raptor_db.calc_length_cutoff, cmdName = "raptor-db-calc-length-cutoff",
+            help = {
+        "fail-low-cov": "Exit non-zero if the input coverage was insufficient to satisfy the requirement.",
+        "alarms-fn": "Optional JSON file to write SMRT Link alarms. (typically used w/ -f)",
+            },
+        ],
         [rotate.main, cmdName = "circ-orient",
             help = {
         "input_fn": "fasta file of circular sequences",
@@ -44,15 +50,15 @@ when isMainModule:
         "window": "window size to caculate gc-skew",
         "step": "window step",
         "print": "print skew data to files, one per sequence"
-        },
-    ],
+            },
+        ],
         [rotate.randomize, cmdName = "circ-randomize",
             help = {
         "input": "fasta file of circular sequences",
         "output": "fasta file output",
         "seed": "set seed, if non-zero",
-        },
-    ],
+            },
+        ],
         [phasr.main, cmdName = "phasr",
           help = {
             "aln_fn": "BAM alignment, sorted on 'coordinate'",
@@ -61,8 +67,8 @@ when isMainModule:
             "iterations": "Number of phasing iterations per read",
             "kmersize": "Kmer size",
             "delta": "Frequency cut",
-        },
-    ],
+            },
+        ],
         [overlapFilter.runMergeBlacklists, cmdName = "m4filt-merge-blacklist",
         ],
         [overlapFilter.runStage1, cmdName = "m4filt-stage1",
