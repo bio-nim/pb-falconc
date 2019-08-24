@@ -1,6 +1,5 @@
 all:
 	nim c -r all.nim
-	#nim c -r mjunit2xray.nim falconc_unit_tests_junit.xml
 each:
 	nim c -r t_welcome.nim
 	nim c -r t_kmers.nim
@@ -10,5 +9,6 @@ each:
 	nim c -r t_pbreports.nim
 	nim c -r t_stats.nim
 	nim c -r t_rotate.nim
+	nim c -r t_raptor_db.nim
 
 .PHONY: all

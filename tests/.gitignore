@@ -6,6 +6,7 @@
 /t_pbreports
 /t_stats
 /t_rotate
+/t_raptor_db
 /all
 /falconc_unit_tests_junit.xml
 /xray_summary.json

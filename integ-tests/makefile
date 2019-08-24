@@ -6,3 +6,8 @@ test1:
 test-phasr:
 	nim c phasr_test
 	./phasr_test
+alarm:
+	# run from top-dir
+	-src/falconc raptor-db-calc-length-cutoff -r ../raptor/test-data/raptordb-fetch/test-2.rdb --genome 10000000 -f --alarms foo
+	cat foo
+	rm -f foo

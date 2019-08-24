@@ -4,12 +4,15 @@ from os import nil
 #from threadpool import nil
 
 type PbError* = object of Exception
+type GenomeCoverageError* = object of PbError
+type FieldTooLongError* = object of PbError
+type TooFewFieldsError* = object of PbError
 
 proc raiseEx*(msg: string) {.discardable.} =
     raise newException(PbError, msg)
 
-proc isEmptyFile*(fin: string): bool =
-    var finfo = os.getFileInfo(fin)
+proc isEmptyFile*(fn: string): bool =
+    var finfo = os.getFileInfo(fn)
     if finfo.size == 0:
         return true
     return false
