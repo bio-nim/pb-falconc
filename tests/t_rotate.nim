@@ -20,7 +20,7 @@ template withFile(f: untyped, filename: string, mode: FileMode,
 
 
 suite "rotate":
-    unittest.abortOnError = true # so we can examine files on error
+    #unittest.abortOnError = true # so we can examine files on error
     let subdir = "rotate-testdir"
     echo "CREATE ", subdir
     discard os.existsOrCreateDir(subdir)
