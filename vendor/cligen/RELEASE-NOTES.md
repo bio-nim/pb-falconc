@@ -1,8 +1,43 @@
 RELEASE NOTES
 =============
 
-Version: 0.9.33
+Version: 0.9.38
 ---------------
+    Fix a little bug blocking abbrev(mx>0).
+
+    Move `cmp`, `<=`, `-`(a, b: Timespec) from `statx` to `posixUt`.
+
+    cligen/[statx, magic] made somewhat autoconfiguring. (magic could probably
+    use more paths.  PRs welcome.)
+
+Version: 0.9.37
+---------------
+  Add cligen/trie.nim.  Use match routine in abbrev.nim to change compression
+  levels and add two new levels. Now the full map is:
+    -2 shortest prefix
+    -3 shortest suffix
+    -4 shortest of either locally (or, upon any collision, shortest global avg)
+    -5 shortest any-spot-1-star location
+    -6 shortest 2-star pattern if shorter than 1-star
+  and it probably won't change (except to maybe grow -7/3-star, -8/4-star,..)
+
+  Also fixed a bug in parseopt3.nim which wasn't normalizing options for bool
+  params correctly. (There still might be some issues in mixed abbreviated and
+  in need of normalization cases.)
+
+Version: 0.9.35
+---------------
+  Simplify usage of abbrev with Abbrev type. Generalize to have locally varying
+  abbreviations (just unique prefix, suffix, or globally/locally shortest of
+  either right now).
+
+  Add Ternary Search Tree cligen/tern.nim and use in cligen/abbrev.nim, fixing
+  bug in abbrevation modes -2..-5 in the presence of non-unique prefix strings.
+  Name the routines [PS]fx**Pat**(s) to be clear it's a more well-defined answer
+  than just unique prefix strings.
+
+Version: 0.9.33,34
+------------------
   Add abbrev, parseAbbrev, uniqueAbs, smallestMaxSTUnique to new cligen/abbrev.
 
 Version: 0.9.32

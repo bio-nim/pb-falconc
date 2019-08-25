@@ -12,8 +12,11 @@ type
     st*   : Stat    ## File metadata at time of open
     prot* : cint    ## Map Protection
     flags*: cint    ## Map Flags (-1 => not open)
+    mem*  : pointer ## First addr to use
     len*  : int     ## Length of file (in bytes) or to unmap
-    mem*  : pointer ## First addr to use in [buf0, buf0 + len)
+
+proc getpagesize(): cint {. importc: "getpagesize", header: "<unistd.h>" .}
+let pagesize = getpagesize()
 
 proc mopen*(fd: cint; st: Stat, prot=PROT_READ, flags=MAP_SHARED,
             a=0.Off, b = Off(-1), allowRemap=false, noShrink=false): MFile =
@@ -116,6 +119,15 @@ proc resize*(mf: var MFile, newFileSize: int): int =
       return -1
   mf.mem = newAddr
   mf.len = newFileSize
+
+proc inCore*(mf: MFile): tuple[resident, total: int] =
+  proc mincore(adr: pointer, length: csize, vec: cstring): cint {.
+         importc: "mincore", header: "<sys/mman.h>" .}
+  result.total = (mf.len + pagesize - 1) div pagesize #limit buffer to 64K?
+  var resident = newString(result.total)
+  if mincore(mf.mem, mf.len, resident.cstring) != -1: #nsleep 10000 on EAGAIN?
+    for page in resident:
+      if (page.int8 and 1) != 0: result.resident.inc
 
 proc `<`*(a,b: MFile): bool = cMemCmp(a.mem, b.mem, min(a.len, b.len)) < 0
 

@@ -50,7 +50,8 @@ proc `==`*(x, y: MSlice): bool {.inline.} =
 
 proc `<`*(a,b: MSlice): bool {.inline.} =
   ## Compare a pair of MSlice for inequality.
-  cmemcmp(a.mem, b.mem, min(a.len, b.len)) < 0
+  let c = cmemcmp(a.mem, b.mem, min(a.len, b.len))
+  if c == 0: a.len < b.len else: c < 0
 
 proc write*(f: File, ms: MSlice) {.inline.} =
   ## Write ``ms`` data to file ``f``.
@@ -72,11 +73,11 @@ proc hash*(ms: MSlice): Hash {.inline.} =
   result = hashData(ms.mem, ms.len)
 
 iterator mSlices*(mslc: MSlice, sep=' ', eat='\0'): MSlice =
-  ## Iterate over [optionally ``eat`` suffixed] ``sep``-delimited slices in
+  ## Iterate over [optionally ``eat``-suffixed] ``sep``-delimited slices in
   ## ``mslc``.  Delimiters are NOT part of returned slices.  Pass eat='\\0' to
   ## be strictly `sep`-delimited.  A final, unterminated record is returned
   ## like any other.  You can swap ``sep`` & ``eat`` to ignore any optional
-  ## prefix except '\\0'.  This is similar to "lines parsing".  E.g.:
+  ## prefix except '\\0'.  This is similar to "lines parsing".  E.g. usage:
   ##
   ## .. code-block:: nim
   ##   import mfile; var count = 0  #Count initial '#' comment lines
@@ -124,14 +125,14 @@ proc mempbrk*(s: pointer, accept: set[char], n: csize): pointer {.inline.} =
 proc mem(s: string): pointer = cast[pointer](cstring(s))
 
 template defSplit[T](slc: T, fs: var seq[MSlice], n: int, repeat: bool,
-                     s: untyped, nextSep: untyped, isSep: untyped) {.dirty.} =
+                     sep: untyped, nextSep: untyped, isSep: untyped) {.dirty.} =
   fs.setLen(if n < 1: 16 else: n)
   var b   = slc.mem
   var eob = b +! slc.len
-  while repeat and eob -! b > 0 and isSep((cast[cstring](b))[0], s):
+  while repeat and eob -! b > 0 and isSep((cast[cstring](b))[0], sep):
     b = b +! 1
     if b == eob: fs.setLen(0); return
-  var e = nextSep(b, s, eob -! b)
+  var e = nextSep(b, sep, eob -! b)
   while e != nil:
     if n < 1:                               #Unbounded msplit
       if result == fs.len - 1:              #Expand capacity
@@ -141,10 +142,13 @@ template defSplit[T](slc: T, fs: var seq[MSlice], n: int, repeat: bool,
     fs[result].mem = b
     fs[result].len = e -! b
     result += 1
-    while repeat and eob -! e > 0 and isSep((cast[cstring](e))[1], s):
+    while repeat and eob -! e > 0 and isSep((cast[cstring](e))[1], sep):
       e = e +! 1
     b = e +! 1
-    e = nextSep(b, s, eob -! b)
+    if eob -! b <= 0:
+      b = eob
+      break
+    e = nextSep(b, sep, eob -! b)
   if not repeat or eob -! b > 0:
     fs[result].mem = b
     fs[result].len = eob -! b
@@ -179,15 +183,15 @@ proc msplit*(s: string, seps=wspace, n=0, repeat=true): seq[MSlice] {.inline.}=
   discard msplit(s, result, seps, n, repeat)
 
 template defSplitr(slc: string, fs: var seq[string], n: int, repeat: bool,
-                   s: untyped, nextSep: untyped, isSep: untyped) {.dirty.} =
+                   sep: untyped, nextSep: untyped, isSep: untyped) {.dirty.} =
   fs.setLen(if n < 1: 16 else: n)
   var b0  = slc.mem
   var b   = b0
   var eob = b +! slc.len
-  while repeat and eob -! b > 0 and isSep((cast[cstring](b))[0], s):
+  while repeat and eob -! b > 0 and isSep((cast[cstring](b))[0], sep):
     b = b +! 1
     if b == eob: fs.setLen(0); return
-  var e = nextSep(b, s, eob -! b)
+  var e = nextSep(b, sep, eob -! b)
   while e != nil:
     if n < 1:                               #Unbounded splitr
       if result == fs.len - 1:              #Expand capacity
@@ -196,10 +200,13 @@ template defSplitr(slc: string, fs: var seq[string], n: int, repeat: bool,
       break
     fs[result] = slc[(b -! b0) ..< (e -! b0)]
     result += 1
-    while repeat and eob -! e > 0 and isSep((cast[cstring](e))[1], s):
+    while repeat and eob -! e > 0 and isSep((cast[cstring](e))[1], sep):
       e = e +! 1
     b = e +! 1
-    e = nextSep(b, s, eob -! b)
+    if eob -! b <= 0:
+      b = eob
+      break
+    e = nextSep(b, sep, eob -! b)
   if not repeat or eob -! b > 0:
     fs[result] = slc[(b -! b0) ..< (eob -! b0)]
     result += 1

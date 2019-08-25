@@ -4,6 +4,17 @@ proc getTime*(): Timespec =
   ##Placeholder to avoid `times` module
   discard clock_gettime(0.ClockId, result)
 
+proc cmp*(a, b: Timespec): int =
+  let s = cmp(a.tv_sec.uint, b.tv_sec.uint)
+  if s != 0: return s
+  return cmp(a.tv_nsec, b.tv_nsec)
+
+proc `<=`*(a, b: Timespec): bool = cmp(a, b) <= 0
+
+proc `-`*(a, b: Timespec): int =
+  result = (a.tv_sec.int - b.tv_sec.int) * 1_000_000_000 +
+           (a.tv_nsec.int - b.tv_nsec.int)
+
 proc toUidSet*(strs: seq[string]): HashSet[Uid] =
   ##Just parse some ints into typed Uids
   when NimVersion < "0.20.0": result = initSet[Uid]()
@@ -181,3 +192,25 @@ proc pathId*(path: string): PathId =
 
 proc `==`*(a, b: PathId): bool = a.dev == b.dev and a.ino == b.ino
 proc hash*(x: PathId): int = x.dev.int * x.ino.int
+
+proc readFile*(path: string, buf: var string, st: ptr Stat=nil, perRead=4096) =
+  ## Read whole file of unknown (& fstat-non-informative) size using re-usable
+  ## IO buffer provided.  If ``st`` is non-nil then fill it in via ``fstat``.
+  let fd = open(path, O_RDONLY)
+  if fd == -1: return                 #likely vanished between getdents & open
+  defer: discard close(fd)
+  if st != nil:
+    if fstat(fd, st[]) == -1: return  #early return virtually impossible
+  buf.setLen(0)
+  var off = 0
+  while true:
+    buf.setLen(buf.len + perRead)
+    let nRead = read(fd, buf[off].addr, perRead)
+    if nRead == -1:
+      if errno == EAGAIN or errno == EINTR:
+        continue
+      return
+    elif nRead < perRead:
+      buf.setLen(off + nRead)
+      break
+    off += nRead
