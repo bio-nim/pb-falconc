@@ -1,3 +1,11 @@
+v0.2.20
+=======
++ hts/files (iterate over bgzipped or text files identically)
+
+v0.2.16
+=======
++ [bam] add `set_qname`
+
 v0.2.14
 =======
 + [vcf] add format.delete to delete format (sample) fields from vcf records.

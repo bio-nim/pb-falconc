@@ -161,6 +161,56 @@ proc qname*(r: Record): string {. inline .} =
   ## `qname` returns the query name.
   return $(bam_get_qname(r.b))
 
+proc c_realloc(p: pointer, newsize: csize): pointer {.
+  importc: "realloc", header: "<stdlib.h>".}
+
+proc set_qname*(r: Record, qname: string) =
+  ## set a new qname for the record
+  doAssert qname.len < uint8.high.int, "[hts-nim/bam/set_qname]: maximum qname length is 255 bases"
+
+  var l = qname.len + 1
+  var l_extranul = 0
+  if l mod 4 != 0:
+    l_extranul = 4 - l mod 4
+  l += l_extranul
+
+  var old_ld = r.b.l_data
+
+  r.b.l_data = r.b.l_data - r.b.core.l_qname.cint + l.cint
+  if r.b.m_data < r.b.l_data:
+    when defined(qname_debug):
+      echo ">>>>>>>>>>>realloc:", r.b.l_data, " m:", r.b.m_data
+    r.b.m_data = r.b.l_data
+    # 4-byte align
+    r.b.m_data += 32 - (r.b.m_data mod 32)
+    r.b.data = cast[ptr uint8](c_realloc(r.b.data.pointer, r.b.m_data.csize))
+  when defined(qname_debug):
+    echo "old:", r.qname
+    echo "new:", qname
+    echo "source offset:", r.b.core.l_qname.int - 1
+    echo "dest offset:", l
+    echo "extranul:", l_extranul
+    echo "copy size:", old_ld - r.b.core.l_qname.int
+    echo "old_size:", old_ld
+    echo "new_size:", r.b.l_data
+
+  # first move the data that follows the qname to its correct location
+  if r.b.core.l_qname != l.uint8:
+    moveMem(cast[pointer](cast[int](r.b.data.pointer) + l),
+            cast[pointer](cast[int](r.b.data.pointer) + r.b.core.l_qname.int),
+            old_ld - r.b.core.l_qname.int)
+
+  r.b.core.l_extranul = l_extranul.uint8
+  r.b.core.l_qname = l.uint8
+
+  # use loop instead of copyMem to avoid problems with older nim versions
+  for i in 0..qname.high:
+    (cast[CPtr[cchar]](r.b.data))[i] = qname[i]
+
+  var tmp = cast[cstring](r.b.data)
+  for i in 0..l_extranul:
+    tmp[qname.len+i] = '\0'
+
 proc flag*(r: Record): Flag {.inline.} =
   ## `flag` returns a `Flag` object.
   return Flag(r.b.core.flag)
@@ -236,6 +286,7 @@ proc tostring*(r: Record): string =
   return s
 
 proc finalize_bam(bam: Bam) =
+  if bam == nil: return
   if bam.idx != nil:
     hts_idx_destroy(bam.idx)
   if bam.hts != nil:
@@ -355,29 +406,4 @@ iterator items*(bam: Bam): Record {.raises: [ValueError]}=
   if ret < -1:
     raise newException(ValueError, "hts/bam:error in iteration")
 
-
 include "./bam/auxtags"
-
-proc main() =
-
-  var bam: Bam
-  open(bam, "tests/HG02002.bam", index=true)
-  #var bam = open_hts("/tmp/t.cram", fai="/data/human/g1k_v37_decoy.fa", index=true)
-
-  var recs = newSeq[Record]()
-
-  for b in bam:
-    if len(recs) < 10:
-        recs.add(b.copy())
-    discard b.qname
-  for b in recs:
-      echo b, " ", b.flag.dup, " ", b.cigar
-      for op in b.cigar:
-          echo op, " ", op.op, " ", op.consumes.query, " ", op.consumes.reference
-  for b in bam.query("6", 328, 32816675):
-    discard b
-
-when isMainModule:
-  for i in 1..3000:
-      echo i
-      main()
