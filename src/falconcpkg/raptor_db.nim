@@ -263,9 +263,8 @@ proc calc_length_cutoff*(rdb_fn: string = "rawreads.db",
     ## Perform a linear pass on an overlap file, and determine rough clipping coordinates to 'correct' reads.
     ## Write integer to stdout.
     try:
-        var sin = streams.newFileStream(rdb_fn, fmRead)
-        if nil == sin:
-            util.raiseEx("Could not open RaptorDB '" & rdb_fn & "'")
+        let content = system.readFile(rdb_fn) # read into memory b/c streams lib is slow
+        var sin = streams.newStringStream(content)
         defer: streams.close(sin)
 
         let cutoff = get_length_cutoff(sin, genome_size, coverage, fail_low_cov, alarms_fn)
