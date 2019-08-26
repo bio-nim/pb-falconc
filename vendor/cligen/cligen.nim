@@ -446,7 +446,7 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
             let sub = `aliasesId`.match(`pId`.val, "alias ref", msg)
             if msg.len > 0:
               if cast[pointer](`setByParseId`) != nil:
-                `setByParseId`[].add((`piD`.key, `pId`.val, msg, clBadKey))
+                `setByParseId`[].add((`pId`.key, `pId`.val, msg, clBadKey))
               else:
                 stderr.write msg
                 let t = if msg.startsWith "Ambig": "Ambiguous" else: "Unknown"
@@ -489,7 +489,7 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
       let msg=("Ambiguous long option prefix \"$1\" matches:\n  $2 "%[`pId`.key,
               ks.join("\n  ")]) & "\nRun with --help for more details.\n"
       if cast[pointer](`setByParseId`) != nil:
-        `setByParseId`[].add((`piD`.key, `pId`.val, msg, clBadKey))
+        `setByParseId`[].add((`pId`.key, `pId`.val, msg, clBadKey))
       else:
         stderr.write(msg)
         raise newException(ParseError, "Unknown option")
@@ -507,7 +507,7 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
       let msg = ("Unknown " & k & " option: \"" & `pId`.key & "\"\n\n" &
                  mb & "Run with --help for full usage.\n")
       if cast[pointer](`setByParseId`) != nil:
-        `setByParseId`[].add((`piD`.key, `pId`.val, msg, clBadKey))
+        `setByParseId`[].add((`pId`.key, `pId`.val, msg, clBadKey))
       else:
         stderr.write(msg)
         raise newException(ParseError, "Unknown option")))
@@ -569,7 +569,7 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
       {.push hint[XDeclaredButNotUsed]: off.}
       `initVars`
       `aliases`
-      var `keyCountId` = initCountTable[string]()
+      var `keyCountId` {.used.} = initCountTable[string]()
       proc parser(args=`cmdLineId`) =
         var `posNoId` = 0
         var `pId` = initOptParser(args, `apId`.shortNoVal, `apId`.longNoVal,
@@ -869,7 +869,7 @@ macro dispatchMulti*(procBrackets: varargs[untyped]): untyped =
     prefix = procBrackets[0][0].strVal
   let subCmdsId = ident(prefix & "SubCmds")
   let subMchsId = ident(prefix & "SubMchs")
-  let SubsDispId = ident(prefix & "Subs")
+  let subsDispId = ident(prefix & "Subs")
   result = newStmtList()
   result.add(quote do: {.push warning[GCUnsafe]: off.})
   result.add(newCall("dispatchMultiGen", copyNimTree(procBrackets)))
@@ -890,11 +890,11 @@ macro dispatchMulti*(procBrackets: varargs[untyped]): untyped =
      elif ps.len > 0 and ps0.len == 0:
        ambigSubcommand(`subMchsId`, ps[0])
      elif ps.len == 2 and ps0 == "help":
-       if ps1 in `subMchsId`: cligenQuit(`SubsDispId`(@[ ps1, "--help" ]))
+       if ps1 in `subMchsId`: cligenQuit(`subsDispId`(@[ ps1, "--help" ]))
        elif ps1.len == 0: ambigSubcommand(`subMchsId`, ps[1])
        else: unknownSubcommand(ps[1], `subCmdsId`)
      else:
-       cligenQuit(`SubsDispId`())
+       cligenQuit(`subsDispId`())
      {.pop.}  #ProveField
      {.pop.}  #GlobalVar
     {.pop.}) #GCUnsafe

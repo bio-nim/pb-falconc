@@ -243,7 +243,7 @@ type
 ## ###########################
 
 type
-  INNER_C_UNION_hts_concat_212* {.bycopy.} = object {.union.}
+  INNER_C_UNION_hts_concat_212* {.bycopy, union.} = object
     bgzf*: ptr BGZF
     cram*: ptr cram_fd
     hfile*: ptr hFILE
@@ -430,6 +430,8 @@ proc sam_write1*(fp: ptr htsFile; h: ptr bam_hdr_t; b: ptr bam1_t): cint {.cdecl
     importc: "sam_write1", dynlib: libname.}
 proc bam_hdr_destroy*(h: ptr bam_hdr_t) {.cdecl, importc: "bam_hdr_destroy",
                                       dynlib: libname.}
+## static inline void bam_hdr_destroy(sam_hdr_t *h) { sam_hdr_destroy(h); }
+
 proc sam_format1*(h: ptr bam_hdr_t; b: ptr bam1_t; str: ptr kstring_t): cint {.cdecl,
     importc: "sam_format1", dynlib: libname.}
 proc sam_read1*(fp: ptr samFile; h: ptr bam_hdr_t; b: ptr bam1_t): cint {.cdecl,
@@ -450,12 +452,18 @@ proc bam_get_l_aux*(b: ptr bam1_t): cint {.cdecl, importc: "bam_get_l_aux",
                                       dynlib: libname.}
 proc bam_aux_get*(b: ptr bam1_t; tag: array[2, char]): ptr uint8 {.cdecl,
     importc: "bam_aux_get", dynlib: libname.}
-proc bam_aux2i*(s: ptr uint8): int32 {.cdecl, importc: "bam_aux2i", dynlib: libname.}
-proc bam_aux2f*(s: ptr uint8): cfloat {.cdecl, importc: "bam_aux2f", dynlib: libname.}
+proc bam_aux2i*(s: ptr uint8): int64 {.cdecl, importc: "bam_aux2i", dynlib: libname.}
+proc bam_aux2f*(s: ptr uint8): cdouble {.cdecl, importc: "bam_aux2f", dynlib: libname.}
 proc bam_aux2Z*(s: ptr uint8): cstring {.cdecl, importc: "bam_aux2Z", dynlib: libname.}
 proc bam_aux2A*(s: ptr uint8): char {.cdecl, importc: "bam_aux2A", dynlib: libname.}
 proc bam_aux_del*(b: ptr bam1_t; s: ptr uint8): cint {.cdecl, importc: "bam_aux_del",
     dynlib: libname.}
+proc bam_aux_update_str*(b: ptr bam1_t; tag: array[2, char]; len: cint; data: cstring): cint {.
+    cdecl, importc: "bam_aux_update_str", dynlib: libname.}
+proc bam_aux_update_int*(b: ptr bam1_t; tag: array[2, char]; val: int64): cint {.cdecl,
+    importc: "bam_aux_update_int", dynlib: libname.}
+proc bam_aux_update_float*(b: ptr bam1_t; tag: array[2, char]; val: cfloat): cint {.cdecl,
+    importc: "bam_aux_update_float", dynlib: libname.}
 proc bam_copy1*(bdst: ptr bam1_t; bsrc: ptr bam1_t): ptr bam1_t {.cdecl,
     importc: "bam_copy1", dynlib: libname.}
 proc bam_dup1*(bsrc: ptr bam1_t): ptr bam1_t {.cdecl, importc: "bam_dup1",
@@ -528,7 +536,7 @@ template bam_cigar_gen*(l, o: untyped): untyped =
   ((l) shl BAM_CIGAR_SHIFT or (o))
 
 type
-  bam_pileup_cd* {.bycopy.} = object {.union.}
+  bam_pileup_cd* {.bycopy, union.} = object
     p*: pointer
     i*: int64
     f*: cdouble
@@ -645,7 +653,7 @@ const
 ##
 
 type
-  INNER_C_UNION_hts_concat_551* {.bycopy.} = object {.union.}
+  INNER_C_UNION_hts_concat_557* {.bycopy, union.} = object
     i*: int32                  ##  integer value
     f*: cfloat                 ##  float value
 
@@ -675,7 +683,7 @@ type
     key*: cint                 ##  key: numeric tag id, the corresponding string is bcf_hdr_t::id[BCF_DT_ID][$key].key
     `type`*: cint
     len*: cint                 ##  type: one of BCF_BT_* types; len: vector length, 1 for scalars
-    v1*: INNER_C_UNION_hts_concat_551 ##  only set if $len==1; for easier access
+    v1*: INNER_C_UNION_hts_concat_557 ##  only set if $len==1; for easier access
     vptr*: ptr uint8            ##  pointer to data array in bcf1_t->shared.s, excluding the size+type and tag id bytes
     vptr_len*: uint32          ##  length of the vptr block or, when set, of the vptr_mod block, excluding offset
     vptr_off* {.bitsize: 31.}: uint32 ##  vptr offset, i.e., the size of the INFO key plus size+type bytes
@@ -816,6 +824,8 @@ proc bcf_dup*(src: ptr bcf1_t): ptr bcf1_t {.cdecl, importc: "bcf_dup", dynlib: 
 proc bcf_destroy*(v: ptr bcf1_t) {.cdecl, importc: "bcf_destroy", dynlib: libname.}
 proc bcf_add_filter*(hdr: ptr bcf_hdr_t; line: ptr bcf1_t; flt_id: cint): cint {.cdecl,
     importc: "bcf_add_filter", dynlib: libname.}
+proc bcf_update_id*(hdr: ptr bcf_hdr_t; line: ptr bcf1_t; id: cstring): cint {.cdecl,
+    importc: "bcf_update_id", dynlib: libname.}
 proc bcf_update_info*(hdr: ptr bcf_hdr_t; line: ptr bcf1_t; key: cstring;
                      values: pointer; n: cint; `type`: cint): cint {.cdecl,
     importc: "bcf_update_info", dynlib: libname.}

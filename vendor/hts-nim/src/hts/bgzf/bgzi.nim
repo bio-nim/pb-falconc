@@ -1,8 +1,6 @@
 import ../private/hts_concat
 import ../bgzf
 import ../csi
-import strutils
-import os
 
 type
   BGZI* = ref object of RootObj
@@ -26,9 +24,6 @@ proc ropen_bgzi*(path: string): BGZI =
     stderr.write_line("[hts-nim] error opening csi file for:", path)
     quit(1)
   return BGZI(bgz: b, csi:c, path:path)
-
-type
-  interval = tuple[chrom: string, start: int, stop: int, line: string]
 
 proc fastSubStr(dest: var string; src: cstring, a, b: int) {.inline.} =
   # once the stdlib uses TR macros, these things should not be necessary

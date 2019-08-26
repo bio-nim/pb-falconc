@@ -17,9 +17,9 @@ rsync:
 	mkdir -p ${NIMBLE_DIR}/pkgs/
 	rsync -av vendor/nim-networkx/src/ ${NIMBLE_DIR}/pkgs/networkx-1.0.0/
 	rsync -av vendor/nim-heap/ ${NIMBLE_DIR}/pkgs/binaryheap-0.1.1/
-	rsync -av vendor/hts-nim/src/ ${NIMBLE_DIR}/pkgs/hts-0.2.15/
+	rsync -av vendor/hts-nim/src/ ${NIMBLE_DIR}/pkgs/hts-0.2.20/
 	rsync -av vendor/msgpack4nim/ ${NIMBLE_DIR}/pkgs/msgpack4nim-0.2.9/
-	rsync -av vendor/cligen/ ${NIMBLE_DIR}/pkgs/cligen-0.9.34/
+	rsync -av vendor/cligen/ ${NIMBLE_DIR}/pkgs/cligen-0.9.37/
 
 # These 3 rules are for mobs/bamboo:
 # Someday maybe --nimcache:${CURDIR}/.cache-nim

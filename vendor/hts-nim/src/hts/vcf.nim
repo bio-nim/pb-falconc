@@ -8,7 +8,7 @@ import sequtils
 when defined(nimUncheckedArrayTyp):
   type CArray[T] = UncheckedArray[T]
 else:
-  type CArray{.unchecked.}[T] = array[0..0, T]
+  type CArray[T]{.unchecked.} = array[0..0, T]
 
 type
   Header* = ref object of RootObj
@@ -190,8 +190,6 @@ proc format*(v:Variant): FORMAT {.inline.} =
 
 proc n_samples*(v:Variant): int {.inline.} =
   return v.c.n_sample.int
-
-proc c_memcpy(a, b: pointer, size: csize) {.importc: "memcpy", header: "<string.h>", inline.}
 
 proc toSeq[T](data: var seq[T], p:pointer, n:int) {.inline.} =
   ## helper function to fill a sequence with data from a pointer
@@ -702,6 +700,11 @@ proc stop*(v:Variant): int {.inline.} =
 proc ID*(v:Variant): cstring {.inline.} =
   ## the VCF ID field
   return v.c.d.id
+
+proc `ID=`*(v:Variant, value: string) {.inline.} =
+  ## Set the ID value, third column in the VCF spec.
+  doAssert(bcf_update_id(v.vcf.header.hdr, v.c, value) == 0,
+    &"[hts-nim/vcf] error setting variant id to: {value}")
 
 proc FILTER*(v:Variant): string {.inline.} =
   ## Return a string representation of the FILTER will be ';' delimited for multiple values

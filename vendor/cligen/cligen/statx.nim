@@ -1,7 +1,8 @@
-import posix
+import posix, posixUt
 
+const haveStatx* = (gorgeEx "[ -e /usr/include/bits/statx.h ]")[1] == 0
 {.passC: "-D_GNU_SOURCE".}
-when defined(haveNoStatx):
+when not haveStatx:
   type
     StatxTs* {.final, pure.} = object
       tv_sec*: int64
@@ -69,14 +70,14 @@ impCint("fcntl.h", AT_SYMLINK_NOFOLLOW) ## Do not follow symbolic links
 impCint("fcntl.h", AT_REMOVEDIR)        ## Remove dir instead of unlinking file
 impCint("fcntl.h", AT_SYMLINK_FOLLOW)   ## Follow symbolic links
 impCint("fcntl.h", AT_EACCESS)          ## Test access perm for EID,not real ID
-when defined(linux) and not defined(haveNoStatx):
+when defined(linux) and haveStatx:
   impCint("fcntl.h", AT_NO_AUTOMOUNT)   ## Suppress terminal automount traversal
   impCint("fcntl.h", AT_EMPTY_PATH)     ## Allow empty relative pathname
   impCint("fcntl.h", AT_STATX_SYNC_TYPE)
   impCint("fcntl.h", AT_STATX_SYNC_AS_STAT)
   impCint("fcntl.h", AT_STATX_FORCE_SYNC)
   impCint("fcntl.h", AT_STATX_DONT_SYNC)
-when not defined(haveNoStatx):
+when haveStatx:
   impCint("sys/stat.h", STATX_TYPE)
   impCint("sys/stat.h", STATX_MODE)
   impCint("sys/stat.h", STATX_NLINK)
@@ -98,7 +99,7 @@ when not defined(haveNoStatx):
   impCint("sys/stat.h", STATX_ATTR_ENCRYPTED)
   impCint("sys/stat.h", STATX_ATTR_AUTOMOUNT)
 
-when not defined(haveNoStatx):
+when haveStatx:
   var statxFlags* = AT_STATX_DONT_SYNC
   var statxMask* = STATX_ALL
 
@@ -133,22 +134,11 @@ proc toTimespec*(ts: StatxTs): Timespec =
   result.tv_sec = ts.tv_sec.Time
   result.tv_nsec = ts.tv_nsec
 
-proc cmp*(a, b: Timespec): int =
-  let s = cmp(a.tv_sec.uint, b.tv_sec.uint)
-  if s != 0: return s
-  return cmp(a.tv_nsec, b.tv_nsec)
-
-proc `<=`*(a, b: Timespec): bool = cmp(a, b) <= 0
-
-proc `-`*(a, b: Timespec): int =
-  result = (a.tv_sec.int - b.tv_sec.int) * 1_000_000_000 +
-           (a.tv_nsec.int - b.tv_nsec.int)
-
 proc toStatxTs*(ts: Timespec): StatxTs =
   result.tv_sec = ts.tv_sec.int64
   result.tv_nsec = ts.tv_nsec.int32
 
-when defined(haveNoStatx):
+when not haveStatx:
   proc stat2statx(dst: var Statx, src: Stat) =
     dst.stx_mask            = 0xFFFFFFFF.uint32
 #   dst.stx_attributes      = .uint64     #No analogues; Extra syscalls?
@@ -192,28 +182,28 @@ proc st_vtim*(st: Statx): Timespec =
   else:                               st.st_ctim
 
 proc stat*(path: cstring, stx: var Statx): cint {.inline.} =
-  when defined(haveNoStatx):
+  when haveStatx:
+    result = statx(path, stx)
+  else:
     var st: Stat
     result = stat(path, st)
     stat2statx(stx, st)
-  else:
-    result = statx(path, stx)
 
 proc lstat*(path: cstring, stx: var Statx): cint {.inline.} =
-  when defined(haveNoStatx):
+  when haveStatx:
+    result = lstatx(path, stx)
+  else:
     var st: Stat
     result = lstat(path, st)
     stat2statx(stx, st)
-  else:
-    result = lstatx(path, stx)
 
 proc fstat*(fd: cint, stx: var Statx): cint {.inline.} =
-  when defined(haveNoStatx):
+  when haveStatx:
+    result = fstatx(fd, stx)
+  else:
     var st: Stat
     result = fstat(fd, st)
     stat2statx(stx, st)
-  else:
-    result = fstatx(fd, stx)
 
 template makeGetTimeNSec(name: untyped, field: untyped) =
   proc name*(stx: Statx): int =
