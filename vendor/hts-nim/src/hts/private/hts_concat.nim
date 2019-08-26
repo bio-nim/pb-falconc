@@ -243,7 +243,7 @@ type
 ## ###########################
 
 type
-  INNER_C_UNION_hts_concat_212* {.bycopy.} = object {.union.}
+  INNER_C_UNION_hts_concat_212* {.bycopy, union.} = object
     bgzf*: ptr BGZF
     cram*: ptr cram_fd
     hfile*: ptr hFILE
@@ -536,7 +536,7 @@ template bam_cigar_gen*(l, o: untyped): untyped =
   ((l) shl BAM_CIGAR_SHIFT or (o))
 
 type
-  bam_pileup_cd* {.bycopy.} = object {.union.}
+  bam_pileup_cd* {.bycopy, union.} = object
     p*: pointer
     i*: int64
     f*: cdouble
@@ -653,7 +653,7 @@ const
 ##
 
 type
-  INNER_C_UNION_hts_concat_557* {.bycopy.} = object {.union.}
+  INNER_C_UNION_hts_concat_557* {.bycopy, union.} = object
     i*: int32                  ##  integer value
     f*: cfloat                 ##  float value
 
@@ -824,6 +824,8 @@ proc bcf_dup*(src: ptr bcf1_t): ptr bcf1_t {.cdecl, importc: "bcf_dup", dynlib: 
 proc bcf_destroy*(v: ptr bcf1_t) {.cdecl, importc: "bcf_destroy", dynlib: libname.}
 proc bcf_add_filter*(hdr: ptr bcf_hdr_t; line: ptr bcf1_t; flt_id: cint): cint {.cdecl,
     importc: "bcf_add_filter", dynlib: libname.}
+proc bcf_update_id*(hdr: ptr bcf_hdr_t; line: ptr bcf1_t; id: cstring): cint {.cdecl,
+    importc: "bcf_update_id", dynlib: libname.}
 proc bcf_update_info*(hdr: ptr bcf_hdr_t; line: ptr bcf1_t; key: cstring;
                      values: pointer; n: cint; `type`: cint): cint {.cdecl,
     importc: "bcf_update_info", dynlib: libname.}
