@@ -143,10 +143,10 @@ suite "raptor_db":
 
     test "load_db":
         let sin = streams.newStringStream(content0)
-        let reqs = load_rdb(sin)
-        let n = len(reqs)
+        let db = load_rdb(sin)
+        let n = len(db.seqs)
         assert 4 == n
-        assert "m1/3005/0_5852" == reqs[0].header
+        assert "m1/3005/0_5852" == db.seqs[0].header
     test "get_length_cutoff":
         let sin = streams.newStringStream(content0)
 
@@ -198,13 +198,15 @@ suite "raptor_db":
         for d in test_data:
             let sin = streams.newStringStream(d.input_data)
             if "" == d.expect:
-                let cutoff = get_length_cutoff(sin, d.genome_size, d.coverage, fail_low_cov=d.fail_low_cov)
+                let cutoff = get_length_cutoff(sin, d.genome_size, d.coverage,
+                        fail_low_cov = d.fail_low_cov)
                 let msg = fmt("expected={d.exp_out} != got={cutoff}:\n {d.comment}")
                 assert d.exp_out == cutoff, msg
             else:
                 var msg: string
                 try:
-                    let cutoff = get_length_cutoff(sin, d.genome_size, d.coverage, fail_low_cov=d.fail_low_cov)
+                    let cutoff = get_length_cutoff(sin, d.genome_size,
+                            d.coverage, fail_low_cov = d.fail_low_cov)
                     msg = fmt"Got cutoff={cutoff} instead of expected exception"
                 except Exception as exc:
                     if exc.name == d.expect:

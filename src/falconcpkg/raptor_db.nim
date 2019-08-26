@@ -27,19 +27,19 @@ type
         file_id: int64
         start_offset_in_file: int64
         data_len: int64
- #    FileRecord = tuple
- #        file_id: int64
- #        file_path: string
- #        file_format: string
- #    BlockRecord = tuple
- #        block_id: int64
- #        seq_id_start: int64
- #        seq_id_end: int64
- #    Db = object
- #        version: string
- #        files: seq[FileRecord]
- #        seqs: seq[SequenceRecord]
- #        blocks: seq[BlockRecord]
+    FileRecord = tuple
+        file_id: int64
+        file_path: string
+        file_format: string
+    BlockRecord = tuple
+        block_id: int64
+        seq_id_start: int64
+        seq_id_end: int64
+    Db* = object
+        version: string
+        files: seq[FileRecord]
+        seqs*: seq[SequenceRecord]
+        blocks: seq[BlockRecord]
 
  #proc toSequenceRecord(fields: seq[string]): SequenceRecord =
  #    # should use strutils.parseInt()
@@ -168,7 +168,8 @@ proc toString(ins: var Headroom, outs: var string) =
     for i in 0 ..< n:
         outs[i] = ins[i]
 
-proc load_rdb*(sin: streams.Stream): seq[SequenceRecord] =
+proc load_rdb*(sin: streams.Stream): ref Db =
+    new(result)
     var seq_id, seq_len, file_id, offset, data_len: int64
     var tab: char # to verify that we have read the entire "header"
     var header: string
@@ -201,7 +202,7 @@ proc load_rdb*(sin: streams.Stream): seq[SequenceRecord] =
             file_id: file_id,
             start_offset_in_file: offset,
             data_len: data_len)
-        result.add(sr)
+        result.seqs.add(sr)
 
 
 proc get_length_cutoff*(rdb_stream: streams.Stream, genome_size: int64,
@@ -211,8 +212,8 @@ proc get_length_cutoff*(rdb_stream: streams.Stream, genome_size: int64,
     assert coverage > 0, fmt"Coverage needs to be > 0. Provided value: coverage = {coverage}"
     assert genome_size > 0, fmt"Genome size needs to be > 0. Provided value: genome_size = {genome_size}"
 
-    var seqs = load_rdb(rdb_stream)
-    algorithm.sort(seqs) do (a, b: SequenceRecord) -> int:
+    let db = load_rdb(rdb_stream)
+    let seqs = algorithm.sorted(db.seqs) do (a, b: SequenceRecord) -> int:
         return cmp(b.seq_len, a.seq_len)
 
     let min_desired_size = math.ceil(genome_size.float * coverage).int64
