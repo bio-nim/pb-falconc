@@ -27,17 +27,18 @@ type
         file_id: int64
         start_offset_in_file: int64
         data_len: int64
-    FileRecord = tuple
-        file_id: int64
-        file_path: string
-        file_format: string
-    BlockRecord = tuple
+    FileRecord = object
+        file_id*: int64
+        file_path*: string
+        file_format*: string
+    BlockRecord = object
         block_id: int64
         seq_id_start: int64
         seq_id_end: int64
+        num_bases_in_block: int64
     Db* = object
-        version: string
-        files: seq[FileRecord]
+        version_major*, version_minor*: int
+        files*: seq[FileRecord]
         seqs*: seq[SequenceRecord]
         blocks: seq[BlockRecord]
 
@@ -151,18 +152,22 @@ proc filter*(blacklist_fn: string = "") =
             sets.incl(blacklist, zmw)
     stream(stdin, stdout, blacklist)
 
-proc sscanf(s: cstring, frmt: cstring): cint {.varargs, importc,
-        header: "<stdio.h>".}
-
-proc strlen(s: cstring): cint {.importc: "strlen", nodecl.}
-
 const
     MAX_HEADROOM = 1024
 type
     Headroom = array[MAX_HEADROOM, cchar]
 
+proc sscanf(s: cstring, frmt: cstring): cint {.varargs, importc,
+        header: "<stdio.h>".}
+
+proc strlen(s: cstring): cint {.importc: "strlen", nodecl.}
+
+proc strlen(a: var Headroom): int =
+    let n = strlen(cast[cstring](addr a))
+    return n
+
 proc toString(ins: var Headroom, outs: var string) =
-    var n = strlen(cast[cstring](addr ins))
+    var n = strlen(ins)
     assert n < (MAX_HEADROOM)
     outs.setLen(n)
     for i in 0 ..< n:
@@ -170,40 +175,72 @@ proc toString(ins: var Headroom, outs: var string) =
 
 proc load_rdb*(sin: streams.Stream): ref Db =
     new(result)
-    var seq_id, seq_len, file_id, offset, data_len: int64
-    var tab: char # to verify that we have read the entire "header"
+    #var tab: char # to verify that we have read the entire "header"
     var header: string
-    var headerbuf: Headroom
+    var buf0: Headroom
+    var buf1: Headroom
 
     # Delimiters should be single tabs, but we accept more in some cases.
-    let frmt = strutils.format("S %lld %$#s%1c%lld %lld %lld %lld", (
-            MAX_HEADROOM - 1))
+    let v_frmt = "V %d.%d"
+    let b_frmt = "B %lld %lld %lld %lld"
+    let s_frmt = strutils.format("S %lld %$#s %lld %lld %lld %lld",
+            (MAX_HEADROOM - 1))
+    let f_frmt = strutils.format("F %lld %$#s %$#s",
+            (MAX_HEADROOM - 1), (MAX_HEADROOM - 1))
 
     for line in streams.lines(sin):
         # We skip stripping, to be more strict. But we still skip totally blank lines.
         if len(line) == 0:
             continue
-        if line[0] != 'S':
-            continue
-        let scanned = sscanf(line.cstring, frmt.cstring,
-            addr seq_id, addr headerbuf, addr tab, addr seq_len, addr file_id,
-            addr offset, addr data_len)
-        if '\t' != tab:
-            let msg = "Too many characters in header (>99) for '" & line & "'"
-            raise newException(util.FieldTooLongError, msg)
-        if 7 != scanned:
-            let msg = "Too few fields for '" & line & "'"
-            raise newException(util.TooFewFieldsError, msg)
-        toString(headerbuf, header)
-        let sr: SequenceRecord = SequenceRecord(
-            seq_id: seq_id,
-            header: header,
-            seq_len: seq_len,
-            file_id: file_id,
-            start_offset_in_file: offset,
-            data_len: data_len)
-        result.seqs.add(sr)
-
+        elif line[0] == 'S':
+            var sr: SequenceRecord
+            let scanned = sscanf(line.cstring, s_frmt.cstring,
+                addr sr.seq_id, addr buf0, addr sr.seq_len, addr sr.file_id,
+                addr sr.start_offset_in_file, addr sr.data_len)
+            if strlen(buf0) >= (MAX_HEADROOM - 1):
+                let msg = "Too many characters in header (>1000) for '" & line & "'"
+                raise newException(util.FieldTooLongError, msg)
+            if 6 != scanned:
+                let msg = "Too few fields for '" & line & "'"
+                raise newException(util.TooFewFieldsError, msg)
+            toString(buf0, sr.header)
+            result.seqs.add(sr)
+        elif line[0] == 'B':
+            var br: BlockRecord
+            let scanned = sscanf(line.cstring, b_frmt.cstring,
+                addr br.block_id, addr br.seq_id_start, addr br.seq_id_end, addr br.num_bases_in_block)
+            if 4 != scanned:
+                let msg = "Too few fields for '" & line & "'"
+                raise newException(util.TooFewFieldsError, msg)
+            result.blocks.add(br)
+        elif line[0] == 'F':
+            var fr: FileRecord
+            let scanned = sscanf(line.cstring, f_frmt.cstring,
+                addr fr.file_id, addr buf0, addr buf1)
+            if strlen(buf0) >= (MAX_HEADROOM - 1):
+                let msg = "Too many characters in file_path (>1000) for '" & line & "'"
+                raise newException(util.FieldTooLongError, msg)
+            if strlen(buf1) >= (MAX_HEADROOM - 1):
+                let msg = "Too many characters in file_format (>1000) for '" & line & "'"
+                raise newException(util.FieldTooLongError, msg)
+            if 3 != scanned:
+                let msg = "Too few fields for '" & line & "'"
+                raise newException(util.TooFewFieldsError, msg)
+            toString(buf0, fr.file_path)
+            toString(buf1, fr.file_format)
+            result.files.add(fr)
+        elif line[0] == 'V':
+            let scanned = sscanf(line.cstring, v_frmt.cstring,
+                addr result.version_major, addr result.version_minor)
+            if strlen(buf0) >= (MAX_HEADROOM - 1):
+                let msg = "Too many characters in file_path (>1000) for '" & line & "'"
+                raise newException(util.FieldTooLongError, msg)
+            if 2 != scanned:
+                let msg = "Too few fields for '" & line & "'"
+                raise newException(util.TooFewFieldsError, msg)
+        else:
+            let msg = "Skipping unexpected line '" & line & "'"
+            util.log(msg)
 
 proc get_length_cutoff*(rdb_stream: streams.Stream, genome_size: int64,
         coverage: float, fail_low_cov: bool = false,
