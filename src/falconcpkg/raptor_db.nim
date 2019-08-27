@@ -166,9 +166,13 @@ proc strlen(a: var Headroom): int =
     let n = strlen(cast[cstring](addr a))
     return n
 
-proc toString(ins: var Headroom, outs: var string) =
+proc toString(ins: var Headroom, outs: var string, source: string="") =
     var n = strlen(ins)
-    assert n < (MAX_HEADROOM)
+    if n >= (MAX_HEADROOM - 1):
+        # Why is max-1 illegal? B/c this is used after sscanf, and that has no way to report
+        # a buffer-overflow. So a 0 at end-of-buffer is considered too long.
+        let msg = fmt"Too many characters in file_path (>{MAX_HEADROOM - 1}) for '{source}'"
+        raise newException(util.FieldTooLongError, msg)
     outs.setLen(n)
     for i in 0 ..< n:
         outs[i] = ins[i]
@@ -197,13 +201,10 @@ proc load_rdb*(sin: streams.Stream): ref Db =
             let scanned = sscanf(line.cstring, s_frmt.cstring,
                 addr sr.seq_id, addr buf0, addr sr.seq_len, addr sr.file_id,
                 addr sr.start_offset_in_file, addr sr.data_len)
-            if strlen(buf0) >= (MAX_HEADROOM - 1):
-                let msg = "Too many characters in header (>1000) for '" & line & "'"
-                raise newException(util.FieldTooLongError, msg)
             if 6 != scanned:
                 let msg = "Too few fields for '" & line & "'"
                 raise newException(util.TooFewFieldsError, msg)
-            toString(buf0, sr.header)
+            toString(buf0, sr.header, line)
             result.seqs.add(sr)
         elif line[0] == 'B':
             var br: BlockRecord
@@ -217,24 +218,15 @@ proc load_rdb*(sin: streams.Stream): ref Db =
             var fr: FileRecord
             let scanned = sscanf(line.cstring, f_frmt.cstring,
                 addr fr.file_id, addr buf0, addr buf1)
-            if strlen(buf0) >= (MAX_HEADROOM - 1):
-                let msg = "Too many characters in file_path (>1000) for '" & line & "'"
-                raise newException(util.FieldTooLongError, msg)
-            if strlen(buf1) >= (MAX_HEADROOM - 1):
-                let msg = "Too many characters in file_format (>1000) for '" & line & "'"
-                raise newException(util.FieldTooLongError, msg)
             if 3 != scanned:
                 let msg = "Too few fields for '" & line & "'"
                 raise newException(util.TooFewFieldsError, msg)
-            toString(buf0, fr.file_path)
-            toString(buf1, fr.file_format)
+            toString(buf0, fr.file_path, line)
+            toString(buf1, fr.file_format, line)
             result.files.add(fr)
         elif line[0] == 'V':
             let scanned = sscanf(line.cstring, v_frmt.cstring,
                 addr result.version_major, addr result.version_minor)
-            if strlen(buf0) >= (MAX_HEADROOM - 1):
-                let msg = "Too many characters in file_path (>1000) for '" & line & "'"
-                raise newException(util.FieldTooLongError, msg)
             if 2 != scanned:
                 let msg = "Too few fields for '" & line & "'"
                 raise newException(util.TooFewFieldsError, msg)
