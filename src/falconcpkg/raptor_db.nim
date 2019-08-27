@@ -27,35 +27,21 @@ type
         file_id: int64
         start_offset_in_file: int64
         data_len: int64
- #    FileRecord = tuple
- #        file_id: int64
- #        file_path: string
- #        file_format: string
- #    BlockRecord = tuple
- #        block_id: int64
- #        seq_id_start: int64
- #        seq_id_end: int64
- #    Db = object
- #        version: string
- #        files: seq[FileRecord]
- #        seqs: seq[SequenceRecord]
- #        blocks: seq[BlockRecord]
+    FileRecord = object
+        file_id*: int64
+        file_path*: string
+        file_format*: string
+    BlockRecord = object
+        block_id: int64
+        seq_id_start: int64
+        seq_id_end: int64
+        num_bases_in_block: int64
+    Db* = object
+        version_major*, version_minor*: int
+        files*: seq[FileRecord]
+        seqs*: seq[SequenceRecord]
+        blocks: seq[BlockRecord]
 
- #proc toSequenceRecord(fields: seq[string]): SequenceRecord =
- #    # should use strutils.parseInt()
- #    result = (fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], fields[6])
-
- #proc writeSequence(sout: File, fields: seq[string]) =
- #    sout.write(
- #        'S', '\t',
- #        fields[1], '\t',
- #        fields[2], '\t',
- #        fields[3], '\t',
- #        fields[4], '\t',
- #        fields[5], '\t',
- #        fields[6], '\n',
-
-type
     SeqLineWriter = object
         num_seq_lines: int64
         sout: File
@@ -97,9 +83,12 @@ proc close(w: var SeqLineWriter) =
     w.block_size = 1 # to force the last block if anything has been written
     w.write_block()
 
-# Instead, we will stream-filter.
+# For the blacklist filter, instead of reading the DB into memory,
+# we stream.
+# This might actually be slower (b/c of line-splitting into strings),
+# but it will take less memory.
 #
-proc stream(sin, sout: File, blacklist: sets.HashSet[string]) =
+proc stream_seqs(sin, sout: File, blacklist: sets.HashSet[string]) =
     let block_size_MB = 1
     var writer = initSeqLineWriter(sout, block_size_MB)
     defer: writer.close()
@@ -136,6 +125,7 @@ proc stream(sin, sout: File, blacklist: sets.HashSet[string]) =
 proc filter*(blacklist_fn: string = "") =
     ## Read/write raptor-db to/from stdin/stdout.
     ## Exclude zmws in blacklist.
+    # TODO: Test this. And maybe refactor with re-blocking.
     util.log("filter sans ", blacklist_fn)
     var blacklist = sets.initHashSet[string]()
     if len(blacklist_fn) > 0:
@@ -149,60 +139,89 @@ proc filter*(blacklist_fn: string = "") =
                 util.raiseEx(fmt(
                         "Found a repeat in blacklist '{blacklist_fn}': '{zmw}'\n Something is wrong!"))
             sets.incl(blacklist, zmw)
-    stream(stdin, stdout, blacklist)
-
-proc sscanf(s: cstring, frmt: cstring): cint {.varargs, importc,
-        header: "<stdio.h>".}
-
-proc strlen(s: cstring): cint {.importc: "strlen", nodecl.}
+    stream_seqs(stdin, stdout, blacklist)
 
 const
     MAX_HEADROOM = 1024
 type
     Headroom = array[MAX_HEADROOM, cchar]
 
-proc toString(ins: var Headroom, outs: var string) =
-    var n = strlen(cast[cstring](addr ins))
-    assert n < (MAX_HEADROOM)
+proc sscanf(s: cstring, frmt: cstring): cint {.varargs, importc,
+        header: "<stdio.h>".}
+
+proc strlen(s: cstring): cint {.importc: "strlen", nodecl.}
+
+proc strlen(a: var Headroom): int =
+    let n = strlen(cast[cstring](addr a))
+    return n
+
+proc toString(ins: var Headroom, outs: var string, source: string="") =
+    var n = strlen(ins)
+    if n >= (MAX_HEADROOM - 1):
+        # Why is max-1 illegal? B/c this is used after sscanf, and that has no way to report
+        # a buffer-overflow. So a 0 at end-of-buffer is considered too long.
+        let msg = fmt"Too many characters in file_path (>{MAX_HEADROOM - 1}) for '{source}'"
+        raise newException(util.FieldTooLongError, msg)
     outs.setLen(n)
     for i in 0 ..< n:
         outs[i] = ins[i]
 
-proc load_rdb*(sin: streams.Stream): seq[SequenceRecord] =
-    var seq_id, seq_len, file_id, offset, data_len: int64
-    var tab: char # to verify that we have read the entire "header"
+proc load_rdb*(sin: streams.Stream): ref Db =
+    new(result)
+    #var tab: char # to verify that we have read the entire "header"
     var header: string
-    var headerbuf: Headroom
+    var buf0: Headroom
+    var buf1: Headroom
 
     # Delimiters should be single tabs, but we accept more in some cases.
-    let frmt = strutils.format("S %lld %$#s%1c%lld %lld %lld %lld", (
-            MAX_HEADROOM - 1))
+    let v_frmt = "V %d.%d"
+    let b_frmt = "B %lld %lld %lld %lld"
+    let s_frmt = strutils.format("S %lld %$#s %lld %lld %lld %lld",
+            (MAX_HEADROOM - 1))
+    let f_frmt = strutils.format("F %lld %$#s %$#s",
+            (MAX_HEADROOM - 1), (MAX_HEADROOM - 1))
 
     for line in streams.lines(sin):
         # We skip stripping, to be more strict. But we still skip totally blank lines.
         if len(line) == 0:
             continue
-        if line[0] != 'S':
-            continue
-        let scanned = sscanf(line.cstring, frmt.cstring,
-            addr seq_id, addr headerbuf, addr tab, addr seq_len, addr file_id,
-            addr offset, addr data_len)
-        if '\t' != tab:
-            let msg = "Too many characters in header (>99) for '" & line & "'"
-            raise newException(util.FieldTooLongError, msg)
-        if 7 != scanned:
-            let msg = "Too few fields for '" & line & "'"
-            raise newException(util.TooFewFieldsError, msg)
-        toString(headerbuf, header)
-        let sr: SequenceRecord = SequenceRecord(
-            seq_id: seq_id,
-            header: header,
-            seq_len: seq_len,
-            file_id: file_id,
-            start_offset_in_file: offset,
-            data_len: data_len)
-        result.add(sr)
-
+        elif line[0] == 'S':
+            var sr: SequenceRecord
+            let scanned = sscanf(line.cstring, s_frmt.cstring,
+                addr sr.seq_id, addr buf0, addr sr.seq_len, addr sr.file_id,
+                addr sr.start_offset_in_file, addr sr.data_len)
+            if 6 != scanned:
+                let msg = "Too few fields for '" & line & "'"
+                raise newException(util.TooFewFieldsError, msg)
+            toString(buf0, sr.header, line)
+            result.seqs.add(sr)
+        elif line[0] == 'B':
+            var br: BlockRecord
+            let scanned = sscanf(line.cstring, b_frmt.cstring,
+                addr br.block_id, addr br.seq_id_start, addr br.seq_id_end, addr br.num_bases_in_block)
+            if 4 != scanned:
+                let msg = "Too few fields for '" & line & "'"
+                raise newException(util.TooFewFieldsError, msg)
+            result.blocks.add(br)
+        elif line[0] == 'F':
+            var fr: FileRecord
+            let scanned = sscanf(line.cstring, f_frmt.cstring,
+                addr fr.file_id, addr buf0, addr buf1)
+            if 3 != scanned:
+                let msg = "Too few fields for '" & line & "'"
+                raise newException(util.TooFewFieldsError, msg)
+            toString(buf0, fr.file_path, line)
+            toString(buf1, fr.file_format, line)
+            result.files.add(fr)
+        elif line[0] == 'V':
+            let scanned = sscanf(line.cstring, v_frmt.cstring,
+                addr result.version_major, addr result.version_minor)
+            if 2 != scanned:
+                let msg = "Too few fields for '" & line & "'"
+                raise newException(util.TooFewFieldsError, msg)
+        else:
+            let msg = "Skipping unexpected line '" & line & "'"
+            util.log(msg)
 
 proc get_length_cutoff*(rdb_stream: streams.Stream, genome_size: int64,
         coverage: float, fail_low_cov: bool = false,
@@ -211,8 +230,8 @@ proc get_length_cutoff*(rdb_stream: streams.Stream, genome_size: int64,
     assert coverage > 0, fmt"Coverage needs to be > 0. Provided value: coverage = {coverage}"
     assert genome_size > 0, fmt"Genome size needs to be > 0. Provided value: genome_size = {genome_size}"
 
-    var seqs = load_rdb(rdb_stream)
-    algorithm.sort(seqs) do (a, b: SequenceRecord) -> int:
+    let db = load_rdb(rdb_stream)
+    let seqs = algorithm.sorted(db.seqs) do (a, b: SequenceRecord) -> int:
         return cmp(b.seq_len, a.seq_len)
 
     let min_desired_size = math.ceil(genome_size.float * coverage).int64
@@ -263,9 +282,8 @@ proc calc_length_cutoff*(rdb_fn: string = "rawreads.db",
     ## Perform a linear pass on an overlap file, and determine rough clipping coordinates to 'correct' reads.
     ## Write integer to stdout.
     try:
-        var sin = streams.newFileStream(rdb_fn, fmRead)
-        if nil == sin:
-            util.raiseEx("Could not open RaptorDB '" & rdb_fn & "'")
+        let content = system.readFile(rdb_fn) # read into memory b/c streams lib is slow
+        var sin = streams.newStringStream(content)
         defer: streams.close(sin)
 
         let cutoff = get_length_cutoff(sin, genome_size, coverage, fail_low_cov, alarms_fn)

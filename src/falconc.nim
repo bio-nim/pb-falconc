@@ -12,7 +12,7 @@ import cligen
 
 const
     cNimbleData = staticRead("../falconc.nimble")
-    cGitSha1 {.strdefine.} = staticExec("git describe --tags HEAD")
+    cGitSha1 {.strdefine.} = staticExec("git describe --always --tags HEAD")
     cToolVersion = cNimbleData.fromNimble("version")
 
 proc version() =

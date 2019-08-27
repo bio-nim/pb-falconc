@@ -4,7 +4,6 @@ from ./nuuid import nil
 from algorithm import nil
 from sets import nil
 from streams import nil
-from strutils import nil
 from tables import `$`, `[]=`, pairs
 from hts import `[]`
 import json
