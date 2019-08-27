@@ -2,7 +2,9 @@
 #from cpuinfo import nil
 from os import nil
 #from threadpool import nil
+from streams import nil
 from strformat import nil
+import osproc
 import times
 
 type PbError* = object of Exception
@@ -66,3 +68,20 @@ iterator walk*(dir: string, followlinks = false, relative = false): string =
     for p in os.walkDirRec(dir, yieldFilter = yieldFilter,
             followFilter = followFilter, relative = relative):
         yield p
+
+iterator walkFastE*(): string =
+    ## Read from Unix "find".
+    ## Always use CWD.
+    let cmd = "find . -name '*.las'"
+    var p = osproc.startProcess(cmd, options={poEchoCmd, poEvalCommand})
+    defer: osproc.close(p)
+    for line in streams.lines(osproc.outputStream(p)):
+        yield line
+iterator walkFast*(): string =
+    ## Read from Unix "find".
+    ## Always use CWD.
+    let cmd = "find . -name '*.las'"
+    let found = osproc.execProcess(cmd, options={poEchoCmd, poEvalCommand})
+    var sin = streams.newStringStream(found)
+    for line in streams.lines(sin):
+        yield line

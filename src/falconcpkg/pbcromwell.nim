@@ -48,7 +48,11 @@ proc remove_las*(run_dir: string, verbose: int = 1,
     var nRemoved = 0
     var reportAt = 1
     util.withcd(run_dir):
-        for fn in util.walk(".", relative = true):
+        #for fn in util.walk(".", relative = true):
+        for fn in lines(stdin):
+            echo fn
+            if true:
+                continue
             nFound += 1
             if should_remove(fn):
                 total += remove(fn, verbose = verbose, dry_run = dry_run)
@@ -61,5 +65,5 @@ proc remove_las*(run_dir: string, verbose: int = 1,
                     util.logt(msg)
     if verbose > 0:
         let msg = strformat.fmt(
-            "Found={nFound:8d}, removed={nRemoved:8d}, bytes={total:12d}, current: {fn}")
+            "Found={nFound:8d}, removed={nRemoved:8d}, bytes={total:12d}")
         util.logt(msg)
