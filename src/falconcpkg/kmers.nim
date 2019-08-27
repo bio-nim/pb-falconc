@@ -1,7 +1,7 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
 import deques
 import tables
-from sets import nil
+#from sets import nil
 from algorithm import sort
 from hashes import nil
 from strutils import format

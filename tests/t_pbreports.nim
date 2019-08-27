@@ -2,8 +2,8 @@
 import falconcpkg/pbreports
 import unittest
 import json
-import sets
-import sequtils
+#import sets
+#import sequtils
 import tables
 from streams import nil
 
