@@ -22,8 +22,7 @@ proc should_remove*(fn: string): bool =
         return true
     return false
 
-proc remove*(fn: string, dry_run: bool, verbose: int): BiggestInt =
-    # Return size that is (or would be) removed.
+proc remove*(fn: string, dry_run: bool, verbose: int) =
     # Assume file exists. (Otherwise might raise.)
     if verbose > 1:
         if not dry_run:
@@ -35,35 +34,31 @@ proc remove*(fn: string, dry_run: bool, verbose: int): BiggestInt =
     if not dry_run:
         os.removeFile(fn) # can raise
 
-proc remove_las*(run_dir: string, verbose: int = 1,
+proc remove_las*(command: string = "find . -name '*.las'", verbose: int = 1,
         dry_run: bool = false) =
-    ## Remove all .las files except final stage of merge. Unzip is still possible.
+    ## Remove all .las files except final stage of merge. (Unzip is still possible.)
+    ## Filepaths come from the provided command as a subprocess,
+    ## or from stdin if command=="-",
     ## (Someday, we will add a flag to delete the final stage too, optionally.)
     if verbose > 0:
-        util.log("Deleting some las files under directory '" & run_dir & "' ...")
+        util.log("Deleting some las files, from stdin.")
         if dry_run:
             util.log("(dry-run mode)")
-    var total: BiggestInt = 0
     var nFound = 0
     var nRemoved = 0
     var reportAt = 1
-    util.withcd(run_dir):
-        #for fn in util.walk(".", relative = true):
-        for fn in lines(stdin):
-            echo fn
-            if true:
-                continue
-            nFound += 1
-            if should_remove(fn):
-                total += remove(fn, verbose = verbose, dry_run = dry_run)
-                nRemoved += 1
-            if nFound == reportAt:
-                if verbose > 0:
-                    reportAt *= 2
-                    let msg = strformat.fmt(
-                        "Found={nFound:8d}, removed={nRemoved:8d}, bytes={total:12d}, current: {fn}")
-                    util.logt(msg)
+    for fn in util.readProc(command):
+        nFound += 1
+        if should_remove(fn):
+            remove(fn, verbose = verbose, dry_run = dry_run)
+            nRemoved += 1
+        if nFound == reportAt:
+            if verbose > 0:
+                reportAt *= 2
+                let msg = strformat.fmt(
+                    "Found={nFound:8d}, removed={nRemoved:8d}, current: {fn}")
+                util.logt(msg)
     if verbose > 0:
         let msg = strformat.fmt(
-            "Found={nFound:8d}, removed={nRemoved:8d}, bytes={total:12d}")
+            "Found={nFound:8d}, removed={nRemoved:8d}")
         util.logt(msg)

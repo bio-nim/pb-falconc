@@ -11,4 +11,4 @@ suite "pbcromwell":
         check pbcromwell.should_remove("preads.9.preads.88.las")
         check pbcromwell.should_remove("./preads.9.preads.88.las")
     test "dry_run does not raise":
-        discard pbcromwell.remove("foo.las", dry_run = false, 1)
+        pbcromwell.remove("foo.las", dry_run = false, 1)
