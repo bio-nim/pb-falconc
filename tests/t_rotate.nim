@@ -2,7 +2,7 @@
 
 import falconcpkg/rotate
 import os
-import sets
+#import sets
 import unittest
 
 template withFile(f: untyped, filename: string, mode: FileMode,

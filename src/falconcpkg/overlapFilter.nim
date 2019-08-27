@@ -2,7 +2,7 @@
 import sets
 import tables
 from strutils import split, parseInt, parseFloat, parseBool
-from sequtils import keepIf
+#from sequtils import keepIf
 from strformat import fmt
 from ./util import isEmptyFile, adjustThreadPool
 import msgpack4nim
