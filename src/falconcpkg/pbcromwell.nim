@@ -4,11 +4,11 @@ from os import nil
 from re import nil
 from strutils import nil
 
-let re_raw_long = re.re(r"^raw_reads\.\d+\.raw_reads\.\d+\.las$")
-let re_p_long = re.re(r"^preads\.\d+\.preads\.\d+\.las$")
+let re_raw_long = re.re(r"\braw_reads\.\d+\.raw_reads\.\d+\.las$")
+let re_p_long = re.re(r"\bpreads\.\d+\.preads\.\d+\.las$")
 
-let re_raw_short = re.re(r"^raw_reads\.\d+\.las$")
-let re_p_short = re.re(r"^preads\.\d+\.las$")
+let re_raw_short = re.re(r"\braw_reads\.\d+\.las$")
+let re_p_short = re.re(r"\bpreads\.\d+\.las$")
 
 proc should_remove*(fn: string): bool =
     # For now, only check the base filename.
