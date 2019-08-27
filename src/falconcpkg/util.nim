@@ -2,6 +2,8 @@
 #from cpuinfo import nil
 from os import nil
 #from threadpool import nil
+from strformat import nil
+import times
 
 type PbError* = object of Exception
 type GenomeCoverageError* = object of PbError
@@ -27,6 +29,15 @@ proc log*(words: varargs[string, `$`]) =
     for word in words:
         write(stderr, word)
     write(stderr, '\l')
+
+proc logt*(words: varargs[string, `$`]) =
+    var then {.global.} = times.now()
+    let
+        since = times.initDuration(seconds = times.inSeconds(times.now() - then))
+        dp = times.toParts(since)
+        prefix = strformat.fmt("{dp[Hours]}:{dp[Minutes]:02d}:{dp[Seconds]:02d}s ")
+    write(stderr, prefix)
+    log(words)
 
 proc adjustThreadPool*(n: int) =
     ## n==0 => use ncpus
