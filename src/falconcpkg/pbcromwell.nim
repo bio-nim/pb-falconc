@@ -19,11 +19,13 @@ proc should_remove*(fn: string): bool =
         return true
     if re.match(basename, re_p_long):
         return true
-    #let fi = os.getFileInfo(fn)
     return false
 
-proc remove*(fn: string, dry_run: bool, verbose: bool = false) =
+proc remove*(fn: string, dry_run: bool, verbose: bool = false): BiggestInt =
+    # Return size that is (or would be) removed.
     # Assume file exists. (Otherwise might raise.)
+    let fi = os.getFileInfo(fn, followSymlink=false)
+    result = fi.size
     if verbose:
         if not dry_run:
             util.log("rm -f '" & fn & "'")
@@ -40,6 +42,9 @@ proc remove_las*(run_dir: string, verbose: bool = false,
         util.log("Deleting some las files under directory '" & run_dir & "' ...")
         if dry_run:
             util.log("(dry-run mode)")
+    var total: BiggestInt = 0
     for fn in util.walk(run_dir, relative = true):
         if should_remove(fn):
-            remove(fn, verbose = verbose, dry_run = dry_run)
+            total += remove(fn, verbose = verbose, dry_run = dry_run)
+    if verbose:
+        util.log("Total bytes removed: " & $total)
