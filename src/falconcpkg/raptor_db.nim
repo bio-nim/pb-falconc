@@ -42,21 +42,6 @@ type
         seqs*: seq[SequenceRecord]
         blocks: seq[BlockRecord]
 
- #proc toSequenceRecord(fields: seq[string]): SequenceRecord =
- #    # should use strutils.parseInt()
- #    result = (fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], fields[6])
-
- #proc writeSequence(sout: File, fields: seq[string]) =
- #    sout.write(
- #        'S', '\t',
- #        fields[1], '\t',
- #        fields[2], '\t',
- #        fields[3], '\t',
- #        fields[4], '\t',
- #        fields[5], '\t',
- #        fields[6], '\n',
-
-type
     SeqLineWriter = object
         num_seq_lines: int64
         sout: File
@@ -98,9 +83,12 @@ proc close(w: var SeqLineWriter) =
     w.block_size = 1 # to force the last block if anything has been written
     w.write_block()
 
-# Instead, we will stream-filter.
+# For the blacklist filter, instead of reading the DB into memory,
+# we stream.
+# This might actually be slower (b/c of line-splitting into strings),
+# but it will take less memory.
 #
-proc stream(sin, sout: File, blacklist: sets.HashSet[string]) =
+proc stream_seqs(sin, sout: File, blacklist: sets.HashSet[string]) =
     let block_size_MB = 1
     var writer = initSeqLineWriter(sout, block_size_MB)
     defer: writer.close()
@@ -137,6 +125,7 @@ proc stream(sin, sout: File, blacklist: sets.HashSet[string]) =
 proc filter*(blacklist_fn: string = "") =
     ## Read/write raptor-db to/from stdin/stdout.
     ## Exclude zmws in blacklist.
+    # TODO: Test this. And maybe refactor with re-blocking.
     util.log("filter sans ", blacklist_fn)
     var blacklist = sets.initHashSet[string]()
     if len(blacklist_fn) > 0:
@@ -150,7 +139,7 @@ proc filter*(blacklist_fn: string = "") =
                 util.raiseEx(fmt(
                         "Found a repeat in blacklist '{blacklist_fn}': '{zmw}'\n Something is wrong!"))
             sets.incl(blacklist, zmw)
-    stream(stdin, stdout, blacklist)
+    stream_seqs(stdin, stdout, blacklist)
 
 const
     MAX_HEADROOM = 1024
