@@ -14,13 +14,21 @@ type
     Bin* = uint64 # compact bitvector of DNA
     ##  In bitvector, A is 0, C is 1, G is two, and T is 3.
 
+    Min* = uint64 # minimizer
+    Strand* = enum
+        forward, reverse
+
     ##  kmer - a uint64 supporting a maximum of 32 DNA bases.
     ##  pos  - position along the sequence
-    ##  strand - if true, reverse kmers
     seed_t* = object
         kmer*: Bin
         pos*: uint32
-        strand*: bool
+        strand*: Strand
+
+    minimizer_t* = object
+        minimizer*: Min
+        pos*: uint32
+        strand*: Strand
 
     ##  a & b are two seed_t's designed for matching in the hash lookup
     seed_pair_t* = object
@@ -122,8 +130,8 @@ proc dna_to_kmers*(sq: Dna; k: int): pot_t =
     forward_kmer.pos = 0
     reverse_kmer.kmer = 0
     reverse_kmer.pos = 0
-    forward_kmer.strand = false
-    reverse_kmer.strand = true
+    forward_kmer.strand = forward
+    reverse_kmer.strand = reverse
 
     var kmer_stack = deques.initDeque[seed_t](128)
 
@@ -171,7 +179,7 @@ proc dna_to_kmers*(sq: Dna; k: int): pot_t =
     i = 0
 
     while i < n:
-        kmers.seeds[i] = kmer_stack.popLast()
+        kmers.seeds[i] = kmer_stack.popFirst()
         #kmers.seeds[i] = kmer_stack[i] # would also be fine
         #echo format("[$#]->$#", i, kmers.seeds[i].kmer)
         inc(i)
@@ -181,11 +189,11 @@ proc dna_to_kmers*(sq: Dna; k: int): pot_t =
 ##  A function to convert the binary DNA back into character
 ##  @param kmer   up to 32 2-bit bases
 ##  @param k      kmer length
-##  @param strand If true, start at kth bit and go backwards.
+##  @param strand If reverse, start at kth bit and go backwards.
 ##
 ##  Zero is A, one is C, G is two, and T is 3
 #
-proc bin_to_dna*(kmer: Bin; k: uint8; strand: bool): Dna =
+proc bin_to_dna*(kmer: Bin; k: uint8; strand: Strand): Dna =
     var lookup: array[4, char] = ['A', 'C', 'G', 'T']
     var mask: uint64 = 3
     var i: uint8 = 0
@@ -196,7 +204,7 @@ proc bin_to_dna*(kmer: Bin; k: uint8; strand: bool): Dna =
     i = 0
     while i < k:
         tmp = kmer
-        offset = if not strand: (k - i - 1) * 2 else: (i * 2)
+        offset = if strand == forward: (k - i - 1) * 2 else: (i * 2)
         tmp = tmp >> offset
         #dna[i] = lookup[mask and tmp]
         dna[i.int] = lookup[mask and tmp]
