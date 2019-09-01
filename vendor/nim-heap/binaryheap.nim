@@ -109,7 +109,7 @@ proc siftdown[T](h: var Heap[T], i: int) =
 
 
 
-proc newHeap*[T](comparator: proc (x: T, y: T): int): Heap[T] =
+proc newHeap*[T](comparator: proc (x: T, y: T): int {.gcsafe.}): Heap[T] =
   ## constructs an empty heap using an explicit comparator.
   Heap[T](data: newSeq[T](), size: 0, comp: comparator)
 
