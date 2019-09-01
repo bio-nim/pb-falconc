@@ -8,6 +8,7 @@ from falconcpkg/overlapFilter import nil
 from falconcpkg/pbcromwell import nil
 from falconcpkg/pbreports import nil
 from falconcpkg/stats import nil
+from falconcpkg/falcon/rr_hctg_track import nil
 import cligen
 
 const
@@ -124,5 +125,7 @@ when isMainModule:
          help = {
           "fasta-fn": "FASTA filename, preferably indexed (with .fai)",
             }
+        ],
+        [rr_hctg_track.run_stage2, cmdName = "rr-hctg-track2",
         ],
     )

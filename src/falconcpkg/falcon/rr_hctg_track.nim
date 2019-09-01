@@ -115,7 +115,7 @@ proc `$`(x: Table): string =
 #  return ss.readAll()
 
 
-proc ytuple_cmp(x, y: mytuple): int {.gcsafe.} =
+proc mytuple_cmp(x, y: mytuple): int {.gcsafe.} =
   if x.score < y.score: return -1
   if x.score > y.score: return 1
   for i in 0..<9:
