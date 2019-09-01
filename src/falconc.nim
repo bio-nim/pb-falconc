@@ -44,8 +44,8 @@ when isMainModule:
         ],
         [rotate.main, cmdName = "circ-orient",
             help = {
-        "input_fn": "fasta file of circular sequences",
-        "output_fn": "fasta file output",
+        "input-fn": "fasta file of circular sequences",
+        "output-fn": "fasta file output",
         "wl_fn": "white list of sequences to rotate, one per line, no spaces, no trailing spaces",
         "window": "window size to caculate gc-skew",
         "step": "window step",
@@ -61,9 +61,9 @@ when isMainModule:
         ],
         [phasr.main, cmdName = "phasr",
           help = {
-            "aln_fn": "BAM alignment, sorted on 'coordinate'",
-            "ref_fn": "FASTA reference",
-            "out_fn": "Output file name",
+            "aln-fn": "BAM alignment, sorted on 'coordinate'",
+            "ref-fn": "FASTA reference",
+            "out-fn": "Output file name",
             "iterations": "Number of phasing iterations per read",
             "kmersize": "Kmer size",
             "delta": "Frequency cut",
@@ -116,13 +116,13 @@ when isMainModule:
         ],
         [pbreports.circ, cmdName = "pbreports-circ",
          help = {
-          "fasta_fn": "FASTA filename, preferably indexed (with .fai)",
-          "circ_fn": "Text list of circular contigs (newline-delimited)",
+          "fasta-fn": "FASTA filename, preferably indexed (with .fai)",
+          "circ-fn": "Text list of circular contigs (newline-delimited)",
             }
         ],
         [stats.assembly, cmdName = "stats-assembly",
          help = {
-          "fasta_fn": "FASTA filename, preferably indexed (with .fai)",
+          "fasta-fn": "FASTA filename, preferably indexed (with .fai)",
             }
         ],
     )
