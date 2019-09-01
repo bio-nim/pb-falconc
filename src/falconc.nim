@@ -126,6 +126,8 @@ when isMainModule:
           "fasta-fn": "FASTA filename, preferably indexed (with .fai)",
             }
         ],
+        [rr_hctg_track.run_stage1, cmdName = "rr-hctg-track1",
+        ],
         [rr_hctg_track.run_stage2, cmdName = "rr-hctg-track2",
         ],
     )
