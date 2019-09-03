@@ -538,7 +538,7 @@ proc run_stage2*(
   var rid = newString(9) # same length as str9
 
   # For each b-read, we find the best contig map throgh the b->a->contig map.
-  for bread in tables.keys(bread_to_areads):
+  for bread in algorithm.sorted(sequtils.toSeq(tables.keys(bread_to_areads))):
     # Note that breads will be in arbitrary order, so the output will match
     # Python but in a different order.
     var ctg_score = tables.initOrderedTable[string, ScoreCount](1024)
