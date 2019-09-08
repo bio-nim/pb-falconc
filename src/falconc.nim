@@ -36,6 +36,12 @@ when isMainModule:
         [kmers, short = {"int_dummy": 'd'}, help = {}],
         [utils, short = {}, help = {"float_req": "special help message"}],
         [align.align_filter, cmdName = "align-filter"],
+        [align.bam_tags_enrich, cmdName = "align-bam-tags-enrich",
+         help = {
+          "old-bam-fn": "original aligned bam",
+          "new-bam-fn": "same but with extra tags",
+            }
+        ],
         [raptor_db.filter, cmdName = "raptor-db-filter"],
         [raptor_db.calc_length_cutoff, cmdName = "raptor-db-calc-length-cutoff",
             help = {
