@@ -1,5 +1,6 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
 import hts
+from hts/private/hts_concat import bam_cigar2qlen, bam_cigar2rlen
 from algorithm import nil
 from sequtils import nil
 from strutils import format
@@ -11,9 +12,9 @@ proc logRec(record: Record) =
     # I think len == stop-start+1, but I need to verify. ~cd
     var s: string
     discard hts.sequence(record, s)
-    log(format("$# $# ($#) [$# .. $#] $# seqlen=$#", record.tid, record.chrom,
-            record.qname, record.start, record.stop,
-        ($record.cigar).substr(0, 32), s.len()))
+    log(format("$# $# ($#) [$# .. $#] seqlen=$# $#...", record.tid, record.chrom,
+            record.qname, record.start, record.stop, s.len(),
+        ($record.cigar).substr(0, 32)))
 
 type
     Params = object
@@ -48,6 +49,9 @@ proc clips*(cigar: hts.Cigar): tuple[left: int, right: int] =
 
 proc calc_query_pos*(record: hts.Record): tuple[qstart: int, qend: int,
         qlen: int] =
+    ## qlen is original query, so (qend-start) < qlen if clipped (hard or soft)
+    ## seq excludes hard-clip, so len(seq) < qlen if hard-clipped
+    ## (i.e. qlen is not well-named)
     var q: string # temp
     discard hts.sequence(record, q)
 
@@ -72,6 +76,68 @@ proc calc_query_pos*(record: hts.Record): tuple[qstart: int, qend: int,
     # echo "qstart = ", qstart, ", qend = ", qend, ", qlen = ", qlen
 
     return (qstart, qend, qlen)
+
+type
+    # based on https://github.com/zeeev/bamPals/blob/master/src/enrich_optional_tags.c
+    Pal = object
+        xb, xe, xl: int32  # "I" tags in BAM
+        xp: float32  # "f" tag in BAM
+
+proc pal_cigar(cigar: hts.Cigar): tuple[t_consumed, q_sclipped: int32] =
+    var t_consumed, q_sclipped: int
+    for elem in cigar:
+        case $hts.op(elem)
+        of '=', 'D', 'X', 'M', 'N':
+            t_consumed += hts.len(elem)
+        of 'S':
+            q_sclipped += hts.len(elem)
+        else:
+            discard
+    return (t_consumed: t_consumed.int32, q_sclipped: q_sclipped.int32)
+
+proc pal_calc(record: hts.Record): Pal =
+    let (t_consumed, q_sclipped) = pal_cigar(record.cigar)
+    result.xl = t_consumed
+    result.xb = record.b.core.pos
+    result.xe = result.xb + result.xl
+
+    let nmtag = hts.tag[int](record, "NM")
+    if hts.isSome(nmtag):
+        let edit_dist = hts.get(nmtag)
+        let pi: float = 100.0 *
+            (record.b.core.l_qseq - q_sclipped - edit_dist).float /
+            (record.b.core.l_qseq - q_sclipped).float
+        result.xp = pi
+    else:
+        result.xp = -1.0
+    
+proc bam_tags_enrich*(old_bam_fn, new_bam_fn: string) =
+    ## Add XB/XE/XP/XR: beg/end/%idt/aln-ref-len
+    var
+        ob, nb: hts.Bam
+    hts.open(ob, old_bam_fn)
+    hts.open(nb, new_bam_fn, mode="w")
+    defer: hts.close(nb)
+    defer: hts.close(ob)
+    hts.write_header(nb, ob.hdr)
+
+    for record in ob:
+        # I want to remember how to use bam_cigar2qlen
+        #logRec(record)
+        #let (qstart, qend, qlen) = calc_query_pos(record)
+        #log(format(" calc(qstart=$#, qend=$#, qlen=$#)", qstart, qend, qlen))
+        #log(format(" cigar2qlen=$#", bam_cigar2qlen(record.b.core.n_cigar.cint, hts.bam_get_cigar(record.b))))
+        #log(format(" cigar2rlen=$#", bam_cigar2rlen(record.b.core.n_cigar.cint, hts.bam_get_cigar(record.b))))
+        let pal = pal_calc(record)
+        #log(format(" pal XB=$# XE=$# XP=$# XL=$#", pal.xb, pal.xe, pal.xp, pal.xl))
+        hts.set_tag[int](record, "XB", pal.xb) # same as core.pos
+        hts.set_tag[int](record, "XE", pal.xe) # same as bam_endpos
+        hts.set_tag[int](record, "XR", pal.xl) # same as bam_cigar2rlen?
+        #hts.set_tag[int](record, "XQ", pal.xl) # same as bam_cigar2qlen
+        if pal.xp >= 0:
+            hts.set_tag[float](record, "XP", pal.xp)
+        hts.write(nb, record)
+
 
 # Someday we might want to look at the CIGAR alignments.
 # But for now, we call it a decent alignment if it is long enough.
