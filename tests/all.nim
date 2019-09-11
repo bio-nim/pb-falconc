@@ -20,6 +20,7 @@ unittest.addOutputFormatter(xray_of)
 
 #The includes need to happen after we setup the report formatters
 
+include "t_align.nim"
 include "t_gc.nim"
 include "t_kmers.nim"
 include "t_overlapFilter.nim"

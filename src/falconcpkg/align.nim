@@ -6,7 +6,7 @@ from sequtils import nil
 from strutils import format
 from tables import contains, `[]`, `[]=`
 from sets import items
-from ./util import log
+from ./util import log, raiseEx
 
 proc logRec(record: Record) =
     # I think len == stop-start+1, but I need to verify. ~cd
@@ -111,17 +111,10 @@ proc pal_calc(record: hts.Record): Pal =
     else:
         result.xp = -1.0
     
-proc bam_tags_enrich*(old_bam_fn, new_bam_fn: string) =
-    ## Add XB/XE/XP/XR: beg/end/%idt/aln-ref-len
-    var
-        ob, nb: hts.Bam
-    hts.open(ob, old_bam_fn)
-    hts.open(nb, new_bam_fn, mode="w")
-    defer: hts.close(nb)
-    defer: hts.close(ob)
-    hts.write_header(nb, ob.hdr)
+proc bam_tags_enrich(new_bam: var hts.Bam, old_bam: hts.Bam) =
+    hts.write_header(new_bam, old_bam.hdr)
 
-    for record in ob:
+    for record in old_bam:
         # I want to remember how to use bam_cigar2qlen
         #logRec(record)
         #let (qstart, qend, qlen) = calc_query_pos(record)
@@ -133,10 +126,129 @@ proc bam_tags_enrich*(old_bam_fn, new_bam_fn: string) =
         hts.set_tag[int](record, "XB", pal.xb) # same as core.pos
         hts.set_tag[int](record, "XE", pal.xe) # same as bam_endpos
         hts.set_tag[int](record, "XR", pal.xl) # same as bam_cigar2rlen?
-        #hts.set_tag[int](record, "XQ", pal.xl) # same as bam_cigar2qlen
+        hts.set_tag[int](record, "XQ", pal.xl) # same as bam_cigar2qlen
         if pal.xp >= 0:
             hts.set_tag[float](record, "XP", pal.xp)
-        hts.write(nb, record)
+        hts.write(new_bam, record)
+
+proc bam_tags_enrich*(output_fn, input_fn: string) =
+    ## Add XB/XE/XP/XR/XQ: beg/end/%idt/aln-ref-len/qry-len
+    var
+        obam, ibam: hts.Bam
+    hts.open(obam, output_fn, mode="w") # compression will be the default for the format
+    hts.open(ibam, input_fn)
+
+    try:
+        bam_tags_enrich(obam, ibam)
+    finally:
+        hts.close(ibam)
+        hts.close(obam)
+
+let
+    SOFT_CLIP = 'S'
+    HARD_CLIP = 'H'
+    CLIPPINGOPS = [SOFT_CLIP, HARD_CLIP]
+
+proc get_left_right_clip(cigar: hts.Cigar): tuple[left, right: int] =
+    var n = hts.len(cigar)
+
+    var leftclip = 0
+    for i in countup(0, n - 1):
+        let
+            elem = cigar[i]
+            op = $op(elem)
+            opLen = len(elem)
+        if op notin CLIPPINGOPS:
+            break
+        leftclip += oplen
+
+    var rightclip = 0
+    for i in countdown(n - 1, 0):
+        let
+            elem = cigar[i]
+            op = $op(elem)
+            opLen = len(elem)
+        if op notin CLIPPINGOPS:
+            break
+        rightclip += oplen
+
+    return (left: leftclip, right:rightclip)
+
+proc get_reference_length(record: hts.Record, targets: seq[Target]): uint32 =
+    let
+        tid = hts.tid(record)
+        reference_target = targets[tid]
+    return reference_target.length
+
+proc bam_count*(input_fn: string): int =
+    ## Simply return the number of records.
+    var
+        in_bam: hts.Bam
+        n: int
+    hts.open(in_bam, input_fn)
+    defer: hts.close(in_bam)
+
+    for record in in_bam:
+        n += 1
+    return n
+
+proc bam_filter_clipped(obam: var hts.Bam, ibam: hts.Bam,
+        max_clipping, end_margin: int, verbose: bool): int =
+    # Return the number skipped. Write the rest into obam.
+    hts.write_header(obam, ibam.hdr)
+
+    let targets = hts.targets(ibam.hdr)
+
+    if verbose:
+        log(format("Listing skipped records, with max_clipping=$# and end_margin=$# ...",
+            max_clipping, end_margin))
+        log("tid chrom (qname) [start .. end+1 (0-based)] seqlen cigar(truncated)")
+    var n_skipped = 0
+
+    for record in ibam:
+        let (leftclip, rightclip) = get_left_right_clip(record.cigar)
+
+        let pal = pal_calc(record)
+
+        if leftclip > max_clipping:
+            # left clipping is high
+            if pal.xb > end_margin:
+                # alignment left is not near the contig start
+                if verbose:
+                    logRec(record)
+                n_skipped += 1
+                continue
+
+        if rightclip > max_clipping:
+            # right clipping is high
+            let reference_length = get_reference_length(record, targets).int
+            if (pal.xe + end_margin) < reference_length:
+                # alignment right is not near the contig end
+                if verbose:
+                    logRec(record)
+                n_skipped += 1
+                continue
+
+        hts.write(obam, record)
+    return n_skipped
+
+proc bam_filter_clipped*(output_fn, input_fn: string,
+        max_clipping = 100, end_margin = 25, verbose = false) =
+    ## Filter alignments with significant clipping.
+    ## To skip an alignment, both max_clipping and end_margin must be exceeded on at least 1 end.
+    var
+        obam, ibam: hts.Bam
+    hts.open(obam, output_fn, mode="w") # compression will be the default for the format
+    hts.open(ibam, input_fn)
+
+    try:
+        let n_skipped = bam_filter_clipped(obam, ibam,
+            max_clipping, end_margin, verbose)
+        if verbose:
+            log("Skipped:", n_skipped)
+    finally:
+        hts.close(ibam)
+        hts.close(obam)
 
 
 # Someday we might want to look at the CIGAR alignments.
@@ -147,13 +259,14 @@ proc update_counts(bam_fn: string, params: Params,
     var
         totals: tables.Table[string, int]
         qlengths: tables.Table[string, int]
-        b: hts.Bam
+        in_bam: hts.Bam
     totals = tables.initTable[string, int]()
     qlengths = tables.initTable[string, int]()
 
-    hts.open(b, bam_fn)
-    defer: hts.close(b)
-    for record in b:
+    hts.open(in_bam, bam_fn)
+    defer: hts.close(in_bam)
+
+    for record in in_bam:
         let key: string = record.qname
         let (qstart, qend, qlen) = calc_query_pos(record)
 
@@ -180,7 +293,7 @@ proc update_counts(bam_fn: string, params: Params,
     #    for line in lines(fn):
     #        sets.incl(result, line)
 
-proc align_filter*(bams_fofn: string, all_subread_names_fn = "", min_len = -1,
+proc bam_filter_ipa*(bams_fofn: string, all_subread_names_fn = "", min_len = -1,
         min_frac = 0.70) =
     ## Print subreads which have decent alignments in any of the bam inputs.
     if min_len != -1:

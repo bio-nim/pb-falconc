@@ -41,11 +41,20 @@ when isMainModule:
         [dataset, short = {}, help = {}],
         [kmers, short = {"int_dummy": 'd'}, help = {}],
         [utils, short = {}, help = {"float_req": "special help message"}],
-        [align.align_filter, cmdName = "align-filter"],
-        [align.bam_tags_enrich, cmdName = "align-bam-tags-enrich",
+        [align.bam_filter_ipa, cmdName = "bam-filter-ipa"],
+        [align.bam_filter_ipa, cmdName = "align-filter", doc = "alias for bam-filter-ipa"],
+        [align.bam_tags_enrich, cmdName = "bam-tags-enrich",
          help = {
-          "old-bam-fn": "original aligned bam",
-          "new-bam-fn": "same but with extra tags",
+          "input-fn": "Bam or Sam filename (based on its extension), or '-'",
+          "output-fn": "Bam or Sam filename (based on its extension)",
+            }
+        ],
+        [align.bam_filter_clipped, cmdName = "bam-filter-clipped",
+         help = {
+          "input-fn": "Bam or Sam filename (based on its extension), or '-'",
+          "output-fn": "Bam or Sam filename (based on its extension)",
+          "max-clipping": "Maximum clipping on left or right of query, in basepairs",
+          "end-margin": "Maximum margin on contig ends, in basepairs",
             }
         ],
         [raptor_db.filter, cmdName = "raptor-db-filter"],
