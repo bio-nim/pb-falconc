@@ -55,6 +55,7 @@ when isMainModule:
           "output-fn": "Bam or Sam filename (based on its extension)",
           "max-clipping": "Maximum clipping on left or right of query, in basepairs",
           "end-margin": "Maximum margin on contig ends, in basepairs",
+          "tags-enrich": "Also enrich the tags. (See bam-tags-enrich.)",
             }
         ],
         [raptor_db.filter, cmdName = "raptor-db-filter"],

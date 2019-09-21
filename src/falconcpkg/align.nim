@@ -111,24 +111,32 @@ proc pal_calc(record: hts.Record): Pal =
     else:
         result.xp = -1.0
     
+proc tags_enrich(record: hts.Record) =
+    # Mutate the underlying object.
+
+    #let (qstart, qend, qlen) = calc_query_pos(record)
+    #log(format(" calc(qstart=$#, qend=$#, qlen=$#)", qstart, qend, qlen))
+    let xb = hts.start(record)
+    let xe = hts.stop(record)
+    let xq = bam_cigar2qlen(record.b.core.n_cigar.cint, hts.bam_get_cigar(record.b))
+    let xr = bam_cigar2rlen(record.b.core.n_cigar.cint, hts.bam_get_cigar(record.b))
+    let pal = pal_calc(record)
+    assert pal.xl == xr
+    assert pal.xb == xb
+    assert pal.xe == xe
+    #log(format(" pal XB=$# XE=$# XP=$# XL=$#", pal.xb, pal.xe, pal.xp, pal.xl))
+    hts.set_tag[int](record, "XB", pal.xb) # same as core.pos
+    hts.set_tag[int](record, "XE", pal.xe) # same as bam_endpos
+    hts.set_tag[int](record, "XR", pal.xl) # same as bam_cigar2rlen
+    hts.set_tag[int](record, "XQ", xq) # same as bam_cigar2qlen
+    if pal.xp >= 0:
+        hts.set_tag[float](record, "XP", pal.xp)
+
 proc bam_tags_enrich(new_bam: var hts.Bam, old_bam: hts.Bam) =
     hts.write_header(new_bam, old_bam.hdr)
 
     for record in old_bam:
-        # I want to remember how to use bam_cigar2qlen
-        #logRec(record)
-        #let (qstart, qend, qlen) = calc_query_pos(record)
-        #log(format(" calc(qstart=$#, qend=$#, qlen=$#)", qstart, qend, qlen))
-        #log(format(" cigar2qlen=$#", bam_cigar2qlen(record.b.core.n_cigar.cint, hts.bam_get_cigar(record.b))))
-        #log(format(" cigar2rlen=$#", bam_cigar2rlen(record.b.core.n_cigar.cint, hts.bam_get_cigar(record.b))))
-        let pal = pal_calc(record)
-        #log(format(" pal XB=$# XE=$# XP=$# XL=$#", pal.xb, pal.xe, pal.xp, pal.xl))
-        hts.set_tag[int](record, "XB", pal.xb) # same as core.pos
-        hts.set_tag[int](record, "XE", pal.xe) # same as bam_endpos
-        hts.set_tag[int](record, "XR", pal.xl) # same as bam_cigar2rlen?
-        hts.set_tag[int](record, "XQ", pal.xl) # same as bam_cigar2qlen
-        if pal.xp >= 0:
-            hts.set_tag[float](record, "XP", pal.xp)
+        tags_enrich(record)
         hts.write(new_bam, record)
 
 proc bam_tags_enrich*(output_fn, input_fn: string) =
@@ -193,7 +201,7 @@ proc bam_count*(input_fn: string): int =
     return n
 
 proc bam_filter_clipped(obam: var hts.Bam, ibam: hts.Bam,
-        max_clipping, end_margin: int, verbose: bool): int =
+        max_clipping, end_margin: int, verbose, tags_enrich: bool): int =
     # Return the number skipped. Write the rest into obam.
     hts.write_header(obam, ibam.hdr)
 
@@ -229,11 +237,13 @@ proc bam_filter_clipped(obam: var hts.Bam, ibam: hts.Bam,
                 n_skipped += 1
                 continue
 
+        if tags_enrich:
+            tags_enrich(record)
         hts.write(obam, record)
     return n_skipped
 
 proc bam_filter_clipped*(output_fn, input_fn: string,
-        max_clipping = 100, end_margin = 25, verbose = false) =
+        max_clipping = 100, end_margin = 25, verbose = false, tags_enrich = false) =
     ## Filter alignments with significant clipping.
     ## To skip an alignment, both max_clipping and end_margin must be exceeded on at least 1 end.
     var
@@ -243,7 +253,7 @@ proc bam_filter_clipped*(output_fn, input_fn: string,
 
     try:
         let n_skipped = bam_filter_clipped(obam, ibam,
-            max_clipping, end_margin, verbose)
+            max_clipping, end_margin, verbose, tags_enrich)
         if verbose:
             log("Skipped:", n_skipped)
     finally:
