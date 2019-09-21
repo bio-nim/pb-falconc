@@ -1,24 +1,24 @@
 Starting seq: ATCGGCTACTATT
 kms
-pos:1 strand:true seq:AGCCGATGATAA bin:832088
-pos:1 strand:false seq:TCGGCTACTATT bin:14315983
-pos:0 strand:true seq:TAGCCGATGATA bin:3328355
-pos:0 strand:false seq:ATCGGCTACTAT bin:3578995
+pos:0 strand:forward seq:ATCGGCTACTAT bin:3578995
+pos:0 strand:reverse seq:TAGCCGATGATA bin:3328355
+pos:1 strand:forward seq:TCGGCTACTATT bin:14315983
+pos:1 strand:reverse seq:AGCCGATGATAA bin:832088
 
 qms
-pos:1 strand:true seq:AGCCGATGATAA bin:832088
-pos:1 strand:false seq:TCGGCTACTATT bin:14315983
-pos:0 strand:true seq:TAGCCGATGATA bin:3328355
-pos:0 strand:false seq:ATCGGCTACTAT bin:3578995
+pos:0 strand:forward seq:ATCGGCTACTAT bin:3578995
+pos:0 strand:reverse seq:TAGCCGATGATA bin:3328355
+pos:1 strand:forward seq:TCGGCTACTATT bin:14315983
+pos:1 strand:reverse seq:AGCCGATGATAA bin:832088
 [TEST:DNA->BIT->DNA] kmer: 832088 pos:1 expecting:AGCCGATGATAA observed:AGCCGATGATAA [PASS]
 [TEST:DNA->BIT->DNA] kmer: 3328355 pos:0 expecting:TAGCCGATGATA observed:TAGCCGATGATA [PASS]
 [TEST:DNA->BIT->DNA] kmer: 3578995 pos:0 expecting:ATCGGCTACTAT observed:ATCGGCTACTAT [PASS]
 [TEST:DNA->BIT->DNA] kmer: 14315983 pos:1 expecting:TCGGCTACTATT observed:TCGGCTACTATT [PASS]
 Searching through 4 kmers
-qb:0 tb:0 qs:false ts:false ATCGGCTACTAT ATCGGCTACTAT
-qb:0 tb:0 qs:true ts:true TAGCCGATGATA TAGCCGATGATA
-qb:1 tb:1 qs:false ts:false TCGGCTACTATT TCGGCTACTATT
-qb:1 tb:1 qs:true ts:true AGCCGATGATAA AGCCGATGATAA
+qb:1 tb:1 qs:reverse ts:reverse AGCCGATGATAA AGCCGATGATAA
+qb:1 tb:1 qs:forward ts:forward TCGGCTACTATT TCGGCTACTATT
+qb:0 tb:0 qs:reverse ts:reverse TAGCCGATGATA TAGCCGATGATA
+qb:0 tb:0 qs:forward ts:forward ATCGGCTACTAT ATCGGCTACTAT
 [TEST:HASKMER] positive query:832088 response:true [PASS]
 [TEST:HASKMER] positive query:14315983 response:true [PASS]
 [TEST:HASKMER] positive query:3328355 response:true [PASS]
