@@ -16,6 +16,9 @@ const
     cGitSha1 {.strdefine.} = staticExec("git describe --always --tags HEAD")
     cToolVersion = cNimbleData.fromNimble("version")
 
+proc get_version(): auto =
+    cToolVersion & "+git." & cGitSha1
+
 proc version() =
     echo cToolVersion & "+git." & cGitSha1
 proc dataset(extras: seq[string]) =
@@ -30,6 +33,9 @@ proc utils(extras: seq[string], float_req: float) =
 #    echo "finished"
 
 when isMainModule:
+    # Show version at start-up, for now.
+    stderr.writeLine("  version=", get_version(), ", nim-version=", system.NimVersion)
+
     dispatchMulti(
         [version],
         [dataset, short = {}, help = {}],
