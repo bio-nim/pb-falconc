@@ -33,8 +33,8 @@ suite "align":
             max_clipping = 5
             end_margin = 0
         discard os.tryRemoveFile(output_fn)
-        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin, verbose, tags_enrich = true)
-        check bam_count(output_fn) == 4
+        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin, Flags_exclude = "0", verbose = verbose, tags_enrich = true)
+        check bam_count(output_fn) == n
         let osam = readFile(output_fn)
         check osam == enriched_sam
         os.removeFile(output_fn)
@@ -45,8 +45,8 @@ suite "align":
             max_clipping = 5
             end_margin = -1
         discard os.tryRemoveFile(output_fn)
-        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin, verbose)
-        check bam_count(output_fn) == 4 - 2
+        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin, Flags_exclude = "0", verbose = verbose)
+        check bam_count(output_fn) == n - 2
         os.removeFile(output_fn)
 
     test "bam_filter_clipped_6,-1":
@@ -55,8 +55,26 @@ suite "align":
             max_clipping = 6
             end_margin = -1
         discard os.tryRemoveFile(output_fn)
-        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin, verbose)
-        check bam_count(output_fn) == 4
+        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin, Flags_exclude = "0", verbose = verbose)
+        check bam_count(output_fn) == n
+        os.removeFile(output_fn)
+
+    test "bam_filter_clipped_flags":
+        let
+            output_fn = "foo.sam"
+            max_clipping = 0
+            end_margin = 0
+        discard os.tryRemoveFile(output_fn)
+        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin, Flags_exclude = "0x800", verbose = verbose, tags_enrich = true)
+        check bam_count(output_fn) == 0
         os.removeFile(output_fn)
 
     os.removeFile(input_fn)
+
+suite "align-utils":
+    test "toUint16":
+        check toUint16("0xFF") == 255
+        check toUint16("0xff") == 255
+        check toUint16("0xFFFF") == 65535
+        #check toUint16("0x1FFFF") == 65535 # RangeError
+        check toUint16("123") == 123
