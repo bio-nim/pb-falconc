@@ -55,7 +55,9 @@ when isMainModule:
           "output-fn": "Bam or Sam filename (based on its extension)",
           "max-clipping": "Maximum clipping on left or right of query, in basepairs",
           "end-margin": "Maximum margin on contig ends, in basepairs",
+          "Flags-exclude": "Integer (0x ok) of flags to exclude, independent of other filters",
           "tags-enrich": "Also enrich the tags. (See bam-tags-enrich.)",
+          "verbose": "Show each skipped alignment, and a count.",
             }
         ],
         [raptor_db.filter, cmdName = "raptor-db-filter"],

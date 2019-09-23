@@ -2,6 +2,7 @@
 import hts
 from hts/private/hts_concat import bam_cigar2qlen, bam_cigar2rlen
 from algorithm import nil
+from parseutils import nil
 from sequtils import nil
 from strutils import format
 from tables import contains, `[]`, `[]=`
@@ -200,7 +201,7 @@ proc bam_count*(input_fn: string): int =
     return n
 
 proc bam_filter_clipped(obam: var hts.Bam, ibam: hts.Bam,
-        max_clipping, end_margin: int, verbose, tags_enrich: bool): int =
+        max_clipping, end_margin: int, flags_exclude: uint16, verbose, tags_enrich: bool): int =
     # Return the number skipped. Write the rest into obam.
     hts.write_header(obam, ibam.hdr)
 
@@ -213,6 +214,13 @@ proc bam_filter_clipped(obam: var hts.Bam, ibam: hts.Bam,
     var n_skipped = 0
 
     for record in ibam:
+        let flag = hts.flag(record)
+        if hts.has_flag(flag, flags_exclude):
+            if verbose:
+                logRec(record)
+            n_skipped += 1
+            continue
+
         let (leftclip, rightclip) = get_left_right_clip(record.cigar)
 
         let pal = pal_calc(record)
@@ -241,10 +249,20 @@ proc bam_filter_clipped(obam: var hts.Bam, ibam: hts.Bam,
         hts.write(obam, record)
     return n_skipped
 
+proc toUInt16*(v: string): uint16 =
+    var number: int
+    if strutils.startsWith(v, "0x"):
+        let digits = parseutils.parseHex(v, number, 2)
+    else:
+        let digits = parseutils.parseInt(v, number)
+    return number.uint16
+
 proc bam_filter_clipped*(output_fn, input_fn: string,
-        max_clipping = 100, end_margin = 25, verbose = false, tags_enrich = false) =
+        max_clipping = 100, end_margin = 25, Flags_exclude = "0", verbose = false, tags_enrich = false) =
     ## Filter alignments with significant clipping.
     ## To skip an alignment, both max_clipping and end_margin must be exceeded on at least 1 end.
+    let
+        flags_exclude: uint16 = toUInt16(Flags_exclude)
     var
         obam, ibam: hts.Bam
     hts.open(obam, output_fn, mode="w") # compression will be the default for the format
@@ -252,7 +270,7 @@ proc bam_filter_clipped*(output_fn, input_fn: string,
 
     try:
         let n_skipped = bam_filter_clipped(obam, ibam,
-            max_clipping, end_margin, verbose, tags_enrich)
+            max_clipping, end_margin, flags_exclude, verbose, tags_enrich)
         if verbose:
             log("Skipped:", n_skipped)
     finally:
