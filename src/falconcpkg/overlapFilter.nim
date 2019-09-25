@@ -232,8 +232,8 @@ proc summarize(filterLog: string, fn: string) =
     summarize(filterLog, readsToFilterSum)
 
 proc gapInCoverage*(ovls: seq[overlap], minDepth: int, minIdt: float): bool =
-    ##Calculates the coverage in a linear pass. If the start or end < minCov there
-##is a gap. The first and last position are skipped
+    ##Calculates the coverage in a linear pass. If the start or end < minDepth there
+    ##is a gap. The first and last position are skipped
     type PosAndTag = tuple
         pos: int #read a position
         tag: bool #starts are true ends are false
@@ -244,26 +244,25 @@ proc gapInCoverage*(ovls: seq[overlap], minDepth: int, minIdt: float): bool =
         cco: int #clean cov
         cli: int #clip
 
+
     var ep = ovls[0].l1
     var an = ovls[0].ridA
-    var clippedCount = 0
-    var passOvls = 0
-    var positions = newSeq[PosAndTag]()
 
+    var positions = newSeq[PosAndTag]()
+    # load start/end into a tuple for linear depth caculation
     for i in ovls:
         if i.idt < 95.0:
             continue
         var clipped = (i.start2 != 0) and (i.end2 != i.l2)
         var loc = (i.tag == "u")
         positions.add( (i.start1, true, clipped, loc))
-        positions.add( (i.end1, false, clipped, loc))
+        positions.add( (i.end1, false,  clipped, loc))
 
     positions.sort()
 
     var runningClip, runningCov, runningClean = 0
     var posInfo = initOrderedTable[int, Info]()
-    var cleanCovSum = 0
-
+    # turn running start/end into a depth at each start/end
     for i in 0 .. (positions.len() - 1):
         if positions[i].tag:
             inc(runningCov)
@@ -278,36 +277,54 @@ proc gapInCoverage*(ovls: seq[overlap], minDepth: int, minIdt: float): bool =
                 dec(runningClean)
         posInfo[positions[i].pos] = (runningCov, runningClean, max(0,
                 runningClip))
-        cleanCovSum += runningClean
 
-    var avgCleanCov = float(cleanCovSum) / float(positions.len())
-
-    if avgCleanCov < 5:
-        return false
 
     var hasCovDip = false
+    var hasZeroCovInDip = false
     var clipHigh = false
     var lastOkCov = 0
     var lastOkPos = 0
+    var lastZero = -1
+    var lastPos   = 0
+    var lastCleanCov = 0
     var count = 0
+    var averageCoverage: float  = 0
 
     var clipCans = newSeq[int]()
     var depthCans = newSeq[int]()
     for i, j in posInfo:
+        #calculating depth sum over the lengths
+        if count != (posInfo.len - 1) and count != 0:
+            averageCoverage += float((i - lastPos) * lastCleanCov)
+        lastPos = i
+        lastCleanCov = j.cco
+        # clipping coverage is almost as high/higher than clean coverage
         if (j.cco - j.cli) < 5 and (j.cli > 2):
             clipHigh = true
             clipCans.add(i)
+        if j.cco == 0:
+            lastZero = i
         if j.cco >= minDepth:
             if (count - lastOkCov) > 1 and (lastOkCov != 0):
                 hasCovDip = true
+                if lastOkPos < lastZero and i > lastZero:
+                 hasZeroCovInDip = true
                 depthCans.add(i)
                 depthCans.add(lastOkPos)
             lastOkCov = count
             lastOkPos = i
         inc(count)
-        #echo "{an} {i} {j.cov} allCov".fmt
-        #echo "{an} {i} {j.cco} cleanCov".fmt
-        #echo "{an} {i} {j.cli} clipCov".fmt
+    # Please leave these print statements, they are critical for troubleshooting
+    #    echo "{an} {i} {j.cov} allCov".fmt
+    #    echo "{an} {i} {j.cco} cleanCov".fmt
+    #    echo "{an} {i} {j.cli} clipCov".fmt
+    averageCoverage = averageCoverage/float(ep)
+    #echo "clipHigh:{clipHigh} hasCovDip:{hasCovDip} hasZeroDepthInDip:{hasZeroCovInDip} avgCov:{averageCoverage}".fmt
+    if averageCoverage < 5:
+        return false
+    # Requested by Ivan
+    if hasCovDip and hasZeroCovInDip:
+        return true
     if clipHigh and hasCovDip:
         for dp in depthCans:
             for cp in clipCans:
