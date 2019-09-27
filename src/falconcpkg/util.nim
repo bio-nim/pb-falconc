@@ -97,3 +97,13 @@ iterator readProcInMemory(cmd: string): string =
         var sin = streams.newStringStream(found)
         for line in streams.lines(sin):
             yield line
+
+proc removeFile*(fn: string, failIfMissing=false) =
+    if failIfMissing and not os.existsFile(fn):
+        raiseEx("Cannot remove non-existent file '" & fn & "'")
+    log("rm -f ", fn)
+    os.removeFile(fn)
+
+proc removeFiles*(fns: openarray[string], failIfMissing=false) =
+    for fn in fns:
+        removeFile(fn, failIfMissing)
