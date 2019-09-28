@@ -661,12 +661,8 @@ proc falconRunner*(db: string,
     outFile.close()
 
     if not keepIntermediates:
-        for fn in ovls:
-            #removeFile(fn)
-            log(" rm ", fn)
-        for fn in intermediateFns:
-            #removeFile(fn)
-            log(" rm ", fn)
+        util.removeFiles(ovls)
+        util.removeFiles(intermediateFns)
 
 proc ipaRunner*(ovlsFofnFn: string,
  idtStage1: float = 90.0,
@@ -772,12 +768,8 @@ proc ipaRunner*(ovlsFofnFn: string,
     outFile.close()
 
     if not keepIntermediates:
-        for fn in ovls:
-            #removeFile(fn)
-            log(" rm ", fn)
-        for fn in intermediateFns:
-            #removeFile(fn)
-            log(" rm ", fn)
+        util.removeFiles(ovls)
+        util.removeFiles(intermediateFns)
 
 
 proc main() =
