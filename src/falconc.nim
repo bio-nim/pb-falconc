@@ -102,6 +102,22 @@ when isMainModule:
         ],
         [overlapFilter.runDumpBlacklist, cmdName = "m4filt-dump-blacklist",
         ],
+        [overlapFilter.m4filtRunner, cmdName = "m4filt",
+         help = {
+          "idt-stage1": "Stage one percent identity filter, formatted as percentage, overlaps < %idt are skipped",
+          "idt-stage2": "Stage two percent identify filter",
+          "min-len": "Minimum read length, reads shorter than minLen will be discarded",
+          "min-cov": "Minimum number of overlaps on either side of a read",
+          "max-cov": "Maximum number of overlaps on either side of a read",
+          "max-diff": "Reads are skipped is abs(5p-3p) overlap counts > maxDiff",
+          "bestn": "Keep N best overlaps at 5prime AND 3prime of a read",
+          "min-depth": "Depths lower than minDepth are considered gaps",
+          "gap-filt": "Run depth filter, takes a little more time",
+          "n-proc": "Number of processes to run locally",
+          "filter-log-fn": "Write read filter stats to this file",
+          "out-fn": "Final m4 overlap file",
+            }
+        ],
         [overlapFilter.falconRunner, cmdName = "m4filt-falconRunner",
          help = {
           "las-json-fn": "List of las files from falcon, e.g ../1-preads_ovl/las-merge-combine/las_fofn.json",

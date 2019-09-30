@@ -145,23 +145,29 @@ proc missingTerminus*(o: overlap): bool =
 
 
 iterator abOvl*(sin: Stream): seq[overlap] =
-    var readA: string
-    #The buffer len of 500 should be adjusted if more fields are added.
-    var buff = newString(500)
-    var ovls = newSeq[overlap]()
+    var
+        readA: string
+        ov: overlap
+        #The buffer len of 500 should be adjusted if more fields are added.
+        buff = newString(500)
+        ovls = newSeq[overlap]()
     discard readLine(sin, buff)
-    var ov = parseOvl(buff)
-    readA = ov.ridA
-    ovls.add(ov)
-    while(readLine(sin, buff)):
+    try:
         ov = parseOvl(buff)
-        if ov.ridA != readA:
-            yield ovls
-        if ov.ridA != readA:
-            readA = ov.ridA
-            ovls = @[]
+        readA = ov.ridA
         ovls.add(ov)
-    yield ovls
+        while(readLine(sin, buff)):
+            ov = parseOvl(buff)
+            if ov.ridA != readA:
+                yield ovls
+            if ov.ridA != readA:
+                readA = ov.ridA
+                ovls = @[]
+            ovls.add(ov)
+        yield ovls
+    except AssertionError:
+        log("buff='{buff}'".fmt)
+        raise
 
 
 
@@ -215,9 +221,7 @@ proc summarize(filterLog: string, readsToFilter: var Table[string, int]) =
      flag toggles this filter. The cutoff is controlled by (--minDepth 2).
      Chimeric reads tend to have gaps in coverage since they contain sequences
      not see in other reads.
-
-
-    """
+"""
     fout.write(report)
 
 proc summarize(filterLog: string, fn: string) =
@@ -561,6 +565,148 @@ proc runDumpBlacklist*(blacklist: string) =
 
     dumpBlacklist(readsToFilter)
 
+type
+    M4filtOptions = object
+        idtStage1: float
+        idtStage2: float
+        minLen: int
+        minCov: int
+        maxCov: int
+        maxDiff: int
+        bestN: int
+        minDepth: int
+        gapFilt: bool
+        keepIntermediates: bool
+        filterLogFn: string
+        outFn: string
+
+proc m4filt(icmds: seq[string],
+    opts: M4filtOptions,
+    threadpool: threadpool_simple.ThreadPool) =
+
+    var stage1 = newSeq[Stage1]()
+    var stage2 = newSeq[Stage2]()
+    var ovls = newSeq[string]()
+
+    let minDepthGapFilt =
+        if opts.gapFilt:
+            opts.minDepth
+        else:
+            0
+
+    var counter = 0
+    let blacklist_msgpack_fn = "blacklist_fofn.stage1.msgpck"
+    var msgpackFofnS1 = open(blacklist_msgpack_fn, fmWrite)
+
+    let merged_blacklist_msgpack_fn = "merged_blacklist.stage1.msgpck"
+
+    var intermediateFns: seq[string]
+    intermediateFns.add(blacklist_msgpack_fn)
+    intermediateFns.add(merged_blacklist_msgpack_fn)
+
+    for icmd in icmds:
+        inc(counter)
+
+        let blacklist_fn = "{counter}.stage1.tmp.msgpck".fmt
+        intermediateFns.add(blacklist_fn)
+        let args1 = Stage1(
+            icmd: icmd,
+            maxDiff: opts.maxDiff,
+            maxCov: opts.maxCov,
+            minCov: opts.minCov,
+            minLen: opts.minLen,
+            minIdt: opts.idtStage1,
+            gapFilt: opts.gapFilt,
+            minDepth: minDepthGapFilt,
+            blacklist: blacklist_fn)
+        stage1.add(args1)
+
+        # We will generate merged_blacklist_msgpack btw stage 1 and 2.
+        let ovlFn = "{counter}.tmp.ovl".fmt
+        let args2 = Stage2(
+            icmd: icmd,
+            minIdt: opts.idtStage2,
+            bestN: opts.bestN,
+            filteredOutput: ovlFn,
+            blacklistIn: merged_blacklist_msgpack_fn)
+        stage2.add(args2)
+
+        ovls.add(ovlFn)
+        msgpackFofnS1.writeLine(blacklist_fn)
+    msgpackFofnS1.close()
+
+    for x in stage1:
+        threadpool.spawn startStage1(x)
+        #startStage1(x)
+    threadpool.sync()
+
+    runMergeBlacklists(blacklist_msgpack_fn, merged_blacklist_msgpack_fn)
+    summarize(opts.filterLogFn, merged_blacklist_msgpack_fn)
+
+    for x in stage2:
+        threadpool.spawn startStage2(x)
+        #startStage2(x)
+    threadpool.sync()
+
+    var outFile = open(opts.outFn, fmWrite)
+
+    for i in ovls:
+        let ov = open(i, fmRead)
+        defer: ov.close()
+        for line in ov.lines:
+            outFile.writeLine(line)
+    outFile.writeLine("---")
+    outFile.close()
+
+    if not opts.keepIntermediates:
+        util.removeFiles(ovls)
+        util.removeFiles(intermediateFns)
+
+proc m4filtRunner*(
+ idtStage1: float = 90.0,
+ idtStage2: float = 90.0,
+ minLen: int = 6000,
+ minCov: int = 2,
+ maxCov: int = 200,
+ maxDiff: int = 100,
+ bestN: int = 10,
+ minDepth: int = 2,
+ gapFilt: bool = false,
+ keepIntermediates: bool = false,
+ nProc: int = 24,
+ filterLogFn: string,
+ outFn: string) =
+    ## Run the multi-stage m4 overlap filter.
+    ## Read the m4 filenames from stdin.
+    ## In stage one, reads that
+    ## trigger a filter are marked including containment, gaps in coverage along the
+    ## A-read, and repeat reads.
+    ## In stage two the filters are applied and the N-best
+    ## overlaps are kept for the 5prime and 3prime of each read.
+
+    var icmds: seq[string]
+    for line in lines(stdin):
+        let icmd = "cat {line}".fmt
+        icmds.add(icmd)
+
+    let opts = M4filtOptions(
+        idtStage1: idtStage1,
+        idtStage2: idtStage2,
+        minLen: minLen,
+        minCov: minCov,
+        maxCov: maxCov,
+        maxDiff: maxDiff,
+        bestN: bestN,
+        minDepth: minDepth,
+        gapFilt: gapFilt,
+        keepIntermediates: keepIntermediates,
+        filterLogFn: filterLogFn,
+        outFn: outFn)
+
+    let threadpool = threadpool_simple.newThreadPool(nProc)
+
+    m4filt(icmds, opts, threadpool)
+
 proc falconRunner*(db: string,
  lasJsonFn: string,
  idtStage1: float = 90.0,
@@ -577,92 +723,36 @@ proc falconRunner*(db: string,
  filterLogFn: string,
  outFn: string) =
     ##Runs the multi-stage m4 overlap filter for falcon. In stage one, reads that
-##trigger a filter are marked including containment, gaps in coverage along the
-##A-read, and repeat reads. In stage two the filters are applied and the N-best
-##overlaps are kept for the 5prime and 3prime of each read.
-
-    let threadpool = threadpool_simple.newThreadPool(nProc)
+    ##trigger a filter are marked including containment, gaps in coverage along the
+    ##A-read, and repeat reads. In stage two the filters are applied and the N-best
+    ##overlaps are kept for the 5prime and 3prime of each read.
 
     #LasJson is generated by the falcon pipeline
     let js = parseFile(lasJsonFn)
-    var stage1 = newSeq[Stage1]()
-    var stage2 = newSeq[Stage2]()
-    var ovls = newSeq[string]()
-
-    let minDepthGapFilt =
-        if gapFilt:
-            minDepth
-        else:
-            0
-
-    var counter = 0
-    let blacklist_msgpack_fn = "blacklist_fofn.stage1.msgpck"
-    var msgpackFofnS1 = open(blacklist_msgpack_fn, fmWrite)
-
-    let merged_blacklist_msgpack_fn = "merged_blacklist.stage1.msgpck"
-
-    var intermediateFns: seq[string]
-    intermediateFns.add(blacklist_msgpack_fn)
-    intermediateFns.add(merged_blacklist_msgpack_fn)
-
+    var icmds: seq[string]
     for las in js:
-        inc(counter)
-        let icmd = "LA4Falcon -mo {db} {las.getStr()}".fmt
+        # Remember to redirect stderr, since we will not read it.
+        # Otherwise, beyond several thousand lines, the stderr buffer
+        # will fill up and block writing to stdout.
+        let icmd = "LA4Falcon -mo {db} {las.getStr()} 2> /dev/null".fmt
+        icmds.add(icmd)
+    let opts = M4filtOptions(
+        idtStage1: idtStage1,
+        idtStage2: idtStage2,
+        minLen: minLen,
+        minCov: minCov,
+        maxCov: maxCov,
+        maxDiff: maxDiff,
+        bestN: bestN,
+        minDepth: minDepth,
+        gapFilt: gapFilt,
+        keepIntermediates: keepIntermediates,
+        filterLogFn: filterLogFn,
+        outFn: outFn)
 
-        let blacklist_fn = "{counter}.stage1.tmp.msgpck".fmt
-        intermediateFns.add(blacklist_fn)
-        let args1 = Stage1(
-            icmd: icmd,
-            maxDiff: maxDiff,
-            maxCov: maxCov,
-            minCov: minCov,
-            minLen: minLen,
-            minIdt: idtStage1,
-            gapFilt: gapFilt,
-            minDepth: minDepthGapFilt,
-            blacklist: blacklist_fn)
-        stage1.add(args1)
+    let threadpool = threadpool_simple.newThreadPool(nProc)
 
-        # We will generate merged_blacklist_msgpack btw stage 1 and 2.
-        let ovlFn = "{counter}.tmp.ovl".fmt
-        let args2 = Stage2(
-            icmd: icmd,
-            minIdt: idtStage2,
-            bestN: bestN,
-            filteredOutput: ovlFn,
-            blacklistIn: merged_blacklist_msgpack_fn)
-        stage2.add(args2)
-
-        ovls.add(ovlFn)
-        msgpackFofnS1.writeLine(blacklist_fn)
-    msgpackFofnS1.close()
-
-    for x in stage1:
-        threadpool.spawn startStage1(x)
-        #startStage1(x)
-    threadpool.sync()
-
-    runMergeBlacklists(blacklist_msgpack_fn, merged_blacklist_msgpack_fn)
-    summarize(filterLogFn, merged_blacklist_msgpack_fn)
-
-    for x in stage2:
-        threadpool.spawn startStage2(x)
-        #startStage2(x)
-    threadpool.sync()
-
-    var outFile = open(outFn, fmWrite)
-
-    for i in ovls:
-        let ov = open(i, fmRead)
-        defer: ov.close()
-        for line in ov.lines:
-            outFile.writeLine(line)
-    outFile.writeLine("---")
-    outFile.close()
-
-    if not keepIntermediates:
-        util.removeFiles(ovls)
-        util.removeFiles(intermediateFns)
+    m4filt(icmds, opts, threadpool)
 
 proc ipaRunner*(ovlsFofnFn: string,
  idtStage1: float = 90.0,
@@ -683,8 +773,6 @@ proc ipaRunner*(ovlsFofnFn: string,
     ##the A-read, and repeat reads. In stage two the filters are applied and the
     ##N-best overlaps are kept for the 5prime and 3prime of each read.
 
-    let threadpool = threadpool_simple.newThreadPool(nProc)
-
     #fofn of m4 files generated in the IPA WDL
     let fh = open(ovlsFofnFn, fmRead)
     defer: fh.close()
@@ -694,82 +782,28 @@ proc ipaRunner*(ovlsFofnFn: string,
             continue
         m4s.add(l)
 
-    var stage1 = newSeq[Stage1]()
-    var stage2 = newSeq[Stage2]()
-    var ovls = newSeq[string]()
-
-    let minDepthGapFilt =
-        if gapFilt:
-            minDepth
-        else:
-            0
-    var counter = 0
-    let blacklist_msgpack_fn = "blacklist_fofn.stage1.msgpck"
-    var msgpackFofnS1 = open(blacklist_msgpack_fn, fmWrite)
-
-    let merged_blacklist_msgpack_fn = "merged_blacklist.stage1.msgpck"
-
-    var intermediateFns: seq[string]
-    intermediateFns.add(blacklist_msgpack_fn)
-    intermediateFns.add(merged_blacklist_msgpack_fn)
-
+    var icmds: seq[string]
     for ms in m4s:
-        inc(counter)
         let icmd = "/bin/cat {ms}".fmt
+        icmds.add(icmd)
 
-        let blacklist_fn = "{counter}.stage1.tmp.msgpck".fmt
-        intermediateFns.add(blacklist_fn)
-        let args1 = Stage1(
-            icmd: icmd,
-            maxDiff: maxDiff,
-            maxCov: maxCov,
-            minCov: minCov,
-            minLen: minLen,
-            minIdt: idtStage1,
-            gapFilt: gapFilt,
-            minDepth: minDepthGapFilt,
-            blacklist: blacklist_fn)
-        stage1.add(args1)
+    let opts = M4filtOptions(
+        idtStage1: idtStage1,
+        idtStage2: idtStage2,
+        minLen: minLen,
+        minCov: minCov,
+        maxCov: maxCov,
+        maxDiff: maxDiff,
+        bestN: bestN,
+        minDepth: minDepth,
+        gapFilt: gapFilt,
+        keepIntermediates: keepIntermediates,
+        filterLogFn: filterLogFn,
+        outFn: outputFn)
 
-        # We will generate merged_blacklist_msgpack btw stage 1 and 2.
-        let ovlFn = "{counter}.tmp.ovl".fmt
-        let args2 = Stage2(
-            icmd: icmd,
-            minIdt: idtStage2,
-            bestN: bestN,
-            filteredOutput: "{counter}.tmp.ovl".fmt,
-            blacklistIn: merged_blacklist_msgpack_fn)
-        stage2.add(args2)
+    let threadpool = threadpool_simple.newThreadPool(nProc)
 
-        ovls.add(ovlFn)
-        msgpackFofnS1.writeLine(blacklist_fn)
-    msgpackFofnS1.close()
-
-    for x in stage1:
-        threadpool.spawn startStage1(x)
-        #startStage1(x)
-    threadpool.sync()
-
-    runMergeBlacklists(blacklist_msgpack_fn, merged_blacklist_msgpack_fn)
-    summarize(filterLogFn, merged_blacklist_msgpack_fn)
-
-    for x in stage2:
-        threadpool.spawn startStage2(x)
-        #startStage2(x)
-    threadpool.sync()
-
-    var outFile = open(outputFn, fmWrite)
-    for i in ovls:
-        let ov = open(i, fmRead)
-        defer: ov.close()
-        for line in ov.lines:
-            outFile.writeLine(line)
-    outFile.writeLine("---")
-    outFile.close()
-
-    if not keepIntermediates:
-        util.removeFiles(ovls)
-        util.removeFiles(intermediateFns)
+    m4filt(icmds, opts, threadpool)
 
 
 proc main() =
