@@ -731,7 +731,10 @@ proc falconRunner*(db: string,
     let js = parseFile(lasJsonFn)
     var icmds: seq[string]
     for las in js:
-        let icmd = "LA4Falcon -mo {db} {las.getStr()}".fmt
+        # Remember to redirect stderr, since we will not read it.
+        # Otherwise, beyond several thousand lines, the stderr buffer
+        # will fill up and block writing to stdout.
+        let icmd = "LA4Falcon -mo {db} {las.getStr()} 2> /dev/null".fmt
         icmds.add(icmd)
     let opts = M4filtOptions(
         idtStage1: idtStage1,
