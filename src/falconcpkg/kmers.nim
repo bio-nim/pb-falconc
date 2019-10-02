@@ -193,7 +193,7 @@ proc dna_to_kmers*(sq: Dna; k: int): pot_t =
 ##
 ##  Zero is A, one is C, G is two, and T is 3
 #
-proc bin_to_dna*(kmer: Bin; k: uint8; strand: Strand): Dna =
+proc bin_to_dna*(kmer: Bin; k: uint8; strand: Strand = forward): Dna =
     var lookup: array[4, char] = ['A', 'C', 'G', 'T']
     var mask: uint64 = 3
     var i: uint8 = 0
@@ -203,11 +203,14 @@ proc bin_to_dna*(kmer: Bin; k: uint8; strand: Strand): Dna =
     var dna = newDna(k.int)
     i = 0
     while i < k:
-        tmp = kmer
-        offset = if strand == forward: (k - i - 1) * 2 else: (i * 2)
-        tmp = tmp >> offset
-        #dna[i] = lookup[mask and tmp]
-        dna[i.int] = lookup[mask and tmp]
+        if strand == forward:
+            offset = (k - i - 1) * 2
+            tmp = kmer >> offset
+            dna[i.int] = lookup[mask and tmp]
+        else:
+            offset = i * 2
+            tmp = kmer >> offset
+            dna[i.int] = lookup[mask and not tmp]
         inc(i)
 
     return dna

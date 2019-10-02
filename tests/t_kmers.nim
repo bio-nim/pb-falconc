@@ -4,7 +4,7 @@ import unittest
 import deques
 import sequtils
 import sets
-from strformat import fmt
+#from strformat import fmt
 
 suite "kmers":
     test "bin_to_dna":
@@ -13,8 +13,8 @@ suite "kmers":
         check kmers.bin_to_dna(2, 1, kmers.forward) == "G"
         check kmers.bin_to_dna(3, 1, kmers.forward) == "T"
 
-        check kmers.bin_to_dna(0b00011011, 4, kmers.forward) == "ACGT"
-        check kmers.bin_to_dna(0b00011011, 4, kmers.reverse) == "TGCA"
+        check kmers.bin_to_dna(0b10001111000100, 7, kmers.forward) == "GATTACA"
+        check kmers.bin_to_dna(0b10001111000100, 7, kmers.reverse) == "TGTAATC"
 
     test "dna_to_kmers":
         check kmers.dna_to_kmers("AAAA", 2).seeds.len() == 6
@@ -23,8 +23,8 @@ suite "kmers":
         let
             sq = "ATCGGCTACTATT"
             expected = [
-                "AGCCGATGATAA",
-                "TAGCCGATGATA",
+                "TCGGCTACTATT",
+                "ATCGGCTACTAT",
                 "ATCGGCTACTAT",
                 "TCGGCTACTATT",
             ]
