@@ -107,3 +107,8 @@ proc removeFile*(fn: string, failIfMissing=false) =
 proc removeFiles*(fns: openarray[string], failIfMissing=false) =
     for fn in fns:
         removeFile(fn, failIfMissing)
+
+proc which*(exe: string) =
+    let cmd = "which " & exe
+    log(cmd)
+    discard execCmd(cmd)
