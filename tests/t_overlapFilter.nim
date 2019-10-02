@@ -1,7 +1,6 @@
 import unittest
 import falconcpkg/overlapFilter
-import ./chimera_test_data
-import streams
+from streams import nil
 
 #[
  A-read contained
@@ -87,6 +86,18 @@ suite "overlapFilter terminatedAlignments":
         let parsed = parseOvl(record1)
         check missingTerminus(parsed) == true
 
+proc stream(fn: string): auto =
+    return streams.newStringStream(readFile(fn))
+
+let fn_105513170 = stream("data/chimera/fn_105513170.ovlp")
+let fn_118816930 = stream("data/chimera/fn_118816930.ovlp")
+let fn_90965490 = stream("data/chimera/fn_90965490.ovlp")
+let fp_17238 = stream("data/chimera/fp_17238.ovlp")
+let fp_30455 = stream("data/chimera/fp_30455.ovlp")
+let fp_32757 = stream("data/chimera/fp_32757.ovlp")
+let tp_5600 = stream("data/chimera/tp_5600.ovlp")
+let tp_15210 = stream("data/chimera/tp_15210.ovlp")
+
 suite "chimera filter":
     test "5600 tp marked":
         for i in abOvl(tp_5600):
@@ -100,3 +111,15 @@ suite "chimera filter":
     test "17238 fp not marked":
         for i in abOvl(fp_17238):
             check gapInCoverage(i, 4, 90.0) == false
+    test "30455 FP not marked ":
+        for i in abOvl(fp_30455):
+           check gapInCoverage(i, 4, 90.0) == false
+    test "118816930 CCS tp marked":
+        for i in abOvl(fn_118816930):
+           check gapInCoverage(i, 4, 90.0) == true
+    test "90965490 CCS tp marked":
+        for i in abOvl(fn_90965490):
+           check gapInCoverage(i, 4, 90.0) == true
+    test "105513170 CCS FN, this should be marked, kept for future improvements":
+        for i in abOvl(fn_105513170):
+           check gapInCoverage(i, 4, 90.0) == false
