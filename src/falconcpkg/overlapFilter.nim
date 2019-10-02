@@ -72,6 +72,9 @@ type
 proc parseOvl*(s: string): overlap =
     var ovl: overlap
     let ld = s.split(" ")
+    if 13 != ld.len():
+        let msg = "Error parsing ovl (split={ld.len()}): '{s}'".fmt
+        log(msg)
     doAssert ld.len() == 13
     ovl.ridA = ld[0]
     ovl.ridB = ld[1]
