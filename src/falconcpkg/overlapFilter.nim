@@ -154,7 +154,11 @@ iterator abOvl*(sin: Stream): seq[overlap] =
         #The buffer len of 500 should be adjusted if more fields are added.
         buff = newString(500)
         ovls = newSeq[overlap]()
-    discard readLine(sin, buff)
+    if not readLine(sin, buff):
+        # empty input
+        #return # not legal unless we use a "closure" iterator, which is a little slower
+        let msg = "empty input for abOvl()"
+        util.raiseEx(msg)
     try:
         ov = parseOvl(buff)
         readA = ov.ridA
@@ -516,22 +520,38 @@ proc doStage2(args: Stage2) =
             output.writeLine(l)
 proc startStage1(args: Stage1) =
     log("startStage1: ", args.icmd)
-    var p = startProcess(command = args.icmd, options = {poEvalCommand,
+    var p = osproc.startProcess(command = args.icmd, options = {poEvalCommand,
             })
             #poStdErrToStdOut})
+    if osproc.peekExitCode(p) > 0:
+        let msg = "Immediate failure in stage1 startProcess('" & args.icmd & "')"
+        util.raiseEx(msg)
     var argsx = args
     argsx.sin = p.outputStream
-    doStage1(argsx)
-    p.close()
+    try:
+        doStage1(argsx)
+    finally:
+        osproc.close(p)
+    if osproc.peekExitCode(p) > 0:
+        let msg = "Failure in stage2 startProcess('" & args.icmd & "')"
+        util.raiseEx(msg)
 proc startStage2(args: Stage2) =
     log("startStage2: ", args.icmd)
-    var p = startProcess(command = args.icmd, options = {poEvalCommand,
+    var p = osproc.startProcess(command = args.icmd, options = {poEvalCommand,
             })
             #poStdErrToStdOut})
+    if osproc.peekExitCode(p) > 0:
+        let msg = "Immediate failure in stage2 startProcess('" & args.icmd & "')"
+        util.raiseEx(msg)
     var argsx = args
     argsx.sin = p.outputStream
-    doStage2(argsx)
-    p.close()
+    try:
+        doStage2(argsx)
+    finally:
+        osproc.close(p)
+    if osproc.peekExitCode(p) > 0:
+        let msg = "Failure in stage2 startProcess('" & args.icmd & "')"
+        util.raiseEx(msg)
 proc runStage1*(
  maxDiff: int = 100,
  maxCov: int = 200,
