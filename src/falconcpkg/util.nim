@@ -80,6 +80,9 @@ iterator readProc*(cmd: string): string =
     else:
         log("Reading from '" & cmd & "'...")
         var p = osproc.startProcess(cmd, options={poEvalCommand})
+        if osproc.peekExitCode(p) > 0:
+            let msg = "Immedate failure in readProc startProcess('" & cmd & "')"
+            raiseEx(msg)
         defer: osproc.close(p)
         for line in streams.lines(osproc.outputStream(p)):
             yield line
