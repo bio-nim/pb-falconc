@@ -5,7 +5,7 @@ from falconcpkg/raptor_db import nil
 from falconcpkg/rotate import nil
 from falconcpkg/phasr import nil
 from falconcpkg/overlapFilter import nil
-from falconcpkg/pbcromwell import nil
+#from falconcpkg/pbcromwell import nil
 from falconcpkg/pbreports import nil
 from falconcpkg/stats import nil
 import cligen
@@ -111,9 +111,9 @@ when isMainModule:
           "outputFn": "Final m4 overlap file",
             }
         ],
-        [pbcromwell.remove_las, cmdName = "pbcromwell-rm-las",
-         short = {"dry_run": 'n'},
-        ],
+        # [pbcromwell.remove_las, cmdName = "pbcromwell-rm-las",
+        #  short = {"dry_run": 'n'},
+        # ],
         [pbreports.circ, cmdName = "pbreports-circ",
          help = {
           "fasta_fn": "FASTA filename, preferably indexed (with .fai)",
