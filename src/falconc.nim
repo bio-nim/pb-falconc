@@ -132,6 +132,7 @@ when isMainModule:
           "gap-filt": "Run depth filter, takes a little more time",
           "n-proc": "Number of processes to run locally",
           "filter-log-fn": "Write read filter stats to this file",
+          "debug-log-fn": "Write stderr to this file",
           "out-fn": "Final m4 overlap file",
             }
         ],
