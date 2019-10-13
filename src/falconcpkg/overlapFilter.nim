@@ -532,9 +532,9 @@ proc startStage1(args: Stage1) =
         doStage1(argsx)
     finally:
         osproc.close(p)
-    if osproc.peekExitCode(p) > 0:
-        let msg = "Failure in stage2 startProcess('" & args.icmd & "')"
-        util.raiseEx(msg)
+        if osproc.peekExitCode(p) > 0:
+            let msg = "Failure in stage2 startProcess('" & args.icmd & "')"
+            util.raiseEx(msg)
 proc startStage2(args: Stage2) =
     log("startStage2: ", args.icmd)
     var p = osproc.startProcess(command = args.icmd, options = {poEvalCommand,
@@ -761,6 +761,7 @@ proc falconRunner*(db: string,
  keepIntermediates: bool = false,
  nProc: int = 24,
  filterLogFn: string,
+ debugLogFn: string = "LA4Falcon.log",
  outFn: string) =
     ##Runs the multi-stage m4 overlap filter for falcon. In stage one, reads that
     ##trigger a filter are marked including containment, gaps in coverage along the
@@ -776,7 +777,7 @@ proc falconRunner*(db: string,
         # Remember to redirect stderr, since we will not read it.
         # Otherwise, beyond several thousand lines, the stderr buffer
         # will fill up and block writing to stdout.
-        let icmd = "LA4Falcon -mo {db} {las.getStr()} 2> /dev/null".fmt
+        let icmd = "LA4Falcon -mo {db} {las.getStr()} 2> {debugLogFn}".fmt
         icmds.add(icmd)
     let opts = M4filtOptions(
         idtStage1: idtStage1,
