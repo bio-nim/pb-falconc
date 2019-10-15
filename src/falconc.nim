@@ -1,6 +1,7 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
 #import falconcpkg/zev
 from falconcpkg/align import nil
+from falconcpkg/falcon/augmentPolishCtgs import nil
 from falconcpkg/raptor_db import nil
 from falconcpkg/rotate import nil
 from falconcpkg/phasr import nil
@@ -60,6 +61,13 @@ when isMainModule:
           "Flags-exclude": "Integer (0x ok) of flags to exclude, independent of other filters",
           "tags-enrich": "Also enrich the tags. (See bam-tags-enrich.)",
           "verbose": "Show each skipped alignment, and a count.",
+            }
+        ],
+        [augmentPolishCtgs.runner, cmdName = "augment-polish-list",
+         help = {
+          "phase": "read2ctg.txt file",
+          "bam": "bam file of unphased reads mapped",
+          "outfile": "output augmented file",
             }
         ],
         [raptor_db.filter, cmdName = "raptor-db-filter"],
