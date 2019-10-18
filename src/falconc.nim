@@ -69,12 +69,12 @@ when isMainModule:
         ],
         [rotate.main, cmdName = "circ-orient",
             help = {
-        "input-fn": "fasta file of circular sequences",
-        "output-fn": "fasta file output",
-        "wl_fn": "white list of sequences to rotate, one per line, no spaces, no trailing spaces",
+        "input-fn": "fasta (or fastq) file of circular sequences",
+        "output-fn": "fasta (or fastq) file output",
+        "wl-fn": "white list of sequences to rotate, one per line, no spaces, no trailing spaces",
         "window": "window size to caculate gc-skew",
         "step": "window step",
-        "print": "print skew data to files, one per sequence"
+        "print": "print skew data to files ('SEQ.gc_skew.txt'), one per sequence"
             },
         ],
         [rotate.randomize, cmdName = "circ-randomize",
