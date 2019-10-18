@@ -111,7 +111,25 @@ proc whitelisted*(whitelist: WhiteList, chrom_name: string): bool =
 
 type
     FastaReader = iterator
-    FastaWriter = iterator
+    FastaWriter = proc
+
+    SimpleFastaWriter = ref object
+        fout: File
+        width: int
+
+proc newSimpleFastaWriter(fn: string, width: int=80): SimpleFastaWriter =
+    new(result)
+    result.fout = open(fn, fmWrite)
+    result.width = width
+
+proc write(obj: SimpleFastaWriter, full_sequence: string, chrom_name: string, shift: int) =
+    let chrom_len = len(full_sequence)
+    obj.fout.write(">", chrom_name, " shifted_by_bp:-",
+                shift, "/", chrom_len, "\n")
+    obj.fout.write(wrapWords(full_sequence, obj.width), "\n")
+
+proc close(obj: SimpleFastaWriter) =
+    close(obj.fout)
 
 iterator FaiReader(fn: string, full_sequence: var string): string {.closure.} =
     # Yield chrom_name; modify full_sequence
@@ -135,10 +153,8 @@ proc reorientFASTA(
 
 proc reorient(fin: string, fon: string, wl: string, w: int, s: int,
         print: bool) =
-
-    var output = open(fon, fmWrite)
-    defer:
-        output.close()
+    var writer = newSimpleFastaWriter(fon)
+    defer: writer.close()
 
     if checkEmptyFile(fin):
         logger.log(lvlNotice, "Empty input, output will be empty.")
@@ -149,19 +165,18 @@ proc reorient(fin: string, fon: string, wl: string, w: int, s: int,
     var full_sequence: string # alg.rotate needs var, so Reader cannot just return it.
 
     for chrom_name in FaiReader(fin, full_sequence):
-        let chrom_len = len(full_sequence)
         var sdf = calcSkew(full_sequence, w, s)
         if not whitelisted(whiteList, chrom_name):
             sdf.data[sdf.mini].pos = 0
         if print:
             printSkew(chrom_name, sdf)
         #echo "#windows:", sdf.data.len, " pivot index:", sdf.mini
-        #echo "pivot pos: ", sdf.data[sdf.mini].pos, " / ", chrom_len,
+        #echo "pivot pos: ", sdf.data[sdf.mini].pos, " / ", len(full_sequence),
         # " seq: ", chrom_name
+
         discard algorithm.rotateLeft(full_sequence, sdf.data[sdf.mini].pos)
-        output.write(">", chrom_name, " shifted_by_bp:-",
-                   sdf.data[sdf.mini].pos, "/", chrom_len, "\n")
-        output.write(wrapWords(full_sequence), "\n")
+
+        writer.write(full_sequence, chrom_name, sdf.data[sdf.mini].pos)
 
 
 proc main*(input_fn: string, output_fn: string, wl_fn = "", window = 500,
