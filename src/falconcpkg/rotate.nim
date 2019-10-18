@@ -1,3 +1,5 @@
+from ./util import nil
+from strformat import nil
 import hts
 import gc
 import strutils
@@ -107,6 +109,30 @@ proc whitelisted*(whitelist: WhiteList, chrom_name: string): bool =
         return true
     return whitelist.specific.contains(chrom_name)
 
+type
+    FastaReader = iterator
+    FastaWriter = iterator
+
+iterator FaiReader(fn: string, full_sequence: var string): string {.closure.} =
+    # Yield chrom_name; modify full_sequence
+    var fai: Fai
+    if not fai.open(fn):
+        let msg = strformat.fmt("Problem loading fasta file '{fn}'")
+        util.raiseEx(msg)
+    for i in 0..<fai.len:
+        var chrom_name = fai[i]
+        var chrom_len = fai.chrom_len(chrom_name)
+        full_sequence = fai.get(chrom_name) # modify input var
+        yield chrom_name
+
+proc reorientFASTA(
+    reader: FastaReader,
+    writer: FastaWriter,
+    wl: WhiteList,
+    win: int,
+    step: int) =
+    discard
+
 proc reorient(fin: string, fon: string, wl: string, w: int, s: int,
         print: bool) =
 
@@ -118,25 +144,20 @@ proc reorient(fin: string, fon: string, wl: string, w: int, s: int,
         logger.log(lvlNotice, "Empty input, output will be empty.")
         return
 
-    var fai: Fai
-    if not fai.open(fin):
-        logger.log(lvlFatal, "Problem loading fasta file")
-        quit 1
-
     let whiteList = loadWhiteList(wl)
 
-    for i in 0..<fai.len:
-        var chrom_name = fai[i]
-        var chrom_len = fai.chrom_len(chrom_name)
-        var full_sequence = fai.get(chrom_name)
+    var full_sequence: string # alg.rotate needs var, so Reader cannot just return it.
+
+    for chrom_name in FaiReader(fin, full_sequence):
+        let chrom_len = len(full_sequence)
         var sdf = calcSkew(full_sequence, w, s)
         if not whitelisted(whiteList, chrom_name):
             sdf.data[sdf.mini].pos = 0
         if print:
             printSkew(chrom_name, sdf)
-        echo "#windows:", sdf.data.len, " pivot index:", sdf.mini
-        echo "pivot pos: ", sdf.data[sdf.mini].pos, " / ", chrom_len,
-         " seq: ", chrom_name
+        #echo "#windows:", sdf.data.len, " pivot index:", sdf.mini
+        #echo "pivot pos: ", sdf.data[sdf.mini].pos, " / ", chrom_len,
+        # " seq: ", chrom_name
         discard algorithm.rotateLeft(full_sequence, sdf.data[sdf.mini].pos)
         output.write(">", chrom_name, " shifted_by_bp:-",
                    sdf.data[sdf.mini].pos, "/", chrom_len, "\n")
