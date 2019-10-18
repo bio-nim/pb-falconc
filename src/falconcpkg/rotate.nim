@@ -78,7 +78,7 @@ proc randomize*(input: string, output: string, seed: int64 = 0) =
         let chrom_name = fai[i]
         let chrom_len = fai.chrom_len(chrom_name)
         var full_sequence = fai.get(chrom_name)
-        var ran = rand(chrom_len)
+        var ran = random.rand(chrom_len)
         discard algorithm.rotateLeft(full_sequence, ran)
         echo "[INFO] randomizing: ", chrom_name
         outfh.write(">", chrom_name, " randomly_shifted_by_bp:-",

@@ -35,7 +35,7 @@ fi
 
 make rsync
 make test
-make build
+#make build  # The develop branch will build and install, so we can skip this.
 
 # Install
 
