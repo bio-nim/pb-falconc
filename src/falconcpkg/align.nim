@@ -13,8 +13,8 @@ proc logRec(record: Record) =
     # I think len == stop-start+1, but I need to verify. ~cd
     var s: string
     discard hts.sequence(record, s)
-    log(format("$# $# ($#) [$# .. $#] seqlen=$# $#...", record.tid, record.chrom,
-            record.qname, record.start, record.stop, s.len(),
+    log(format("$# $# ($#) [$# .. $#] seqlen=$# $#...", record.tid,
+            record.chrom, record.qname, record.start, record.stop, s.len(),
         ($record.cigar).substr(0, 32)))
 
 type
@@ -82,8 +82,8 @@ type
     # based on https://github.com/zeeev/bamPals/blob/master/src/enrich_optional_tags.c
     Pal = object
         ref_beg, ref_end, ref_len: int32 # alignment in reference coordinates
-        qry_len: int32  # "I" tag in BAM
-        pct_idt: float32  # "f" tag in BAM
+        qry_len: int32                   # "I" tag in BAM
+        pct_idt: float32                 # "f" tag in BAM
 
 proc pal_cigar(cigar: hts.Cigar): tuple[t_consumed, q_sclipped: int32] =
     var t_consumed, q_sclipped: int
@@ -101,7 +101,8 @@ proc pal_calc(record: hts.Record): Pal =
     result.ref_beg = hts.start(record).int32
     result.ref_end = hts.stop(record).int32
     result.ref_len = result.ref_end - result.ref_beg
-    result.qry_len = bam_cigar2qlen(record.b.core.n_cigar.cint, hts.bam_get_cigar(record.b))
+    result.qry_len = bam_cigar2qlen(record.b.core.n_cigar.cint,
+            hts.bam_get_cigar(record.b))
 
     let xr = bam_cigar2rlen(record.b.core.n_cigar.cint, hts.bam_get_cigar(record.b))
     assert result.ref_len == xr
@@ -118,7 +119,7 @@ proc pal_calc(record: hts.Record): Pal =
         result.pct_idt = pi
     else:
         result.pct_idt = -1.0
-    
+
 proc tags_enrich(record: hts.Record) =
     # Mutate the underlying object.
 
@@ -143,7 +144,7 @@ proc bam_tags_enrich*(output_fn, input_fn: string) =
     ## Add XB/XE/XP/XR/XQ: beg/end/%idt/aln-ref-len/qry-len
     var
         obam, ibam: hts.Bam
-    hts.open(obam, output_fn, mode="w") # compression will be the default for the format
+    hts.open(obam, output_fn, mode = "w") # compression will be the default for the format
     hts.open(ibam, input_fn)
 
     try:
@@ -180,7 +181,7 @@ proc get_left_right_clip(cigar: hts.Cigar): tuple[left, right: int] =
             break
         rightclip += oplen
 
-    return (left: leftclip, right:rightclip)
+    return (left: leftclip, right: rightclip)
 
 proc get_reference_length(record: hts.Record, targets: seq[Target]): uint32 =
     let
@@ -201,7 +202,8 @@ proc bam_count*(input_fn: string): int =
     return n
 
 proc bam_filter_clipped(obam: var hts.Bam, ibam: hts.Bam,
-        max_clipping, end_margin: int, flags_exclude: uint16, verbose, tags_enrich: bool): int =
+        max_clipping, end_margin: int, flags_exclude: uint16, verbose,
+                tags_enrich: bool): int =
     # Return the number skipped. Write the rest into obam.
     hts.write_header(obam, ibam.hdr)
 
@@ -258,14 +260,15 @@ proc toUInt16*(v: string): uint16 =
     return number.uint16
 
 proc bam_filter_clipped*(output_fn, input_fn: string,
-        max_clipping = 100, end_margin = 25, Flags_exclude = "0", verbose = false, tags_enrich = false) =
+        max_clipping = 100, end_margin = 25, Flags_exclude = "0",
+                verbose = false, tags_enrich = false) =
     ## Filter alignments with significant clipping.
     ## To skip an alignment, both max_clipping and end_margin must be exceeded on at least 1 end.
     let
         flags_exclude: uint16 = toUInt16(Flags_exclude)
     var
         obam, ibam: hts.Bam
-    hts.open(obam, output_fn, mode="w") # compression will be the default for the format
+    hts.open(obam, output_fn, mode = "w") # compression will be the default for the format
     hts.open(ibam, input_fn)
 
     try:

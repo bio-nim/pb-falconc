@@ -10,28 +10,29 @@ from threadpool import nil
 from times import nil
 
 proc log*[Ty](x: varargs[Ty, `$`]): auto =
-  let start {.global.} = times.epochTime()
-  let msg = strutils.join(x, "") # TODO: add spaces here, not at call-site
-  let sofar = (times.epochTime() - start)
-  let formatted = padLeft(strutils.formatFloat(sofar, format=strutils.ffDecimal, precision=1), 7)
-  writeLine(stderr, formatted, "s ", msg)
+    let start {.global.} = times.epochTime()
+    let msg = strutils.join(x, "") # TODO: add spaces here, not at call-site
+    let sofar = (times.epochTime() - start)
+    let formatted = padLeft(strutils.formatFloat(sofar,
+            format = strutils.ffDecimal, precision = 1), 7)
+    writeLine(stderr, formatted, "s ", msg)
 
 proc abspath*(fn: string): auto =
-  if not strutils.startswith(fn, '/'):
-    return os.getCurrentDir() & '/' & fn
-  else:
-    return fn
+    if not strutils.startswith(fn, '/'):
+        return os.getCurrentDir() & '/' & fn
+    else:
+        return fn
 
 proc filelength*(fn: string): auto =
-  var
-    st: posix.Stat
-  let ret = posix.stat(fn.cstring, st)
-  if 0.cint != ret:
-    let code = os.osLastError()
-    let msg = "Cannot stat('" & abspath(fn) & "')"
-    os.raiseOSError(code, msg)
-  assert ret == 0.cint
-  return st.st_size
+    var
+        st: posix.Stat
+    let ret = posix.stat(fn.cstring, st)
+    if 0.cint != ret:
+        let code = os.osLastError()
+        let msg = "Cannot stat('" & abspath(fn) & "')"
+        os.raiseOSError(code, msg)
+    assert ret == 0.cint
+    return st.st_size
 
 #[
 var the_wait_is_over: locks.Cond
@@ -65,13 +66,13 @@ proc setMaxPoolSize*(nmax: int) =
 ]#
 
 proc dummy() {.thread.} =
-  os.sleep(500)
+    os.sleep(500)
 
 proc setMaxPoolSize*(nmax: int) =
-  threadpool.setMaxPoolSize(nmax)
-  let ncpus = cpuinfo.countProcessors()
-  log("Creating ", ncpus, " dummies...")
-  for i in 0..<ncpus:
-    threadpool.spawn dummy()
-  threadpool.sync()
-  log(" Finished all dummies. The threadpool size should now be ", nmax)
+    threadpool.setMaxPoolSize(nmax)
+    let ncpus = cpuinfo.countProcessors()
+    log("Creating ", ncpus, " dummies...")
+    for i in 0..<ncpus:
+        threadpool.spawn dummy()
+    threadpool.sync()
+    log(" Finished all dummies. The threadpool size should now be ", nmax)

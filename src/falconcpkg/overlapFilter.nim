@@ -263,7 +263,7 @@ proc gapInCoverage*(ovls: seq[overlap], minDepth: int, minIdt: float): bool =
         var clipped = (i.start2 != 0) and (i.end2 != i.l2)
         var loc = (i.tag == "u")
         positions.add( (i.start1, true, clipped, loc))
-        positions.add( (i.end1, false,  clipped, loc))
+        positions.add( (i.end1, false, clipped, loc))
 
     positions.sort()
 
@@ -292,10 +292,10 @@ proc gapInCoverage*(ovls: seq[overlap], minDepth: int, minIdt: float): bool =
     var lastOkCov = 0
     var lastOkPos = 0
     var lastZero = -1
-    var lastPos   = 0
+    var lastPos = 0
     var lastCleanCov = 0
     var count = 0
-    var averageCoverage: float  = 0
+    var averageCoverage: float = 0
 
     var clipCans = newSeq[int]()
     var depthCans = newSeq[int]()
@@ -315,7 +315,7 @@ proc gapInCoverage*(ovls: seq[overlap], minDepth: int, minIdt: float): bool =
             if (count - lastOkCov) > 1 and (lastOkCov != 0):
                 hasCovDip = true
                 if lastOkPos < lastZero and i > lastZero:
-                 hasZeroCovInDip = true
+                    hasZeroCovInDip = true
                 depthCans.add(i)
                 depthCans.add(lastOkPos)
             lastOkCov = count
@@ -521,8 +521,8 @@ proc doStage2(args: Stage2) =
 proc startStage1(args: Stage1) =
     log("startStage1: ", args.icmd)
     var p = osproc.startProcess(command = args.icmd, options = {poEvalCommand,
-            })
-            #poStdErrToStdOut})
+        })
+        #poStdErrToStdOut})
     if osproc.peekExitCode(p) > 0:
         let msg = "Immediate failure in stage1 startProcess('" & args.icmd & "')"
         util.raiseEx(msg)
@@ -538,8 +538,8 @@ proc startStage1(args: Stage1) =
 proc startStage2(args: Stage2) =
     log("startStage2: ", args.icmd)
     var p = osproc.startProcess(command = args.icmd, options = {poEvalCommand,
-            })
-            #poStdErrToStdOut})
+        })
+        #poStdErrToStdOut})
     if osproc.peekExitCode(p) > 0:
         let msg = "Immediate failure in stage2 startProcess('" & args.icmd & "')"
         util.raiseEx(msg)
