@@ -34,7 +34,8 @@ proc utils(extras: seq[string], float_req: float) =
 
 when isMainModule:
     # Show version at start-up, for now.
-    stderr.writeLine("  version=", get_version(), ", nim-version=", system.NimVersion)
+    stderr.writeLine("  version=", get_version(), ", nim-version=",
+            system.NimVersion)
 
     dispatchMulti(
         [version],
@@ -42,7 +43,8 @@ when isMainModule:
         [kmers, short = {"int_dummy": 'd'}, help = {}],
         [utils, short = {}, help = {"float_req": "special help message"}],
         [align.bam_filter_ipa, cmdName = "bam-filter-ipa"],
-        [align.bam_filter_ipa, cmdName = "align-filter", doc = "alias for bam-filter-ipa"],
+        [align.bam_filter_ipa, cmdName = "align-filter",
+                doc = "alias for bam-filter-ipa"],
         [align.bam_tags_enrich, cmdName = "bam-tags-enrich",
          help = {
           "input-fn": "Bam or Sam filename (based on its extension), or '-'",

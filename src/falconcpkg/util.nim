@@ -79,7 +79,7 @@ iterator readProc*(cmd: string): string =
             yield line
     else:
         log("Reading from '" & cmd & "'...")
-        var p = osproc.startProcess(cmd, options={poEvalCommand})
+        var p = osproc.startProcess(cmd, options = {poEvalCommand})
         if osproc.peekExitCode(p) > 0:
             let msg = "Immedate failure in readProc startProcess('" & cmd & "')"
             raiseEx(msg)
@@ -96,18 +96,18 @@ iterator readProcInMemory(cmd: string): string =
             yield line
     else:
         log("Reading from '" & cmd & "'...")
-        let found = osproc.execProcess(cmd, options={poEvalCommand})
+        let found = osproc.execProcess(cmd, options = {poEvalCommand})
         var sin = streams.newStringStream(found)
         for line in streams.lines(sin):
             yield line
 
-proc removeFile*(fn: string, failIfMissing=false) =
+proc removeFile*(fn: string, failIfMissing = false) =
     if failIfMissing and not os.existsFile(fn):
         raiseEx("Cannot remove non-existent file '" & fn & "'")
     log("rm -f ", fn)
     os.removeFile(fn)
 
-proc removeFiles*(fns: openarray[string], failIfMissing=false) =
+proc removeFiles*(fns: openarray[string], failIfMissing = false) =
     for fn in fns:
         removeFile(fn, failIfMissing)
 

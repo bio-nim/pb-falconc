@@ -33,7 +33,8 @@ suite "align":
             max_clipping = 5
             end_margin = 0
         discard os.tryRemoveFile(output_fn)
-        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin, Flags_exclude = "0", verbose = verbose, tags_enrich = true)
+        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin,
+                Flags_exclude = "0", verbose = verbose, tags_enrich = true)
         check bam_count(output_fn) == n
         let osam = readFile(output_fn)
         check osam == enriched_sam
@@ -45,7 +46,8 @@ suite "align":
             max_clipping = 5
             end_margin = -1
         discard os.tryRemoveFile(output_fn)
-        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin, Flags_exclude = "0", verbose = verbose)
+        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin,
+                Flags_exclude = "0", verbose = verbose)
         check bam_count(output_fn) == n - 2
         os.removeFile(output_fn)
 
@@ -55,7 +57,8 @@ suite "align":
             max_clipping = 6
             end_margin = -1
         discard os.tryRemoveFile(output_fn)
-        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin, Flags_exclude = "0", verbose = verbose)
+        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin,
+                Flags_exclude = "0", verbose = verbose)
         check bam_count(output_fn) == n
         os.removeFile(output_fn)
 
@@ -65,7 +68,8 @@ suite "align":
             max_clipping = 0
             end_margin = 0
         discard os.tryRemoveFile(output_fn)
-        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin, Flags_exclude = "0x800", verbose = verbose, tags_enrich = true)
+        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin,
+                Flags_exclude = "0x800", verbose = verbose, tags_enrich = true)
         check bam_count(output_fn) == 0
         os.removeFile(output_fn)
 

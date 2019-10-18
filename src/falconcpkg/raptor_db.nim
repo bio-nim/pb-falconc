@@ -155,7 +155,7 @@ proc strlen(a: var Headroom): int =
     let n = strlen(cast[cstring](addr a))
     return n
 
-proc toString(ins: var Headroom, outs: var string, source: string="") =
+proc toString(ins: var Headroom, outs: var string, source: string = "") =
     var n = strlen(ins)
     if n >= (MAX_HEADROOM - 1):
         # Why is max-1 illegal? B/c this is used after sscanf, and that has no way to report
@@ -198,7 +198,8 @@ proc load_rdb*(sin: streams.Stream): ref Db =
         elif line[0] == 'B':
             var br: BlockRecord
             let scanned = sscanf(line.cstring, b_frmt.cstring,
-                addr br.block_id, addr br.seq_id_start, addr br.seq_id_end, addr br.num_bases_in_block)
+                addr br.block_id, addr br.seq_id_start, addr br.seq_id_end,
+                addr br.num_bases_in_block)
             if 4 != scanned:
                 let msg = "Too few fields for '" & line & "'"
                 raise newException(util.TooFewFieldsError, msg)

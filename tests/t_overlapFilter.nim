@@ -113,13 +113,13 @@ suite "chimera filter":
             check gapInCoverage(i, 4, 90.0) == false
     test "30455 FP not marked ":
         for i in abOvl(fp_30455):
-           check gapInCoverage(i, 4, 90.0) == false
+            check gapInCoverage(i, 4, 90.0) == false
     test "118816930 CCS tp marked":
         for i in abOvl(fn_118816930):
-           check gapInCoverage(i, 4, 90.0) == true
+            check gapInCoverage(i, 4, 90.0) == true
     test "90965490 CCS tp marked":
         for i in abOvl(fn_90965490):
-           check gapInCoverage(i, 4, 90.0) == true
+            check gapInCoverage(i, 4, 90.0) == true
     test "105513170 CCS FN, this should be marked, kept for future improvements":
         for i in abOvl(fn_105513170):
-           check gapInCoverage(i, 4, 90.0) == false
+            check gapInCoverage(i, 4, 90.0) == false
