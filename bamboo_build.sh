@@ -35,14 +35,14 @@ fi
 
 make rsync
 make test
-#make build  # The develop branch will build and install, so we can skip this.
+make build
 
 # Install
 
 case "${bamboo_planRepository_branchName}" in
   develop|master)
     export PREFIX_ARG="/mnt/software/f/falconc/${bamboo_planRepository_branchName}"
-    PREFIX=${PREFIX_ARG} make install
+    PREFIX=${PREFIX_ARG} make install  # This only copies. It does not rebuild.
     #module load htslib
     ${PREFIX_ARG}/bin/falconc --help
     ;;
