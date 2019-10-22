@@ -159,14 +159,27 @@ iterator FaiReader(fn: string, full_sequence: var string): string {.closure.} =
         full_sequence = fai.get(chrom_name) # modify input var
         yield chrom_name
 
+proc chromFromHeader*(header: string): string =
+    assert strutils.startsWith(header, '@') or strutils.startsWith(header, '>')
+    let start = 1
+    var stop = len(header)
+    let found = strutils.find(header, ' ')
+    if found != -1:
+        stop = found
+    return header[start ..< stop]
+
 iterator FastqReader(fn: string, full_sequence, full_qvs: var string): string {.closure.} =
     # Yield chrom_name; modify full_sequence, full_qvs
 
     var fout = open(fn, fmRead)
     var line: string
+    var n = 0
     while not endOfFile(fout):
-        discard fout.readLine(line)
+        if not fout.readLine(line):
+            let msg = strformat.fmt"endOfFile() not as expected ('{fn}')"
+            util.raiseEx(msg)
         var header = line
+        n += 1
 
         var nseqlines = 0
         full_sequence.setLen(0)
@@ -179,6 +192,10 @@ iterator FastqReader(fn: string, full_sequence, full_qvs: var string): string {.
             full_sequence &= line
             nseqlines += 1
 
+        if 0 == (n and (n-1)):
+            echo "header=", header
+            echo n, " nwrap=", nseqlines, " len=", len(full_sequence)
+
         # skip 2nd header
 
         full_qvs.setLen(0)
@@ -188,7 +205,7 @@ iterator FastqReader(fn: string, full_sequence, full_qvs: var string): string {.
                 util.raiseEx(msg)
             full_qvs &= line
 
-        let chrom_name = header
+        let chrom_name = chromFromHeader(header)
         yield chrom_name
 
 proc reorientFASTA(fin: string, fon: string, wl: string, w: int, s: int,

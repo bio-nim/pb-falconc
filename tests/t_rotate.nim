@@ -49,3 +49,10 @@ suite "rotate":
     os.setCurrentDir("..")
     echo "REMOVE ", subdir
     os.removeDir(subdir)
+
+suite "rotate-misc":
+    test "chromFromHeader":
+        assert chromFromHeader("@foo") == "foo"
+        assert chromFromHeader(">foo") == "foo"
+        assert chromFromHeader("@foo bar") == "foo"
+        assert chromFromHeader(">foo bar") == "foo"
