@@ -161,10 +161,34 @@ iterator FaiReader(fn: string, full_sequence: var string): string {.closure.} =
 
 iterator FastqReader(fn: string, full_sequence, full_qvs: var string): string {.closure.} =
     # Yield chrom_name; modify full_sequence, full_qvs
-    for i in 0..1:
-        full_sequence = "GATTACA"
-        full_qvs = "123"
-        let chrom_name = "mychrom"
+
+    var fout = open(fn, fmRead)
+    var line: string
+    while not endOfFile(fout):
+        discard fout.readLine(line)
+        var header = line
+
+        var nseqlines = 0
+        full_sequence.setLen(0)
+        while true:
+            if not fout.readLine(line):
+                let msg = strformat.fmt"Did not find '+' line in FASTQ '{fn}'"
+                util.raiseEx(msg)
+            if line.startsWith('+'):
+                break
+            full_sequence &= line
+            nseqlines += 1
+
+        # skip 2nd header
+
+        full_qvs.setLen(0)
+        for i in 0 ..< nseqlines:
+            if not fout.readLine(line):
+                let msg = strformat.fmt"Fewer qv lines than seq lines in '{fn}' (nqv={i}, nseq={nseqlines})"
+                util.raiseEx(msg)
+            full_qvs &= line
+
+        let chrom_name = header
         yield chrom_name
 
 proc reorientFASTA(fin: string, fon: string, wl: string, w: int, s: int,
@@ -229,7 +253,7 @@ proc main*(input_fn: string, output_fn: string, wl_fn = "", window = 500,
         logger.log(lvlFatal, "Missing input or output required options.")
         quit 1
     logger.log(lvlInfo, "Reorienting.")
-    reorientFASTA(input_fn, output_fn, wl_fn, window, step, print)
+    reorientFASTQ(input_fn, output_fn, wl_fn, window, step, print)
 
 when isMainModule:
     main()
