@@ -110,10 +110,10 @@ proc whitelisted*(whitelist: WhiteList, chrom_name: string): bool =
     return whitelist.specific.contains(chrom_name)
 
 type
-    FastaReader = iterator
-    FastaWriter = proc
-
     SimpleFastaWriter = ref object
+        fout: File
+        width: int
+    SimpleFastqWriter = ref object
         fout: File
         width: int
 
@@ -131,6 +131,22 @@ proc write(obj: SimpleFastaWriter, full_sequence: string, chrom_name: string, sh
 proc close(obj: SimpleFastaWriter) =
     close(obj.fout)
 
+proc newSimpleFastqWriter(fn: string, width: int=80): SimpleFastqWriter =
+    new(result)
+    result.fout = open(fn, fmWrite)
+    result.width = width
+
+proc write(obj: SimpleFastqWriter, full_sequence, full_qvs: string, chrom_name: string, shift: int) =
+    let chrom_len = len(full_sequence)
+    obj.fout.write("@", chrom_name, " shifted_by_bp:-",
+                shift, "/", chrom_len, "\n")
+    obj.fout.write(wrapWords(full_sequence, obj.width), "\n")
+    obj.fout.write("+\n")
+    obj.fout.write(wrapWords(full_qvs, obj.width), "\n")
+
+proc close(obj: SimpleFastqWriter) =
+    close(obj.fout)
+
 iterator FaiReader(fn: string, full_sequence: var string): string {.closure.} =
     # Yield chrom_name; modify full_sequence
     var fai: Fai
@@ -143,15 +159,15 @@ iterator FaiReader(fn: string, full_sequence: var string): string {.closure.} =
         full_sequence = fai.get(chrom_name) # modify input var
         yield chrom_name
 
-proc reorientFASTA(
-    reader: FastaReader,
-    writer: FastaWriter,
-    wl: WhiteList,
-    win: int,
-    step: int) =
-    discard
+iterator FastqReader(fn: string, full_sequence, full_qvs: var string): string {.closure.} =
+    # Yield chrom_name; modify full_sequence, full_qvs
+    for i in 0..1:
+        full_sequence = "GATTACA"
+        full_qvs = "123"
+        let chrom_name = "mychrom"
+        yield chrom_name
 
-proc reorient(fin: string, fon: string, wl: string, w: int, s: int,
+proc reorientFASTA(fin: string, fon: string, wl: string, w: int, s: int,
         print: bool) =
     var writer = newSimpleFastaWriter(fon)
     defer: writer.close()
@@ -178,6 +194,33 @@ proc reorient(fin: string, fon: string, wl: string, w: int, s: int,
 
         writer.write(full_sequence, chrom_name, sdf.data[sdf.mini].pos)
 
+proc reorientFASTQ(fin: string, fon: string, wl: string, w: int, s: int,
+        print: bool) =
+    var writer = newSimpleFastqWriter(fon)
+    defer: writer.close()
+
+    if checkEmptyFile(fin):
+        logger.log(lvlNotice, "Empty input, output will be empty.")
+        return
+
+    let whiteList = loadWhiteList(wl)
+
+    var full_sequence, full_qvs: string # alg.rotate needs var, so Reader cannot just return it.
+
+    for chrom_name in FastqReader(fin, full_sequence, full_qvs):
+        var sdf = calcSkew(full_sequence, w, s)
+        if not whitelisted(whiteList, chrom_name):
+            sdf.data[sdf.mini].pos = 0
+        if print:
+            printSkew(chrom_name, sdf)
+        #echo "#windows:", sdf.data.len, " pivot index:", sdf.mini
+        #echo "pivot pos: ", sdf.data[sdf.mini].pos, " / ", len(full_sequence),
+        # " seq: ", chrom_name
+
+        discard algorithm.rotateLeft(full_sequence, sdf.data[sdf.mini].pos)
+
+        writer.write(full_sequence, full_qvs, chrom_name, sdf.data[sdf.mini].pos)
+
 
 proc main*(input_fn: string, output_fn: string, wl_fn = "", window = 500,
         step = 200, print = false) =
@@ -186,7 +229,7 @@ proc main*(input_fn: string, output_fn: string, wl_fn = "", window = 500,
         logger.log(lvlFatal, "Missing input or output required options.")
         quit 1
     logger.log(lvlInfo, "Reorienting.")
-    reorient(input_fn, output_fn, wl_fn, window, step, print)
+    reorientFASTA(input_fn, output_fn, wl_fn, window, step, print)
 
 when isMainModule:
     main()
