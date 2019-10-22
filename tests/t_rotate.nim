@@ -2,7 +2,9 @@
 
 import falconcpkg/rotate
 import os
+import osproc
 #import sets
+import strformat
 import unittest
 
 template withFile(f: untyped, filename: string, mode: FileMode,
@@ -44,6 +46,20 @@ suite "rotate":
         check whitelisted(wl, "foo")
         check not whitelisted(wl, "bar")
         check not whitelisted(wl, "")
+    test "FASTQ":
+        let ifn = os.parentDir(currentSourcePath()) & "/data/rotate/input.fastq"
+        let ofn = "rotate.output.fastq"
+        var full_sequence, full_qvs: string
+
+        var writer = newSimpleFastqWriter(ofn)
+
+        for chrom_name in FastqReader(ifn, full_sequence, full_qvs):
+            writer.write(full_sequence, full_qvs, chrom_name, 0)
+        writer.close()
+
+        let cmd = strformat.fmt"diff {ifn} {ofn}"
+        assert 0 == osproc.execCmd(cmd), cmd
+
 
     # Might skip all this if abortOnError.
     os.setCurrentDir("..")
