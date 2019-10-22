@@ -1,3 +1,5 @@
+from ./util import nil
+from strformat import nil
 import hts
 import gc
 import strutils
@@ -21,11 +23,15 @@ type
         mini*: int
         minv*: float
 
-proc checkEmptyFile(fin: string): bool =
-    var finfo = getFileInfo(fin)
-    if finfo.size == 0:
-        return true
-    return false
+proc checkEmptyFile(fn: string): bool =
+    try:
+        var finfo = getFileInfo(fn)
+        if finfo.size == 0:
+            return true
+        return false
+    except:
+        let msg = getCurrentExceptionMsg() & strformat.fmt": '{fn}'"
+        util.raiseEx(msg)
 
 proc calcSkew*(dna: string, win: int, step: int): skewDat =
     var sk: skewDat
@@ -33,6 +39,9 @@ proc calcSkew*(dna: string, win: int, step: int): skewDat =
     var i, j: int = 0;
     var min: float = 100000000
 
+    if win >= len(dna):
+        let msg = strformat.fmt"Window ({win}) too large; len(dna)=={len(dna)}"
+        util.raiseEx(msg)
     while(i <= dna.len - win - 1):
         var c = gc.countBases(dna[i..i+win])
         var d: dat
@@ -107,50 +116,180 @@ proc whitelisted*(whitelist: WhiteList, chrom_name: string): bool =
         return true
     return whitelist.specific.contains(chrom_name)
 
-proc reorient(fin: string, fon: string, wl: string, w: int, s: int,
-        print: bool) =
+type
+    SimpleFastaWriter = ref object
+        fout: File
+        width: int
+    SimpleFastqWriter = ref object
+        fout: File
+        width: int
 
-    var output = open(fon, fmWrite)
-    defer:
-        output.close()
+proc newSimpleFastaWriter(fn: string, width: int=80): SimpleFastaWriter =
+    new(result)
+    result.fout = open(fn, fmWrite)
+    result.width = width
+
+proc write(obj: SimpleFastaWriter, full_sequence: string, chrom_name: string, shift: int) =
+    let chrom_len = len(full_sequence)
+    obj.fout.write(">", chrom_name, " shifted_by_bp:-",
+                shift, "/", chrom_len, "\n")
+    obj.fout.write(wrapWords(full_sequence, obj.width), "\n")
+
+proc close(obj: SimpleFastaWriter) =
+    close(obj.fout)
+
+proc newSimpleFastqWriter*(fn: string, width: int=80): SimpleFastqWriter =
+    new(result)
+    result.fout = open(fn, fmWrite)
+    result.width = width
+
+proc write*(obj: SimpleFastqWriter, full_sequence, full_qvs: string, chrom_name: string, shift: int) =
+    let chrom_len = len(full_sequence)
+    obj.fout.write("@", chrom_name, " shifted_by_bp:-",
+                shift, "/", chrom_len, "\n")
+    obj.fout.write(wrapWords(full_sequence, obj.width), "\n")
+    obj.fout.write("+\n")
+    obj.fout.write(wrapWords(full_qvs, obj.width), "\n")
+
+proc close*(obj: SimpleFastqWriter) =
+    close(obj.fout)
+
+iterator FaiReader(fn: string, full_sequence: var string): string {.closure.} =
+    # Yield chrom_name; modify full_sequence
+    var fai: Fai
+    if not fai.open(fn):
+        let msg = strformat.fmt("Problem loading fasta file '{fn}'")
+        util.raiseEx(msg)
+    for i in 0..<fai.len:
+        var chrom_name = fai[i]
+        var chrom_len = fai.chrom_len(chrom_name)
+        full_sequence = fai.get(chrom_name) # modify input var
+        yield chrom_name
+
+proc chromFromHeader*(header: string): string =
+    assert strutils.startsWith(header, '@') or strutils.startsWith(header, '>')
+    let start = 1
+    var stop = len(header)
+    let found = strutils.find(header, ' ')
+    if found != -1:
+        stop = found
+    return header[start ..< stop]
+
+iterator FastqReader*(fn: string, full_sequence, full_qvs: var string): string {.closure.} =
+    # Yield chrom_name; modify full_sequence, full_qvs
+
+    var fout: File
+    try:
+        fout = open(fn, fmRead)
+    except:
+        let msg = getCurrentExceptionMsg() & strformat.fmt": '{fn}'"
+        util.raiseEx(msg)
+    var line: string
+    var n = 0
+    while not endOfFile(fout):
+        if not fout.readLine(line):
+            let msg = strformat.fmt"endOfFile() not as expected ('{fn}')"
+            util.raiseEx(msg)
+        var header = line
+        n += 1
+
+        var nseqlines = 0
+        full_sequence.setLen(0)
+        while true:
+            if not fout.readLine(line):
+                let msg = strformat.fmt"Did not find '+' line in FASTQ '{fn}'"
+                util.raiseEx(msg)
+            if line.startsWith('+'):
+                break
+            full_sequence &= line
+            nseqlines += 1
+
+        if 0 == (n and (n-1)):
+            echo "header=", header
+            echo "#", n, " len=", len(full_sequence), " (nlines wrapped=", nseqlines, ")"
+
+        # skip 2nd header
+
+        full_qvs.setLen(0)
+        for i in 0 ..< nseqlines:
+            if not fout.readLine(line):
+                let msg = strformat.fmt"Fewer qv lines than seq lines in '{fn}' (nqv={i}, nseq={nseqlines})"
+                util.raiseEx(msg)
+            full_qvs &= line
+
+        let chrom_name = chromFromHeader(header)
+        yield chrom_name
+
+proc reorientFASTA(fin: string, fon: string, wl: string, w: int, s: int,
+        print: bool) =
+    var writer = newSimpleFastaWriter(fon)
+    defer: writer.close()
 
     if checkEmptyFile(fin):
         logger.log(lvlNotice, "Empty input, output will be empty.")
         return
 
-    var fai: Fai
-    if not fai.open(fin):
-        logger.log(lvlFatal, "Problem loading fasta file")
-        quit 1
-
     let whiteList = loadWhiteList(wl)
 
-    for i in 0..<fai.len:
-        var chrom_name = fai[i]
-        var chrom_len = fai.chrom_len(chrom_name)
-        var full_sequence = fai.get(chrom_name)
+    var full_sequence: string # alg.rotate needs var, so Reader cannot just return it.
+
+    for chrom_name in FaiReader(fin, full_sequence):
         var sdf = calcSkew(full_sequence, w, s)
         if not whitelisted(whiteList, chrom_name):
             sdf.data[sdf.mini].pos = 0
         if print:
             printSkew(chrom_name, sdf)
-        echo "#windows:", sdf.data.len, " pivot index:", sdf.mini
-        echo "pivot pos: ", sdf.data[sdf.mini].pos, " / ", chrom_len,
-         " seq: ", chrom_name
+        #echo "#windows:", sdf.data.len, " pivot index:", sdf.mini
+        #echo "pivot pos: ", sdf.data[sdf.mini].pos, " / ", len(full_sequence),
+        # " seq: ", chrom_name
+
         discard algorithm.rotateLeft(full_sequence, sdf.data[sdf.mini].pos)
-        output.write(">", chrom_name, " shifted_by_bp:-",
-                   sdf.data[sdf.mini].pos, "/", chrom_len, "\n")
-        output.write(wrapWords(full_sequence), "\n")
+
+        writer.write(full_sequence, chrom_name, sdf.data[sdf.mini].pos)
+
+proc reorientFASTQ(fin: string, fon: string, wl: string, w: int, s: int,
+        print: bool) =
+    var writer = newSimpleFastqWriter(fon)
+    defer: writer.close()
+
+    if checkEmptyFile(fin):
+        logger.log(lvlNotice, "Empty input, output will be empty.")
+        return
+
+    let whiteList = loadWhiteList(wl)
+
+    var full_sequence, full_qvs: string # alg.rotate needs var, so Reader cannot just return it.
+
+    for chrom_name in FastqReader(fin, full_sequence, full_qvs):
+        var sdf = calcSkew(full_sequence, w, s)
+        if not whitelisted(whiteList, chrom_name):
+            sdf.data[sdf.mini].pos = 0
+        if print:
+            printSkew(chrom_name, sdf)
+        #echo "#windows:", sdf.data.len, " pivot index:", sdf.mini
+        #echo "pivot pos: ", sdf.data[sdf.mini].pos, " / ", len(full_sequence),
+        # " seq: ", chrom_name
+
+        discard algorithm.rotateLeft(full_sequence, sdf.data[sdf.mini].pos)
+
+        writer.write(full_sequence, full_qvs, chrom_name, sdf.data[sdf.mini].pos)
 
 
 proc main*(input_fn: string, output_fn: string, wl_fn = "", window = 500,
         step = 200, print = false) =
     ##reorients circular sequences based on gc-skew distribution and writes to output.
     if input_fn == "" or output_fn == "":
-        logger.log(lvlFatal, "Missing input or output required options.")
-        quit 1
+        let msg = "Missing input or output required options."
+        util.raiseEx(msg)
     logger.log(lvlInfo, "Reorienting.")
-    reorient(input_fn, output_fn, wl_fn, window, step, print)
+    if input_fn[^1] != output_fn[^1]:
+        let msg = strformat.fmt"Input and Output must be both FASTA or both FASTQ ({input_fn}, {output_fn})"
+        util.raiseEx(msg)
+    let letter: char = input_fn[^1]
+    if letter == 'q':
+        reorientFASTQ(input_fn, output_fn, wl_fn, window, step, print)
+    else:
+        reorientFASTA(input_fn, output_fn, wl_fn, window, step, print)
 
 when isMainModule:
     main()
