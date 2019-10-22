@@ -271,6 +271,7 @@ proc reorientFASTQ(fin: string, fon: string, wl: string, w: int, s: int,
         # " seq: ", chrom_name
 
         discard algorithm.rotateLeft(full_sequence, sdf.data[sdf.mini].pos)
+        discard algorithm.rotateLeft(full_qvs, sdf.data[sdf.mini].pos)
 
         writer.write(full_sequence, full_qvs, chrom_name, sdf.data[sdf.mini].pos)
 
