@@ -23,11 +23,15 @@ type
         mini*: int
         minv*: float
 
-proc checkEmptyFile(fin: string): bool =
-    var finfo = getFileInfo(fin)
-    if finfo.size == 0:
-        return true
-    return false
+proc checkEmptyFile(fn: string): bool =
+    try:
+        var finfo = getFileInfo(fn)
+        if finfo.size == 0:
+            return true
+        return false
+    except:
+        let msg = getCurrentExceptionMsg() & strformat.fmt": '{fn}'"
+        util.raiseEx(msg)
 
 proc calcSkew*(dna: string, win: int, step: int): skewDat =
     var sk: skewDat
@@ -35,6 +39,9 @@ proc calcSkew*(dna: string, win: int, step: int): skewDat =
     var i, j: int = 0;
     var min: float = 100000000
 
+    if win >= len(dna):
+        let msg = strformat.fmt"Window ({win}) too large; len(dna)=={len(dna)}"
+        util.raiseEx(msg)
     while(i <= dna.len - win - 1):
         var c = gc.countBases(dna[i..i+win])
         var d: dat
@@ -171,7 +178,12 @@ proc chromFromHeader*(header: string): string =
 iterator FastqReader(fn: string, full_sequence, full_qvs: var string): string {.closure.} =
     # Yield chrom_name; modify full_sequence, full_qvs
 
-    var fout = open(fn, fmRead)
+    var fout: File
+    try:
+        fout = open(fn, fmRead)
+    except:
+        let msg = getCurrentExceptionMsg() & strformat.fmt": '{fn}'"
+        util.raiseEx(msg)
     var line: string
     var n = 0
     while not endOfFile(fout):
@@ -194,7 +206,7 @@ iterator FastqReader(fn: string, full_sequence, full_qvs: var string): string {.
 
         if 0 == (n and (n-1)):
             echo "header=", header
-            echo n, " nwrap=", nseqlines, " len=", len(full_sequence)
+            echo "#", n, " len=", len(full_sequence), " (nlines wrapped=", nseqlines, ")"
 
         # skip 2nd header
 
@@ -267,8 +279,8 @@ proc main*(input_fn: string, output_fn: string, wl_fn = "", window = 500,
         step = 200, print = false) =
     ##reorients circular sequences based on gc-skew distribution and writes to output.
     if input_fn == "" or output_fn == "":
-        logger.log(lvlFatal, "Missing input or output required options.")
-        quit 1
+        let msg = "Missing input or output required options."
+        util.raiseEx(msg)
     logger.log(lvlInfo, "Reorienting.")
     if input_fn[^1] != output_fn[^1]:
         let msg = strformat.fmt"Input and Output must be both FASTA or both FASTQ ({input_fn}, {output_fn})"
