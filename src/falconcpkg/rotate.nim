@@ -270,7 +270,14 @@ proc main*(input_fn: string, output_fn: string, wl_fn = "", window = 500,
         logger.log(lvlFatal, "Missing input or output required options.")
         quit 1
     logger.log(lvlInfo, "Reorienting.")
-    reorientFASTQ(input_fn, output_fn, wl_fn, window, step, print)
+    if input_fn[^1] != output_fn[^1]:
+        let msg = strformat.fmt"Input and Output must be both FASTA or both FASTQ ({input_fn}, {output_fn})"
+        util.raiseEx(msg)
+    let letter: char = input_fn[^1]
+    if letter == 'q':
+        reorientFASTQ(input_fn, output_fn, wl_fn, window, step, print)
+    else:
+        reorientFASTA(input_fn, output_fn, wl_fn, window, step, print)
 
 when isMainModule:
     main()
