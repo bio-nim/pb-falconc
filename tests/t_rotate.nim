@@ -1,10 +1,12 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
 
 import falconcpkg/rotate
+import algorithm
 import os
 import osproc
 #import sets
 import strformat
+import std/wordwrap
 import unittest
 
 template withFile(f: untyped, filename: string, mode: FileMode,
@@ -72,3 +74,13 @@ suite "rotate-misc":
         assert chromFromHeader(">foo") == "foo"
         assert chromFromHeader("@foo bar") == "foo"
         assert chromFromHeader(">foo bar") == "foo"
+    test "rotation":
+        var full_qvs = "Z~`"
+        let full_qvs_copy = full_qvs
+        algorithm.rotateLeft(full_qvs, 1)
+        assert full_qvs == "~`Z"
+    test "wrapwords":
+        let unwrapped = "0123456789"
+        let expected = "012\n345\n678\n9"
+        let got = wordwrap.wrapWords(unwrapped, 3)
+        assert got == expected, got
