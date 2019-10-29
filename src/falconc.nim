@@ -155,6 +155,14 @@ when isMainModule:
           "outputFn": "Final m4 overlap file",
             }
         ],
+        [overlapFilter.m4filtContained, cmdName = "m4filt-contained",
+         help = {
+          "min-len": "Minimum read length; reads shorter than minLen will be discarded",
+          "min-idt-pct": "Minimum overlap identity; worse overlaps will be discarded",
+          "in-fn": "Input m4 overlap file",
+          "out-fn": "Output m4 overlap file",
+            }
+        ],
         [pbcromwell.remove_las, cmdName = "pbcromwell-rm-las",
          short = {"dry_run": 'n'},
         ],

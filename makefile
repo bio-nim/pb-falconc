@@ -10,6 +10,8 @@ default: build
 nim:
 	nim c --listCmd -d:release src/falconc.nim # uses NIMBLE_DIR
 test:
+	which nim
+	nim -v
 	${MAKE} -C tests/
 integ:
 	${MAKE} -C integ-tests/
