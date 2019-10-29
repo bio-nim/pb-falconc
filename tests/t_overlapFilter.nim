@@ -1,6 +1,7 @@
 import unittest
 import falconcpkg/overlapFilter
 from streams import nil
+from strformat import fmt
 
 #[
  A-read contained
@@ -85,6 +86,63 @@ suite "overlapFilter terminatedAlignments":
         let record1 = "000000001 000002664 -5006 98.58 0 0 5004 9656 1 10 5006 10117 overlap"
         let parsed = parseOvl(record1)
         check missingTerminus(parsed) == true
+
+suite "overlapFilter m4filtContained":
+    proc run(expected: string, given: string, min_len: int, min_idt: float) =
+        var sin = streams.newStringStream(given)
+        var sout = streams.newStringStream()
+
+        discard m4filtContainedStreams(sin, sout, min_len, min_idt)
+
+        streams.setPosition(sout, 0)
+        let got = streams.readAll(sout)
+        assert got == expected, "{got} != {expected}".fmt
+
+    test "empty":
+        run("", "", 0, 0.0)
+
+    test "basic":
+        let
+            given = """
+001 001 -1 100.0 0 0 0 0 0 0 0 0 overlap
+001 002 -1 100.0 0 0 0 0 0 0 0 0 overlap
+001 003 -1 100.0 0 0 0 0 0 0 0 0 3
+001 004 -1 100.0 0 0 0 0 0 0 0 0 5
+001 005 -1 100.0 0 0 0 0 0 0 0 0 contains
+001 006 -1 100.0 0 0 0 0 0 0 0 0 contained
+"""
+            expected = """
+001 002 -1 100.0 0 0 0 0 0 0 0 0 overlap
+001 003 -1 100.0 0 0 0 0 0 0 0 0 3
+001 004 -1 100.0 0 0 0 0 0 0 0 0 5
+"""
+        run(expected, given, 0, 0.0)
+
+    test "min_len":
+        let
+            given = """
+001 002 -1 100.0 0 0 0 9 0 0 0 2 overlap
+001 003 -1 100.0 0 0 0 9 0 0 0 3 overlap
+001 004 -1 100.0 0 0 0 2 0 0 0 9 overlap
+001 005 -1 100.0 0 0 0 3 0 0 0 9 overlap
+"""
+            expected = """
+001 003 -1 100.0 0 0 0 9 0 0 0 3 overlap
+001 005 -1 100.0 0 0 0 3 0 0 0 9 overlap
+"""
+        run(expected, given, 3, 0.0)
+
+    test "min_idt":
+        let
+            given = """
+001 002 -1 100.0 0 0 0 9 0 0 0 9 overlap
+001 003 -1 98.0 0 0 0 9 0 0 0 9 overlap
+"""
+            expected = """
+001 002 -1 100.0 0 0 0 9 0 0 0 9 overlap
+"""
+        run(expected, given, 3, 99.0)
+
 
 proc stream(fn: string): auto =
     return streams.newStringStream(readFile(fn))

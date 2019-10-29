@@ -702,6 +702,109 @@ proc m4filt(icmds: seq[string],
         util.removeFiles(ovls)
         util.removeFiles(intermediateFns)
 
+proc m4filtContainedStreams*(
+ sin: streams.Stream,
+ sout: streams.Stream,
+ min_len: int,
+ min_idt_pct: float): int =
+    # Return the number of lines written.
+    var
+        n = 0
+    for line in streams.lines(sin):
+        if strutils.startswith(line, '-'):
+            break
+        let
+            l: seq[string] = strutils.split(strutils.strip(line))
+        assert len(l) == 13, fmt"{len(l)} != 13: '{line}'"
+        let
+            f_id_string = l[0]
+            g_id_string = l[1]
+            descriptor = l[12]
+        if f_id_string == g_id_string:  # don't need self-self overlapping
+            continue
+        if descriptor == "contained" or descriptor == "C":
+            #contained_reads.add(f_id)
+            continue
+        if descriptor == "contains" or descriptor == "c":
+            #contained_reads.add(g_id)
+            continue
+        if descriptor == "none" or descriptor == "?":
+            continue
+        var
+            descriptorChar: char = descriptor[0]
+        if descriptor != "3" and descriptor != "5":
+            descriptorChar = 'o'
+        let
+            #score = strutils.parseInt(l[2])
+            identity = strutils.parseFloat(l[3])
+        if identity < min_idt_pct:  # only take record with >96% identity as overlapped reads
+            continue
+        let
+            f_strain = strutils.parseInt(l[4])
+            f_start = strutils.parseInt(l[5])
+            f_end = strutils.parseInt(l[6])
+            f_len = strutils.parseInt(l[7])
+            g_strain = strutils.parseInt(l[8])
+            g_start = strutils.parseInt(l[9])
+            g_end = strutils.parseInt(l[10])
+            g_len = strutils.parseInt(l[11])
+        # Only use reads longer than min_len for assembly.
+        if f_len < min_len:
+            continue
+        if g_len < min_len:
+            continue
+        ## double check for proper overlap
+        ## this is not necessary when using DALIGNER for overlapper
+        ## it may be useful if other overlappers give fuzzier alignment boundary
+        #if f_start > 24 and f_len - f_end > 24:  # allow 24 base tolerance on both sides of the overlapping
+        #    return
+        #if g_start > 24 and g_len - g_end > 24:
+        #    return
+        #if g_strain == 0:
+        #    if f_start < 24 and g_len - g_end > 24:
+        #        return
+        #    if g_start < 24 and f_len - f_end > 24:
+        #        return
+        #else:
+        #    if f_start < 24 and g_start > 24:
+        #        return
+        #    if g_start < 24 and f_start > 24:
+        #        return
+        let
+            #oline = fmt"{l[0]} {l[1]} {l[2]} {l[3]} {l[4]} {l[5]} {l[6]} {l[7]} {l[8]} {l[9]} {l[10]} {l[11]} {descriptorChar}"
+            oline = fmt"{l[0]} {l[1]} {l[2]} {l[3]} {l[4]} {l[5]} {l[6]} {l[7]} {l[8]} {l[9]} {l[10]} {l[11]} {l[12]}"
+        sout.writeLine(oline)
+        n += 1
+    return n
+
+proc m4filtContained*(
+ in_fn: string,
+ out_fn: string,
+ min_len: int = 400,
+ min_idt_pct: float = 96) =
+    ## Parse .m4 file.
+    ## Write only the overlaps which pass the filters.
+    ## (no overlaps involving contained reads;
+    ##  no overlaps involving short reads;
+    ##  no overlaps with low identity)
+
+    # Also, write a single letter for 5/3/C/O instead of "contained/contains/overlap".
+
+    let sin = streams.newFileStream(in_fn, fmRead)
+    defer: sin.close()
+    let sout = streams.newFileStream(out_fn, fmWrite)
+    defer: sout.close()
+
+    let n = m4filtContainedStreams(sin, sout, min_len, min_idt_pct)
+
+    # Write the number of lines into a separate file (to aid parsing, someday).
+    let
+        nout_fn = out_fn & ".n"
+        fh = open(nout_fn, fmWrite)
+    fh.write($n)
+    fh.close()
+
+
 proc m4filtRunner*(
  idtStage1: float = 90.0,
  idtStage2: float = 90.0,
