@@ -780,6 +780,9 @@ proc m4filtContainedStreams*(
 proc m4filtContained*(
  in_fn: string,
  out_fn: string,
+ lfc = false, # IGNORED
+ disable_chimer_bridge_removal = false, # IGNORED
+ ctg_prefix = "", # IGNORED
  min_len: int = 400,
  min_idt_pct: float = 96) =
     ## Parse .m4 file.
