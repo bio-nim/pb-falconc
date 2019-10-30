@@ -46,7 +46,7 @@ const BREAD = 32 # read balance is off
 const GREAD = 64 # read has unspanned bases, putative chimera
 
 type
-    overlap* = object
+    Overlap* = object
         ridA*: string
         ridB*: string
         score*: int
@@ -67,10 +67,10 @@ type
     ScoredOverlap = tuple
         ovlpLen: int
         mRange: int
-        o: overlap
+        o: Overlap
 
-proc parseOvl*(s: string): overlap =
-    var ovl: overlap
+proc parseOvl*(s: string): Overlap =
+    var ovl: Overlap
     let ld = s.split(" ")
     if 13 != ld.len():
         let msg = "Error parsing ovl (split={ld.len()}): '{s}'".fmt
@@ -91,7 +91,7 @@ proc parseOvl*(s: string): overlap =
     ovl.tag = ld[12]
     return ovl
 
-proc `$`(o: overlap): string =
+proc `$`(o: Overlap): string =
     var strand1 = 0
     var strand2 = 0
     if o.strand1: strand1 = 1
@@ -99,14 +99,14 @@ proc `$`(o: overlap): string =
 
     result = "{o.ridA} {o.ridB} {o.score} {o.idt:.3f} {strand1} {o.start1} {o.end1} {o.l1} {strand2} {o.start2} {o.end2} {o.l2} {o.tag}".fmt
 
-proc lowIdt*(o: overlap, idt: float): bool =
+proc lowIdt*(o: Overlap, idt: float): bool =
     ##Check if percent identity is below threshold
     #This is a overlap filter
     if o.idt < idt:
         return true
     return false
 
-proc checkFractionOverlap*(o: overlap, lowOverlap: float,
+proc checkFractionOverlap*(o: Overlap, lowOverlap: float,
         highOverlap: float): bool =
     ##Check for percentage of two reads that overlap
     #This is an overlap filter - new as of June 2019
@@ -117,7 +117,7 @@ proc checkFractionOverlap*(o: overlap, lowOverlap: float,
         return true
     return false
 
-proc small*(o: overlap, l: int): bool =
+proc small*(o: Overlap, l: int): bool =
     ##Tests if a read is too small
     #This is a read filter
     if o.l1 < l:
@@ -125,7 +125,7 @@ proc small*(o: overlap, l: int): bool =
     else:
         return false
 
-proc contained*(o: overlap): bool =
+proc contained*(o: Overlap): bool =
     ##Tests if A-read is contained within B
     #This is a read filter
     if o.start1 > 0:
@@ -135,7 +135,7 @@ proc contained*(o: overlap): bool =
     else:
         return true
 
-proc missingTerminus*(o: overlap): bool =
+proc missingTerminus*(o: Overlap): bool =
     ##Test that overlap reaches the end of both reads
     #This is an overlap filter
     if o.start1 != 0 and o.end1 != o.l1:
@@ -147,13 +147,13 @@ proc missingTerminus*(o: overlap): bool =
 
 
 
-iterator abOvl*(sin: Stream): seq[overlap] =
+iterator abOvl*(sin: Stream): seq[Overlap] =
     var
         readA: string
-        ov: overlap
+        ov: Overlap
         #The buffer len of 500 should be adjusted if more fields are added.
         buff = newString(500)
-        ovls = newSeq[overlap]()
+        ovls = newSeq[Overlap]()
     if not readLine(sin, buff):
         # empty input
         #return # not legal unless we use a "closure" iterator, which is a little slower
@@ -238,7 +238,7 @@ proc summarize(filterLog: string, fn: string) =
     fstream.unpack(readsToFilterSum)
     summarize(filterLog, readsToFilterSum)
 
-proc gapInCoverage*(ovls: seq[overlap], minDepth: int, minIdt: float): bool =
+proc gapInCoverage*(ovls: seq[Overlap], minDepth: int, minIdt: float): bool =
     ##Calculates the coverage in a linear pass. If the start or end < minDepth there
     ##is a gap. The first and last position are skipped
     type PosAndTag = tuple
@@ -340,7 +340,7 @@ proc gapInCoverage*(ovls: seq[overlap], minDepth: int, minIdt: float): bool =
                     return true
     return false
 
-proc stage1Filter*(overlaps: seq[overlap],
+proc stage1Filter*(overlaps: seq[Overlap],
 maxDiff: int,
 maxOvlp: int,
 minOvlp: int,
@@ -418,7 +418,7 @@ proc comp(x, y: ScoredOverlap): int =
             return -1
         return 1
 
-proc stage2Filter(overlaps: seq[overlap],
+proc stage2Filter(overlaps: seq[Overlap],
  minIdt: float,
  bestN: int,
  readsToFilter: var Table[string, int]): seq[string] =
