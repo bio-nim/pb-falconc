@@ -4,14 +4,15 @@ export commandLineParams, lengthen, initOptParser, next, optionNormalize,
        ArgcvtParams, argParse, argHelp, getDescription, join, `%`, CritBitTree,
        incl, valsWithPfx, contains, addPrefix, wrap, TextTab, alignTable,
        suggestions, strip, split, helpCase, postInc, delItem, fromNimble,
-       summaryOfModule, docFromModuleOf, match
+       summaryOfModule, docFromModuleOf, docFromProc, match
 
 include cligen/helpTmpl           #Pull in various help template strings
 
 type    # Main defns CLI authors need be aware of (besides top-level API calls)
   ClHelpCol* = enum clOptKeys, clValType, clDflVal, clDescrip
 
-  ClAlias* = tuple[long: string, short: char, helpStr: string]  ##CLuser aliases
+  ClAlias* = tuple[long: string, short: char, helpStr: string,
+                   dfl: seq[seq[string]]]         ## User CL aliases
 
   ClCfg* = object  ## Settings tending to be program- or CLI-author-global
     version*:     string
@@ -23,6 +24,7 @@ type    # Main defns CLI authors need be aware of (besides top-level API calls)
     reqSep*:      bool           ## ``parseopt3.initOptParser`` parameter
     sepChars*:    set[char]      ## ``parseopt3.initOptParser`` parameter
     opChars*:     set[char]      ## ``parseopt3.initOptParser`` parameter
+    hTabSuppress*: string        ## Magic val for per-param help to suppress
 
   HelpOnly*    = object of Exception
   VersionOnly* = object of Exception
@@ -39,7 +41,8 @@ var clCfg* = ClCfg(
   reqSep:      false,
   sepChars:    { '=', ':' },
   opChars:     { '+', '-', '*', '/', '%', '@', ',', '.', '&',
-                 '|', '~', '^', '$', '#', '<', '>', '?' })
+                 '|', '~', '^', '$', '#', '<', '>', '?' },
+  hTabSuppress: "SUPPRESS")
 {.pop.}
 
 proc toInts*(x: seq[ClHelpCol]): seq[int] =
@@ -161,7 +164,7 @@ proc dupBlock(fpars: NimNode, posIx: int, userSpec: Table[string, char]):
     if sh notin used and parNm notin result: # still available
       result[parNm] = sh
       used.incl(sh)
-  let tmp = result        #One might just put sh != '\0' above, but this lets
+  var tmp = result        #One might just put sh != '\0' above, but this lets
   for k, v in tmp:        #CLI authors also block -h via short={"help": '\0'}.
     if v == '\0': result.del(k)
 
@@ -192,7 +195,7 @@ include cligen/syntaxHelp
 
 proc got(a: NimNode): bool =
   (a.len == 2 and a[1].len == 2 and a[1][0].len == 2 and a[1][1].len == 2 and
-   a[1][0][1].len == 3 and a[1][1][1].len == 3)
+   a[1][0][1].len == 4 and a[1][1][1].len == 4)
 
 macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
   help: typed={}, short: typed={}, usage: string=clUsage, cf: ClCfg=clCfg,
@@ -211,6 +214,7 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
   ##
   ##``help`` is a ``{(paramNm, str)}`` of per-param help, eg. ``{"quiet": "be
   ##quiet"}``.  Often, only these help strings are needed for a decent CLI.
+  ##``str==clCfg.hTabSuppress`` (default==``"SUPPRESS"``) trims help table row.
   ##
   ##``short`` is a ``{(paramNm, char)}`` of per-param single-char option keys.
   ##
@@ -301,6 +305,7 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
   let cmdLineId = ident("cmdline")      # gen proc parameter
   let vsnSh = if "version" in shOpt: $shOpt["version"] else: "\0"
   let prefixId = ident("prefix")        # local help prefix param
+  let prsOnlyId = ident("parseOnly")    # local help prefix param
   let pId = ident("p")                  # local OptParser result handle
   let allId = ident("allParams")        # local list of all parameters
   let cbId = ident("crbt")              # CritBitTree for prefix lengthening
@@ -312,16 +317,32 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
   let setByParseId = ident("setByP")    # parse recording var seq
   let es = newStrLitNode("")
   let aliasesId = ident("aliases")      # [key]=>seq[string] meta param table
+  let aliasSnId = ident("aliasSeen")    # flag saying *any* alias was used
+  let dflSub    = ident("dflSub")       # default alias if *no* alias was used
+  let provideId = ident("provideDflAlias") # only use default alias @top level
   let aliasDefL = if alias.got: alias[1][0][1][0] else: es
   let aliasDefN = if alias.got:optionNormalize(alias[1][0][1][0].strVal) else:""
   let aliasDefS = if alias.got: toStrIni(alias[1][0][1][1].intVal) else: es
   let aliasDefH = if alias.got: alias[1][0][1][2] else: es
+  let aliasDefD = if alias.got: alias[1][0][1][3] else: es
   let aliasRefL = if alias.got: alias[1][1][1][0] else: es
   let aliasRefN = if alias.got:optionNormalize(alias[1][1][1][0].strVal) else:""
   let aliasRefS = if alias.got: toStrIni(alias[1][1][1][1].intVal) else: es
   let aliasRefH = if alias.got: alias[1][1][1][2] else: es
+  let aliasRefD = if alias.got: alias[1][1][1][3] else: es
   let aliases = if alias.got: quote do:
+                    var `aliasSnId` = false
                     var `aliasesId`: CritBitTree[seq[string]]
+                    for d in `aliasDefD`:
+                      if d.len > 1: `aliasesId`[d[0]] = d[1 .. ^1]
+                    var `dflSub`: seq[string] = if `aliasRefD`.len>0: `aliasRefD`[0] else: @[]
+                else: newNimNode(nnkEmpty)
+  let aliasesCallDfl = if alias.got: quote do:
+                    if `provideId` and not `aliasSnId` and `dflSub`.len > 0:
+  #XXX Doing this feature right needs 2 OptParser passes. {Default alias should
+  #be processed first not last to not clobber earlier cfg/CL actual settings,
+  #but cannot know it is needed without first checking the whole CL.}
+                      parser(`dflSub`, `provideId`=false)
                 else: newNimNode(nnkEmpty)
 
   proc initVars0(): NimNode =           # init vars & build help str
@@ -387,7 +408,8 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
          `apId`.parNm = `parNm`; `apId`.parSh = `sh`; `apId`.parReq = `isReq`
          `apId`.parRend = if `hky`.len>0: `hky` else:helpCase(`parNm`,clLongOpt)
          let descr = getDescription(`defVal`, `parNm`, `hlp`)
-         `tabId`.add(argHelp(`defVal`, `apId`) & descr)
+         if descr != `cf`.hTabSuppress:
+           `tabId`.add(argHelp(`defVal`, `apId`) & descr)
          if `apId`.parReq != 0: `tabId`[^1][2] = `apId`.val4req
          `cbId`.incl(optionNormalize(`parNm`), `apId`.parRend)
          `allId`.add(helpCase(`parNm`, clLongOpt)))
@@ -414,24 +436,21 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
         quote do:
           if cast[pointer](`setByParseId`) != nil:
             `setByParseId`[].add(("help", "", `apId`.help, clHelpOnly))
-            return                            #Do not try to keep parsing
-          else:
+          if not `prsOnlyId`:
             stdout.write(`apId`.help); raise newException(HelpOnly, "")))
     result.add(newNimNode(nnkOfBranch).add(
       newStrLitNode("helpsyntax")).add(
         quote do:
           if cast[pointer](`setByParseId`) != nil:
             `setByParseId`[].add(("helpsyntax", "", syntaxHelp, clHelpOnly))
-            return                            #Do not try to keep parsing
-          else:
+          if not `prsOnlyId`:
             stdout.write(syntaxHelp); raise newException(HelpOnly, "")))
     result.add(newNimNode(nnkOfBranch).add(
       newStrLitNode("version"), newStrLitNode(vsnSh)).add(
         quote do:
           if cast[pointer](`setByParseId`) != nil:
             `setByParseId`[].add(("version", "", `cf`.version, clVersionOnly))
-            return                        #Do not try to keep parsing
-          else:
+          if not `prsOnlyId`:
             stdout.write(`cf`.version,"\n");raise newException(VersionOnly,"")))
     if aliasDefL.strVal.len > 0 and aliasRefL.strVal.len > 0: #CL user aliases
       result.add(newNimNode(nnkOfBranch).add(
@@ -442,12 +461,13 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
       result.add(newNimNode(nnkOfBranch).add(
         newStrLitNode(aliasRefN), aliasRefS).add(
           quote do:
+            `aliasSnId` = true        #true for even unsuccessful attempted ref
             var msg: string
             let sub = `aliasesId`.match(`pId`.val, "alias ref", msg)
             if msg.len > 0:
               if cast[pointer](`setByParseId`) != nil:
                 `setByParseId`[].add((`pId`.key, `pId`.val, msg, clBadKey))
-              else:
+              if not `prsOnlyId`:
                 stderr.write msg
                 let t = if msg.startsWith "Ambig": "Ambiguous" else: "Unknown"
                 raise newException(ParseError, t & " alias ref")
@@ -473,7 +493,7 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
           else:
             `setByParseId`[].add((`parNm`,`pId`.val,
                                  "Cannot parse arg to " & `apId`.key, clBadVal))
-        else:
+        if not `prsOnlyId`:
           if not argParse(`spar`, `dpar`, `apId`):
             stderr.write `apId`.msg
             raise newException(ParseError, "Cannot parse arg to " & `apId`.key)
@@ -490,7 +510,7 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
               ks.join("\n  ")]) & "\nRun with --help for more details.\n"
       if cast[pointer](`setByParseId`) != nil:
         `setByParseId`[].add((`pId`.key, `pId`.val, msg, clBadKey))
-      else:
+      if not `prsOnlyId`:
         stderr.write(msg)
         raise newException(ParseError, "Unknown option")
     result.add(newNimNode(nnkOfBranch).add(newStrLitNode("")).add(ambigReport))
@@ -508,7 +528,7 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
                  mb & "Run with --help for full usage.\n")
       if cast[pointer](`setByParseId`) != nil:
         `setByParseId`[].add((`pId`.key, `pId`.val, msg, clBadKey))
-      else:
+      if not `prsOnlyId`:
         stderr.write(msg)
         raise newException(ParseError, "Unknown option")))
 
@@ -536,20 +556,19 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
             `setByParseId`[].add((`apId`.key, `apId`.val, "", clPositional))
           else:
             `setByParseId`[].add((`apId`.key, `apId`.val, msg, clBadVal))
-        else:
-          if not argParse(`tmpId`, `tmpId`, `apId`):
+        if not `prsOnlyId` and not argParse(`tmpId`, `tmpId`, `apId`):
             stderr.write `apId`.msg
             raise newException(ParseError, msg)
         if rewind: `posId`.setLen(0)
         `posId`.add(`tmpId`)))
     else:
       result.add(quote do:
-        let msg = "Unexpected non-option " & $`pId`
+        let msg = "Unexpected non-option " & $`pId`.key
         if cast[pointer](`setByParseId`) != nil:
           `setByParseId`[].add((`apId`.key, `pId`.val, msg, clNonOption))
-        else:
-          stderr.write(`cName`&" does not expect non-option arguments.  Got\n" &
-                       $`pId` & "\nRun with --help for full usage.\n")
+        if not `prsOnlyId`:
+          stderr.write(`cName`&" does not expect non-option arguments at \"" &
+                       $`pId`.key & "\".\nRun with --help for full usage.\n")
           raise newException(ParseError, msg))
 
   let initVars=initVars0(); let optCases=optCases0(); let nonOpt=nonOpt0()
@@ -565,12 +584,12 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
   result = quote do:                                    #Overall Structure
     if cast[pointer](`docs`) != nil: `docsStmt`
     proc `disNm`(`cmdLineId`: seq[string] = mergeParams(`mrgNames`),
-                 `usageId`=`usage`, `prefixId`="", parseOnly=false): `retType` =
+                 `usageId`=`usage`,`prefixId`="", `prsOnlyId`=false): `retType`=
       {.push hint[XDeclaredButNotUsed]: off.}
       `initVars`
       `aliases`
       var `keyCountId` {.used.} = initCountTable[string]()
-      proc parser(args=`cmdLineId`) =
+      proc parser(args=`cmdLineId`, `provideId`=true) =
         var `posNoId` = 0
         var `pId` = initOptParser(args, `apId`.shortNoVal, `apId`.longNoVal,
                                   `cf`.reqSep, `cf`.sepChars, `cf`.opChars,
@@ -581,7 +600,7 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
           if `pId`.kind == cmdError:
             if cast[pointer](`setByParseId`) != nil:
               `setByParseId`[].add(("", "", `pId`.message, clParseOptErr))
-            if not parseOnly:
+            if not `prsOnlyId`:
               stderr.write(`pId`.message, "\n")
             break
           case `pId`.kind
@@ -589,18 +608,19 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
               `optCases`
             else:
               `nonOpt`
+        `aliasesCallDfl`
       {.pop.}
       parser()
       if `mandId`.len > 0:
         if cast[pointer](`setByParseId`) != nil:
           for m in `mandId`:
             `setByParseId`[].add((m, "", "Missing " & m, clMissing))
-        else:
+        if not `prsOnlyId`:
           stderr.write "Missing these required parameters:\n"
           for m in `mandId`: stderr.write "  ", m, "\n"
           stderr.write "Run command with --help for more details.\n"
           raise newException(ParseError, "Missing one/some mandatory args")
-      if parseOnly or (cast[pointer](`setByParseId`) != nil and
+      if `prsOnlyId` or (cast[pointer](`setByParseId`) != nil and
           `setByParseId`[].numOfStatus(ClNoCall) > 0):
         return
       `callIt`
@@ -654,7 +674,7 @@ template dispatchCf*(pro: typed{nkSym}, cmdName="", doc="", help: typed={},
   dispatchGen(pro, cmdName, doc, help, short, usage, cf, echoResult, noAutoEcho,
               positional, suppress, implicitDefault, dispatchName, mergeNames,
               alias, stopWords)
-  cligenQuitAux(os.commandLineParams(), dispatchName, cmdName, pro, echoResult,
+  cligenQuitAux(mergeParams(mergeNames), dispatchName, cmdName, pro, echoResult,
                 noAutoEcho)
 
 template dispatch*(pro: typed{nkSym}, cmdName="", doc="", help: typed={},
@@ -693,11 +713,18 @@ template ambigSubcommand*(cb: CritBitTree[string], attempt: string) =
   stderr.write "Run with no-argument or \"help\" for more details.\n"
   quit(1)
 
+proc firstParagraph(doc: string): string =
+  var first = true
+  for line in doc.split('\n'):
+    if line.len == 0: return
+    result = result & (if first: "" else: " ") & line
+    first = false
+
 proc topLevelHelp*(doc: auto, use: auto, cmd: auto, subCmds: auto,
                    subDocs: auto): string =
   var pairs: seq[seq[string]]
   for i in 0 ..< subCmds.len:
-    pairs.add(@[subCmds[i], subDocs[i].replace("\n", " ")])
+    pairs.add(@[subCmds[i], subDocs[i].firstParagraph])
   let ifVsn = if clCfg.version.len > 0: "\nTop-level --version also available"
               else: ""
   use % [ "doc", doc, "command", cmd, "ifVersion", ifVsn,
@@ -875,14 +902,10 @@ macro dispatchMulti*(procBrackets: varargs[untyped]): untyped =
   result.add(newCall("dispatchMultiGen", copyNimTree(procBrackets)))
   result.add(newCall("dispatchMultiDG", copyNimTree(procBrackets)))
   result.add(quote do:
-    #`ps` is NOT mergeParams because we want typo suggestions for subcmd (with
-    #options) based only on a CL user's actual *command line* entry.  Other srcs
-    #are on their own.  This could be trouble if anyone wants commandLineParams
-    #to NOT be the suffix of mergeParams, but we could also add a define switch.
     block:
      {.push hint[GlobalVar]: off.}
      {.push warning[ProveField]: off.}
-     let ps = cast[seq[string]](commandLineParams())
+     let ps = cast[seq[string]](mergeParams(@["multi"]))
      let ps0 = if ps.len >= 1: `subMchsId`.lengthen ps[0] else: ""
      let ps1 = if ps.len >= 2: `subMchsId`.lengthen ps[1] else: ""
      if ps.len>0 and ps0.len>0 and ps[0][0] != '-' and ps0 notin `subMchsId`:
@@ -908,9 +931,12 @@ macro initGen*(default: typed, T: untyped, positional="",
   ##except if ``fieldN==positional fieldN: typeN`` is used instead which in turn
   ##makes ``dispatchGen`` bind that ``seq`` to catch positional CL args.
   var ti = default.getTypeImpl
+  var indirect = 0
   case ti.typeKind:
   of ntyTuple: discard            #For tuples IdentDefs are top level
   of ntyObject: ti = ti[2]        #For objects, descend to the nnkRecList
+  of ntyRef: ti = ti[0].getTypeImpl[2]; indirect = 1
+  of ntyPtr: ti = ti[0].getTypeImpl[2]; indirect = 2
   else: error "default value is not a tuple or object"
   let empty = newNimNode(nnkEmpty)
   let suppressed = toIdSeq(suppress)
@@ -920,18 +946,23 @@ macro initGen*(default: typed, T: untyped, positional="",
   let posId = ident(positional.strVal)
   var params = @[ quote do: `T` ] #Return type
   var assigns = newStmtList()     #List of assignments 
+  if   indirect == 1: assigns.add(quote do: result.new)
+  elif indirect == 2: assigns.add(quote do: result=cast[`T`](`T`.sizeof.alloc))
   for kid in ti.children:         #iterate over fields
     if kid.kind != nnkIdentDefs: warning "case objects unsupported"
     let id = ident(kid[0].strVal)
     if id in suppressed: continue
-    let argId = ident("arg"); let obId = ident("ob")
     params.add(if id == posId: newIdentDefs(id, kid[1], empty)
                else: newIdentDefs(id, empty, quote do: `default`.`id`))
-    let r = ident("result") #Someday: assigns.add(quote do: result.`id` = `id`)
-    let sid = ident($id & "setter"); let sidEq = ident($id & "setter=")
-    assigns.add(quote do:
-      proc `sidEq`(`obId`: var `T`, `argId` = `default`.`id`) = ob.`id`=`argId`
-      `r`.`sid` = `id`)
+    when NimVersion <= "0.20.0":  #XXX delete this branch someday
+      let argId = ident("arg"); let obId = ident("ob")
+      let r = ident("result")
+      let sid = ident($id & "setter"); let sidEq = ident($id & "setter=")
+      assigns.add(quote do:
+        proc `sidEq`(`obId`:var `T`, `argId` = `default`.`id`) = ob.`id`=`argId`
+        `r`.`sid` = `id`)
+    else:
+      assigns.add(quote do: result.`id` = `id`)
     if id == lastUnsuppressed: break
   let nm = if name.strVal.len > 0: name.strVal else: "init"
   result = newProc(name = ident(nm), params = params, body = assigns)

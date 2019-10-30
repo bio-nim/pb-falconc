@@ -1,19 +1,58 @@
-import os, posix, sets, tables, strutils, ./sysUt
+import posix, sets, tables, strutils, ./sysUt, ./argcvt, parseUtils
 
 proc getTime*(): Timespec =
   ##Placeholder to avoid `times` module
   discard clock_gettime(0.ClockId, result)
 
 proc cmp*(a, b: Timespec): int =
-  let s = cmp(a.tv_sec.uint, b.tv_sec.uint)
+  let s = cmp(a.tv_sec.int, b.tv_sec.int)
   if s != 0: return s
   return cmp(a.tv_nsec, b.tv_nsec)
 
 proc `<=`*(a, b: Timespec): bool = cmp(a, b) <= 0
 
+proc `<`*(a, b: Timespec): bool = cmp(a, b) < 0
+
 proc `-`*(a, b: Timespec): int =
   result = (a.tv_sec.int - b.tv_sec.int) * 1_000_000_000 +
            (a.tv_nsec.int - b.tv_nsec.int)
+
+proc `$`*(x: Timespec): string =
+  let d = $x.tv_nsec.int
+  result = $x.tv_sec.int & "." & repeat('0', 9 - d.len) & d
+  while result[^1] == '0': result.setLen result.len - 1
+  if result.endsWith('.'): result.add '0'
+
+proc argParse*(dst: var Timespec, dfl: Timespec, a: var ArgcvtParams): bool =
+  proc isDecimal(s: string): bool =
+    for c in s:
+      if (c < '0' or c > '9') and c != '.': return false
+    return true
+  var val = strip(a.val)
+  var sign = 1
+  if val.len > 1 and val[0] in { '-', '+' }:
+    if val[0] == '-': sign = -1
+    val = val[1..^1]
+  if len(val) == 0 or not val.isDecimal:
+    a.msg="Bad value: \"$1\" for option \"$2\"; expecting non-scinote $3\n$4" %
+          [ a.val, a.key, "Timespec", a.help ]
+    return false
+  var parsed, point: BiggestInt
+  if val.startsWith('.'): val = "0" & val
+  if '.' notin val: val.add '.'
+  while val[^1] == '0': val.setLen val.len - 1
+  point = parseBiggestInt(val, parsed)
+  dst.tv_sec = Time(parsed * sign)
+  val = val[point + 1 .. (point + min(9, val.len - point - 1))]
+  let digits = val.len - point + 1
+  if digits > 0:
+    discard parseBiggestInt(val, parsed)
+    dst.tv_nsec = parsed.int
+    for c in 0 ..< 9 - digits: dst.tv_nsec = dst.tv_nsec * 10
+  return true
+
+proc argHelp*(dfl: Timespec, a: var ArgcvtParams): seq[string] =
+  result = @[ a.argKeys, "Timespec", $dfl ]
 
 proc toUidSet*(strs: seq[string]): HashSet[Uid] =
   ##Just parse some ints into typed Uids
@@ -57,7 +96,7 @@ template defineIdentities(ids,Id,Entry,getid,rewind,getident,en_id,en_nm) {.dirt
 defineIdentities(users, Uid, Passwd, getpwuid,setpwent,getpwent,pw_uid,pw_name)
 defineIdentities(groups, Gid, Group, getgrgid,setgrent,getgrent,gr_gid,gr_name)
 
-proc readlink*(p: string, err=stderr): string =
+proc readlink*(path: string, err=stderr): string =
   ##Call POSIX readlink reliably: Start with a nominal size buffer & loop while
   ##the answer may have been truncated.  (Could also pathconf(p,PC_PATH_MAX)).
   result = newStringOfCap(512)
@@ -66,9 +105,10 @@ proc readlink*(p: string, err=stderr): string =
   while n == nBuf:        #readlink(2) DOES NOT NUL-term, but Nim does, BUT it
     nBuf *= 2             #..is inaccessible to user-code.  So, the below does
     result.setLen(nBuf)   #..not need the nBuf + 1 it would in C code.
-    n = readlink(p, cstring(result[0].addr), nBuf)
+    n = readlink(path, cstring(result[0].addr), nBuf)
   if n <= 0:
-    err.write "readlink(\"", $p, "\"): ", strerror(errno), "\n"
+    err.write "readlink(\"", $path, "\"): ", strerror(errno), "\n"
+    result.setLen(0)
   else:
     result.setLen(n)
 
@@ -196,13 +236,13 @@ proc hash*(x: PathId): int = x.dev.int * x.ino.int
 proc readFile*(path: string, buf: var string, st: ptr Stat=nil, perRead=4096) =
   ## Read whole file of unknown (& fstat-non-informative) size using re-usable
   ## IO buffer provided.  If ``st`` is non-nil then fill it in via ``fstat``.
+  buf.setLen(0)
+  var off = 0
   let fd = open(path, O_RDONLY)
   if fd == -1: return                 #likely vanished between getdents & open
   defer: discard close(fd)
   if st != nil:
     if fstat(fd, st[]) == -1: return  #early return virtually impossible
-  buf.setLen(0)
-  var off = 0
   while true:
     buf.setLen(buf.len + perRead)
     let nRead = read(fd, buf[off].addr, perRead)
@@ -214,3 +254,32 @@ proc readFile*(path: string, buf: var string, st: ptr Stat=nil, perRead=4096) =
       buf.setLen(off + nRead)
       break
     off += nRead
+
+proc nanosleep*(delay: Timespec) =
+  ## Carefully sleep by amount ``delay``.
+  if (delay.tv_sec.int == 0 and delay.tv_nsec.int == 0) or delay.tv_sec.int < 0:
+    return
+  var delay = delay
+  var remain: Timespec
+  var ret = 0.cint
+  while (ret := nanosleep(delay, remain)) != 0 and errno == EINTR:
+    swap delay, remain                  #Since EFAULT may indicate EXTREME vmem
+  if ret != 0:                          #..pressure, use syscall directly below.
+    discard write(2.cint, "EFAULT/EINVAL from nanosleep\n".cstring, 29)
+
+proc nice*(pid: Pid, niceIncr: cint): int =
+  ## Increment nice value/scheduling priority bias of a process/thread.
+  proc setpriority(which: cint, who: cuint, prio: cint): cint {.
+    importc: "setpriority", header: "<sys/resource.h>" .}
+  when defined(linux):
+    let mx = 19
+  else:
+    let mx = 20
+  setpriority(0.cint, pid.uint32, max(-20, min(mx, niceIncr)).cint).int
+
+proc st_inode*(path: string, err=stderr): Ino =
+  ## Return just the ``Stat.st_inode`` field for a path.
+  var st: Stat
+  if stat(path, st) == -1:
+    err.write "stat(\"", $path, "\"): ", strerror(errno), "\n"
+  st.st_ino

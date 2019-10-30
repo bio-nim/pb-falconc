@@ -9,7 +9,8 @@
 ##    for path in both(fileStrings(file, delim), paths)(): discard
 ##  dispatch(something)
 
-import os, terminal, strutils, sets, tables, strformat, ./sysUt #`:=`
+import os, terminal, strutils #, sets, tables, strformat, ./sysUt #`:=`
+type csize = uint
 
 proc perror*(x: cstring, len: int) =
   ## Clunky w/spartan msgs, but allows safe output from OpenMP || blocks.
@@ -70,7 +71,7 @@ proc both*[T](it: iterator(): T, s: seq[T]): iterator(): T =
 proc uriteBuffer*(f: File, buffer: pointer, len: Natural): int =
   proc c_fwrite(buf: pointer, size, n: csize, f: File): cint {.
           importc: "fwrite_unlocked", header: "<stdio.h>".}
-  result = c_fwrite(buffer, 1, len, f)
+  result = c_fwrite(buffer, 1, len.csize, f)
 
 proc urite*(f: File, s: string) =
   if uriteBuffer(f, cstring(s), s.len) != s.len:
