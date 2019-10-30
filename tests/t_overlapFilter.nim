@@ -143,6 +143,19 @@ suite "overlapFilter m4filtContained":
 """
         run(expected, given, 3, 0.0)
 
+    test "min_len_contained":
+        let
+            given = """
+001 012 -1 100.000 0 0 0 2 0 0 0 9 contains
+001 013 -1 100.000 0 0 0 3 0 0 0 9 contains
+012 022 -1 100.000 0 0 0 9 0 0 0 9 overlap
+013 023 -1 100.000 0 0 0 9 0 0 0 9 overlap
+"""
+            expected = """
+012 022 -1 100.000 0 0 0 9 0 0 0 9 overlap
+"""
+        run(expected, given, 3, 0.0)
+
     test "min_idt":
         let
             given = """
@@ -151,6 +164,19 @@ suite "overlapFilter m4filtContained":
 """
             expected = """
 001 002 -1 100.000 0 0 0 9 0 0 0 9 overlap
+"""
+        run(expected, given, 3, 99.0)
+
+    test "min_idt_contained":
+        let
+            given = """
+001 012 -1 98.000 0 0 0 2 0 0 0 9 contains
+001 013 -1 100.000 0 0 0 3 0 0 0 9 contains
+012 022 -1 100.000 0 0 0 9 0 0 0 9 overlap
+013 023 -1 100.000 0 0 0 9 0 0 0 9 overlap
+"""
+            expected = """
+012 022 -1 100.000 0 0 0 9 0 0 0 9 overlap
 """
         run(expected, given, 3, 99.0)
 
