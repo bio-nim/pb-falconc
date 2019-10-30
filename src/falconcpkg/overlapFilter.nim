@@ -702,80 +702,55 @@ proc m4filt(icmds: seq[string],
         util.removeFiles(ovls)
         util.removeFiles(intermediateFns)
 
+proc parsem4(sin: streams.Stream): seq[Overlap] =
+    for line in streams.lines(sin):
+        if strutils.startswith(line, '-'):
+            break # This can be used for signify EOF, but only if
+            # we ever have more trouble with filesystem errors.
+
+        let overlap = parseOvl(line)
+        result.add(overlap)
+
 proc m4filtContainedStreams*(
  sin: streams.Stream,
  sout: streams.Stream,
  min_len: int,
  min_idt_pct: float): int =
     # Return the number of lines written.
-    var
-        n = 0
-    for line in streams.lines(sin):
-        if strutils.startswith(line, '-'):
-            break
-        let
-            l: seq[string] = strutils.split(strutils.strip(line))
-        assert len(l) == 13, fmt"{len(l)} != 13: '{line}'"
-        let
-            f_id_string = l[0]
-            g_id_string = l[1]
-            descriptor = l[12]
-        if f_id_string == g_id_string:  # don't need self-self overlapping
+    let overlaps = parsem4(sin)
+
+    # Find all contained rids.
+    var contained_rids = sets.initHashSet[string]()
+    for ovl in overlaps:
+        if ovl.ridA == ovl.ridB:  # ignore self-self overlapping?
             continue
-        if descriptor == "contained" or descriptor == "C":
-            #contained_reads.add(f_id)
+        if ovl.tag == "contained" or ovl.tag == "C":
+            contained_rids.incl(ovl.ridA)
+        elif ovl.tag == "contains" or ovl.tag == "c":
+            contained_rids.incl(ovl.ridB)
+
+    # Filter
+    var desired_overlaps: seq[Overlap]
+
+    for ovl in overlaps:
+        if contained_rids.contains(ovl.ridA) or contained_rids.contains(ovl.ridB):
             continue
-        if descriptor == "contains" or descriptor == "c":
-            #contained_reads.add(g_id)
+        if ovl.ridA == ovl.ridB:  # don't need self-self overlapping
             continue
-        if descriptor == "none" or descriptor == "?":
+        if ovl.tag == "none" or ovl.tag == "?":
             continue
-        var
-            descriptorChar: char = descriptor[0]
-        if descriptor != "3" and descriptor != "5":
-            descriptorChar = 'o'
-        let
-            #score = strutils.parseInt(l[2])
-            identity = strutils.parseFloat(l[3])
-        if identity < min_idt_pct:  # only take record with >96% identity as overlapped reads
+        if ovl.idt < min_idt_pct:  # only take record with >96% identity as overlapped reads
             continue
-        let
-            f_strain = strutils.parseInt(l[4])
-            f_start = strutils.parseInt(l[5])
-            f_end = strutils.parseInt(l[6])
-            f_len = strutils.parseInt(l[7])
-            g_strain = strutils.parseInt(l[8])
-            g_start = strutils.parseInt(l[9])
-            g_end = strutils.parseInt(l[10])
-            g_len = strutils.parseInt(l[11])
         # Only use reads longer than min_len for assembly.
-        if f_len < min_len:
+        if ovl.l1 < min_len:
             continue
-        if g_len < min_len:
+        if ovl.l2 < min_len:
             continue
-        ## double check for proper overlap
-        ## this is not necessary when using DALIGNER for overlapper
-        ## it may be useful if other overlappers give fuzzier alignment boundary
-        #if f_start > 24 and f_len - f_end > 24:  # allow 24 base tolerance on both sides of the overlapping
-        #    return
-        #if g_start > 24 and g_len - g_end > 24:
-        #    return
-        #if g_strain == 0:
-        #    if f_start < 24 and g_len - g_end > 24:
-        #        return
-        #    if g_start < 24 and f_len - f_end > 24:
-        #        return
-        #else:
-        #    if f_start < 24 and g_start > 24:
-        #        return
-        #    if g_start < 24 and f_start > 24:
-        #        return
-        let
-            #oline = fmt"{l[0]} {l[1]} {l[2]} {l[3]} {l[4]} {l[5]} {l[6]} {l[7]} {l[8]} {l[9]} {l[10]} {l[11]} {descriptorChar}"
-            oline = fmt"{l[0]} {l[1]} {l[2]} {l[3]} {l[4]} {l[5]} {l[6]} {l[7]} {l[8]} {l[9]} {l[10]} {l[11]} {l[12]}"
-        sout.writeLine(oline)
-        n += 1
-    return n
+        desired_overlaps.add(ovl)
+
+    for ovl in desired_overlaps:
+        sout.writeLine($ovl)
+        result += 1
 
 proc m4filtContained*(
  in_fn: string,
