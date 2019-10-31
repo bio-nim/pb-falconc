@@ -124,7 +124,7 @@ type
         fout: File
         width: int
 
-proc newSimpleFastaWriter(fn: string, width: int=80): SimpleFastaWriter =
+proc newSimpleFastaWriter(fn: string, width: int = 80): SimpleFastaWriter =
     new(result)
     result.fout = open(fn, fmWrite)
     result.width = width
@@ -138,12 +138,13 @@ proc write(obj: SimpleFastaWriter, full_sequence: string, chrom_name: string, sh
 proc close(obj: SimpleFastaWriter) =
     close(obj.fout)
 
-proc newSimpleFastqWriter*(fn: string, width: int=80): SimpleFastqWriter =
+proc newSimpleFastqWriter*(fn: string, width: int = 80): SimpleFastqWriter =
     new(result)
     result.fout = open(fn, fmWrite)
     result.width = width
 
-proc write*(obj: SimpleFastqWriter, full_sequence, full_qvs: string, chrom_name: string, shift: int) =
+proc write*(obj: SimpleFastqWriter, full_sequence, full_qvs: string,
+        chrom_name: string, shift: int) =
     let chrom_len = len(full_sequence)
     obj.fout.write("@", chrom_name, " shifted_by_bp:-",
                 shift, "/", chrom_len, "\n")
@@ -175,7 +176,8 @@ proc chromFromHeader*(header: string): string =
         stop = found
     return header[start ..< stop]
 
-iterator FastqReader*(fn: string, full_sequence, full_qvs: var string): string {.closure.} =
+iterator FastqReader*(fn: string, full_sequence,
+        full_qvs: var string): string {.closure.} =
     # Yield chrom_name; modify full_sequence, full_qvs
 
     var fout: File
@@ -206,7 +208,8 @@ iterator FastqReader*(fn: string, full_sequence, full_qvs: var string): string {
 
         if 0 == (n and (n-1)):
             echo "header=", header
-            echo "#", n, " len=", len(full_sequence), " (nlines wrapped=", nseqlines, ")"
+            echo "#", n, " len=", len(full_sequence), " (nlines wrapped=",
+                    nseqlines, ")"
 
         # skip 2nd header
 
