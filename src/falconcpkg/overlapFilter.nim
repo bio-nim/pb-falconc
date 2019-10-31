@@ -722,7 +722,7 @@ proc m4filtContainedStreams*(
     # Find all contained rids.
     var contained_rids = sets.initHashSet[string]()
     for ovl in overlaps:
-        if ovl.ridA == ovl.ridB:  # ignore self-self overlapping?
+        if ovl.ridA == ovl.ridB: # ignore self-self overlapping?
             continue
         if ovl.tag == "contained" or ovl.tag == "C":
             contained_rids.incl(ovl.ridA)
@@ -735,11 +735,11 @@ proc m4filtContainedStreams*(
     for ovl in overlaps:
         if contained_rids.contains(ovl.ridA) or contained_rids.contains(ovl.ridB):
             continue
-        if ovl.ridA == ovl.ridB:  # don't need self-self overlapping
+        if ovl.ridA == ovl.ridB: # don't need self-self overlapping
             continue
         if ovl.tag == "none" or ovl.tag == "?":
             continue
-        if ovl.idt < min_idt_pct:  # only take record with >96% identity as overlapped reads
+        if ovl.idt < min_idt_pct: # only take record with >96% identity as overlapped reads
             continue
         # Only use reads longer than min_len for assembly.
         if ovl.l1 < min_len:
