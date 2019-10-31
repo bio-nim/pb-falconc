@@ -719,22 +719,10 @@ proc m4filtContainedStreams*(
     # Return the number of lines written.
     let overlaps = parsem4(sin)
 
-    # Find all contained rids.
-    var contained_rids = sets.initHashSet[string]()
-    for ovl in overlaps:
-        if ovl.ridA == ovl.ridB: # ignore self-self overlapping?
-            continue
-        if ovl.tag == "contained" or ovl.tag == "C":
-            contained_rids.incl(ovl.ridA)
-        elif ovl.tag == "contains" or ovl.tag == "c":
-            contained_rids.incl(ovl.ridB)
-
-    # Filter
-    var desired_overlaps: seq[Overlap]
+    # Filter for length and identity
+    var good_enough_overlaps: seq[Overlap]
 
     for ovl in overlaps:
-        if contained_rids.contains(ovl.ridA) or contained_rids.contains(ovl.ridB):
-            continue
         if ovl.ridA == ovl.ridB: # don't need self-self overlapping
             continue
         if ovl.tag == "none" or ovl.tag == "?":
@@ -745,6 +733,22 @@ proc m4filtContainedStreams*(
         if ovl.l1 < min_len:
             continue
         if ovl.l2 < min_len:
+            continue
+        good_enough_overlaps.add(ovl)
+
+    # Find all contained rids.
+    var contained_rids = sets.initHashSet[string]()
+    for ovl in good_enough_overlaps:
+        if ovl.tag == "contained" or ovl.tag == "C":
+            contained_rids.incl(ovl.ridA)
+        elif ovl.tag == "contains" or ovl.tag == "c":
+            contained_rids.incl(ovl.ridB)
+
+    # Drop all overlaps with contained reads.
+    var desired_overlaps: seq[Overlap]
+
+    for ovl in good_enough_overlaps:
+        if contained_rids.contains(ovl.ridA) or contained_rids.contains(ovl.ridB):
             continue
         desired_overlaps.add(ovl)
 
