@@ -166,9 +166,9 @@ when isMainModule:
              "min-idt-pct": "Minimum overlap identity; worse overlaps will be discarded",
              "in-fn": "Input m4 overlap file",
              "out-fn": "Output m4 overlap file",
-             "lfc": "IGNORED (used in ovlp_to_graph)",
-             "disable_chimer_bridge_removal": "IGNORED (used in ovlp_to_graph)",
-             "ctg_prefix": "IGNORED (used in ovlp_to_graph)",
+             "lfc": "CLIGEN-NOHELP",
+             "disable_chimer_bridge_removal": "CLIGEN-NOHELP",
+             "ctg_prefix": "CLIGEN-NOHELP",
                 }
         ],
         [pbcromwell.remove_las, cmdName = "pbcromwell-rm-las",
