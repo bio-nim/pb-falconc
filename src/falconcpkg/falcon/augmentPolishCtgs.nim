@@ -1,12 +1,11 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
-import tables
+import sets
 import strutils
 import hts
 import strformat
 
-proc parsePhaseInfo(phaseInfo: string): TableRef[string, int] =
+proc parsePhaseInfo(phaseInfo: string): sets.HashSet[string] =
     ## parses the reads2ctg file, skipping the first line (comment).
-    result = newTable[string, int]()
 
     let f = open(phaseInfo, fmRead)
     defer: f.close()
@@ -18,10 +17,10 @@ proc parsePhaseInfo(phaseInfo: string): TableRef[string, int] =
         # unphased reads should be skipped - we will look them up later.
         if parseInt(lineDat[2]) == -1:
             continue
-        result[lineDat[0]] = 1
+        sets.incl(result, lineDat[0])
 
 
-proc getUnPhasedAssignment(bam_fn: string, skip: TableRef[string, int]): seq[
+proc getUnPhasedAssignment(bam_fn: string, skip: sets.HashSet[string]): seq[
   string] =
     ## Reads the bam file of unphased reads and pulls their assignment by primary mapping.
     var b: Bam
