@@ -1,76 +1,76 @@
-
+# vim: sw=4 ts=4 sts=4 tw=0 et:
 import tables
 import strutils
 import hts
 import strformat
 
 proc parsePhaseInfo(phaseInfo: string): TableRef[string, int] =
- ## parses the reads2ctg file, skipping the first line (comment).
- result = newTable[string, int]()
+    ## parses the reads2ctg file, skipping the first line (comment).
+    result = newTable[string, int]()
 
- let f = open(phaseInfo, fmRead)
- defer: f.close()
+    let f = open(phaseInfo, fmRead)
+    defer: f.close()
 
- for line in f.lines:
-  var lineDat = line.split()
-  if lineDat[1] == "ctg":
-   continue
-  # unphased reads should be skipped - we will look them up later.
-  if parseInt(lineDat[2]) == -1:
-   continue
-  result[lineDat[0]] = 1
+    for line in f.lines:
+        var lineDat = line.split()
+        if lineDat[1] == "ctg":
+            continue
+        # unphased reads should be skipped - we will look them up later.
+        if parseInt(lineDat[2]) == -1:
+            continue
+        result[lineDat[0]] = 1
 
 
 proc getUnPhasedAssignment(bam_fn: string, skip: TableRef[string, int]): seq[
   string] =
- ## Reads the bam file of unphased reads and pulls their assignment by primary mapping.
- var b: Bam
- defer: b.close()
- hts.open(b, bam_fn, index = false)
+    ## Reads the bam file of unphased reads and pulls their assignment by primary mapping.
+    var b: Bam
+    defer: b.close()
+    hts.open(b, bam_fn, index = false)
 
- let h = hts.targets(b.hdr)
+    let h = hts.targets(b.hdr)
 
- result = newSeq[string]()
+    result = newSeq[string]()
 
- var n = 0
- var s = 0
+    var n = 0
+    var s = 0
 
- for record in b:
-  inc(n)
-  if record.qname in skip:
-   inc(s)
-   continue
-  # Terrible mapping, skip. HARDCODED
-  if record.mapping_quality < 1:
-   inc(s)
-   continue
-  # Check sam flags, skip. HARDCODED
-  if (record.flag.int and 1796) > 0:
-   inc(s)
-   continue
-  result.add("{record.qname} {h[record.tid].name} -1 -1 -1".fmt)
+    for record in b:
+        inc(n)
+        if record.qname in skip:
+            inc(s)
+            continue
+        # Terrible mapping, skip. HARDCODED
+        if record.mapping_quality < 1:
+            inc(s)
+            continue
+        # Check sam flags, skip. HARDCODED
+        if (record.flag.int and 1796) > 0:
+            inc(s)
+            continue
+        result.add("{record.qname} {h[record.tid].name} -1 -1 -1".fmt)
 
 proc runner*(phase: string, bam: string, outfile: string) =
- ## Assigns the unphased reads to haplotigs or primary contigs based on
- ## pbmm2 mapping.
+    ## Assigns the unphased reads to haplotigs or primary contigs based on
+    ## pbmm2 mapping.
 
- let phasedReads = parsePhaseInfo(phase)
- let toAdd = getUnPhasedAssignment(bam, phasedReads)
+    let phasedReads = parsePhaseInfo(phase)
+    let toAdd = getUnPhasedAssignment(bam, phasedReads)
 
- let fin = open(phase, fmRead)
- defer: fin.close()
+    let fin = open(phase, fmRead)
+    defer: fin.close()
 
- let fout = open(outfile, fmWrite)
- defer: fout.close()
+    let fout = open(outfile, fmWrite)
+    defer: fout.close()
 
- for line in fin.lines:
-  var lineDat = line.split()
-  if lineDat[1] == "ctg":
-   fout.writeLine(line);
-   continue
-  if parseInt(lineDat[2]) == -1:
-   continue
-  fout.writeLine(line);
+    for line in fin.lines:
+        var lineDat = line.split()
+        if lineDat[1] == "ctg":
+            fout.writeLine(line);
+            continue
+        if parseInt(lineDat[2]) == -1:
+            continue
+        fout.writeLine(line);
 
- for augs in toAdd:
-  fout.writeLine(augs)
+    for augs in toAdd:
+        fout.writeLine(augs)
