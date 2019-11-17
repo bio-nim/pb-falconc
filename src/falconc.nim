@@ -63,11 +63,11 @@ when isMainModule:
           "verbose": "Show each skipped alignment, and a count.",
             }
         ],
-        [augmentPolishCtgs.runner, cmdName = "augment-polish-list",
+        [augmentPolishCtgs.runner, cmdName = "falcon-read2ctg-augment",
          help = {
-          "phase": "read2ctg.txt file",
-          "bam": "bam file of unphased reads mapped",
-          "outfile": "output augmented file",
+          "phase-fn": "read2ctg.txt file",
+          "bam-fn": "bam/sam file of unphased reads mapped",
+          "out-fn": "mostly same as read2ctg.txt, but augmented",
             }
         ],
         [raptor_db.filter, cmdName = "raptor-db-filter"],

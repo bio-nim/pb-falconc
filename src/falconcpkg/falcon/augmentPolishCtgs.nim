@@ -50,17 +50,17 @@ proc getUnPhasedAssignment(bam_fn: string, skip: TableRef[string, int]): seq[
             continue
         result.add("{record.qname} {h[record.tid].name} -1 -1 -1".fmt)
 
-proc runner*(phase: string, bam: string, outfile: string) =
+proc runner*(phase_fn, bam_fn, out_fn: string) =
     ## Assigns the unphased reads to haplotigs or primary contigs based on
     ## pbmm2 mapping.
 
-    let phasedReads = parsePhaseInfo(phase)
-    let toAdd = getUnPhasedAssignment(bam, phasedReads)
+    let phasedReads = parsePhaseInfo(phase_fn)
+    let toAdd = getUnPhasedAssignment(bam_fn, phasedReads)
 
-    let fin = open(phase, fmRead)
+    let fin = open(phase_fn, fmRead)
     defer: fin.close()
 
-    let fout = open(outfile, fmWrite)
+    let fout = open(out_fn, fmWrite)
     defer: fout.close()
 
     for line in fin.lines:
