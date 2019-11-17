@@ -64,11 +64,9 @@ proc runner*(phase_fn, bam_fn, out_fn: string) =
 
     for line in fin.lines:
         var lineDat = line.split()
-        if lineDat[1] == "ctg":
-            fout.writeLine(line);
-            continue
-        if parseInt(lineDat[2]) == -1:
-            continue
+        if lineDat[1] != "ctg":
+            if parseInt(lineDat[2]) == -1:
+                continue
         fout.writeLine(line);
 
     for augs in toAdd:
