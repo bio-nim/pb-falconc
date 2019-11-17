@@ -25,8 +25,8 @@ proc getUnPhasedAssignment(bam_fn: string, skip: TableRef[string, int]): seq[
   string] =
     ## Reads the bam file of unphased reads and pulls their assignment by primary mapping.
     var b: Bam
-    defer: b.close()
     hts.open(b, bam_fn, index = false)
+    defer: b.close()
 
     let h = hts.targets(b.hdr)
 
@@ -45,7 +45,7 @@ proc getUnPhasedAssignment(bam_fn: string, skip: TableRef[string, int]): seq[
             inc(s)
             continue
         # Check sam flags, skip. HARDCODED
-        if (record.flag.int and 1796) > 0:
+        if (record.flag.int and 0b11100000100) > 0: # 1796
             inc(s)
             continue
         result.add("{record.qname} {h[record.tid].name} -1 -1 -1".fmt)
