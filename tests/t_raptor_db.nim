@@ -175,9 +175,13 @@ suite "raptor_db":
 
         block:
             sin.setPosition(0)
-            expect(util.GenomeCoverageError):
+            try:
                 discard get_length_cutoff(sin, 10_000_000, 30,
                         fail_low_cov = true)
+                util.raiseEx("did not raise")
+            except util.GenomeCoverageError as e:
+                let expected = "Not enough reads available for desired genome coverage (bases needed=300,000,000 > actual=47,232)"
+                check e.msg == expected
 
         block:
             sin.setPosition(0)

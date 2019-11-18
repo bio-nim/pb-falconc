@@ -247,7 +247,10 @@ proc get_length_cutoff*(rdb_stream: streams.Stream, genome_size: int64,
             return last_size # Success!
 
     if fail_low_cov:
-        let msg = fmt"Not enough reads available for desired genome coverage (bases needed={min_desired_size} > actual={sum_sizes})"
+        let
+            min_desired_size_str = util.thousands(min_desired_size)
+            sum_sizes_str = util.thousands(sum_sizes)
+            msg = fmt"Not enough reads available for desired genome coverage (bases needed={min_desired_size_str} > actual={sum_sizes_str})"
         raise newException(util.GenomeCoverageError, msg)
     return last_size # This is N100, aka the min.
 

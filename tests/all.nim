@@ -29,6 +29,7 @@ include "t_pbreports.nim"
 include "t_stats.nim"
 include "t_rotate.nim"
 include "t_raptor_db.nim"
+include "t_util.nim"
 
 #cleanup
 unittest.close(report_of)
