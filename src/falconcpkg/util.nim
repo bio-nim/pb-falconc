@@ -115,3 +115,23 @@ proc which*(exe: string) =
     let cmd = "which " & exe
     log(cmd)
     discard execCmd(cmd)
+
+proc thousands*(v: SomeInteger): string =
+    if v == 0:
+        return "0"
+    var i: type(v) = v
+    let negative = (i < 0)
+    i = abs(i)
+    #result = strformat.fmt"{i mod 1000:03}"
+    #i = i div 1000
+    while i > 0:
+        result = strformat.fmt"{i mod 1000:03}," & result
+        i = i div 1000
+    # Drop tailing comma.
+    assert result[^1] == ','
+    result = result[0 .. ^2]
+    # Drop leading 0s.
+    while result[0] == '0':
+        result = result[1 .. ^1]
+    if negative:
+        result = '-' & result
