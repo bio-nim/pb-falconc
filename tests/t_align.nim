@@ -22,6 +22,7 @@ alnA	2064	myseq	1	60	5S7=6S	*	0	0	AAAAAGATTACAGGGGGG	*	XB:i:0	XE:i:7	XR:i:7	XQ:i
 suite "align":
     let
         input_fn = "input.sam"
+        ocount_fn = "outCount.txt"
         n = 4
         verbose = false # true for debugging
     discard os.tryRemoveFile(input_fn)
@@ -33,7 +34,7 @@ suite "align":
             max_clipping = 5
             end_margin = 0
         discard os.tryRemoveFile(output_fn)
-        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin,
+        bam_filter_clipped(ocount_fn, output_fn, input_fn, max_clipping, end_margin,
                 Flags_exclude = "0", verbose = verbose, tags_enrich = true)
         check bam_count(output_fn) == n
         let osam = readFile(output_fn)
@@ -46,7 +47,7 @@ suite "align":
             max_clipping = 5
             end_margin = -1
         discard os.tryRemoveFile(output_fn)
-        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin,
+        bam_filter_clipped(ocount_fn, output_fn, input_fn, max_clipping, end_margin,
                 Flags_exclude = "0", verbose = verbose)
         check bam_count(output_fn) == n - 2
         os.removeFile(output_fn)
@@ -57,7 +58,7 @@ suite "align":
             max_clipping = 6
             end_margin = -1
         discard os.tryRemoveFile(output_fn)
-        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin,
+        bam_filter_clipped(ocount_fn, output_fn, input_fn, max_clipping, end_margin,
                 Flags_exclude = "0", verbose = verbose)
         check bam_count(output_fn) == n
         os.removeFile(output_fn)
@@ -68,7 +69,7 @@ suite "align":
             max_clipping = 0
             end_margin = 0
         discard os.tryRemoveFile(output_fn)
-        bam_filter_clipped(output_fn, input_fn, max_clipping, end_margin,
+        bam_filter_clipped(ocount_fn, output_fn, input_fn, max_clipping, end_margin,
                 Flags_exclude = "0x800", verbose = verbose, tags_enrich = true)
         check bam_count(output_fn) == 0
         os.removeFile(output_fn)
