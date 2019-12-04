@@ -56,6 +56,7 @@ when isMainModule:
          help = {
           "input-fn": "Bam or Sam filename (based on its extension), or '-'",
           "output-fn": "Bam or Sam filename (based on its extension)",
+          "output-count-fn": "file reporting the number of reads post filtering",
           "max-clipping": "Maximum clipping on left or right of query, in basepairs",
           "end-margin": "Maximum margin on contig ends, in basepairs",
           "Flags-exclude": "Integer (0x ok) of flags to exclude, independent of other filters",

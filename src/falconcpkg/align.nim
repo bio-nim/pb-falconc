@@ -201,7 +201,7 @@ proc bam_count*(input_fn: string): int =
         n += 1
     return n
 
-proc bam_filter_clipped(obam: var hts.Bam, ibam: hts.Bam,
+proc bam_filter_clipped(ocount: File, obam: var hts.Bam, ibam: hts.Bam,
         max_clipping, end_margin: int, flags_exclude: uint16, verbose,
                 tags_enrich: bool): int =
     # Return the number skipped. Write the rest into obam.
@@ -214,6 +214,7 @@ proc bam_filter_clipped(obam: var hts.Bam, ibam: hts.Bam,
             max_clipping, end_margin))
         log("tid chrom (qname) [start .. end+1 (0-based)] seqlen cigar(truncated)")
     var n_skipped = 0
+    var n_kept    = 0
 
     for record in ibam:
         let flag = hts.flag(record)
@@ -248,7 +249,10 @@ proc bam_filter_clipped(obam: var hts.Bam, ibam: hts.Bam,
 
         if tags_enrich:
             tags_enrich(record)
+        inc(n_kept)
         hts.write(obam, record)
+
+    ocount.writeline(n_kept)
     return n_skipped
 
 proc toUInt16*(v: string): uint16 =
@@ -259,7 +263,7 @@ proc toUInt16*(v: string): uint16 =
         let digits = parseutils.parseInt(v, number)
     return number.uint16
 
-proc bam_filter_clipped*(output_fn, input_fn: string,
+proc bam_filter_clipped*(output_count_fn, output_fn, input_fn: string,
         max_clipping = 100, end_margin = 25, Flags_exclude = "0",
                 verbose = false, tags_enrich = false) =
     ## Filter alignments with significant clipping.
@@ -270,15 +274,17 @@ proc bam_filter_clipped*(output_fn, input_fn: string,
         obam, ibam: hts.Bam
     hts.open(obam, output_fn, mode = "w") # compression will be the default for the format
     hts.open(ibam, input_fn)
+    let ocount = open(output_count_fn, fmWrite)
 
     try:
-        let n_skipped = bam_filter_clipped(obam, ibam,
+        let n_skipped = bam_filter_clipped(ocount, obam, ibam,
             max_clipping, end_margin, flags_exclude, verbose, tags_enrich)
         if verbose:
             log("Skipped:", n_skipped)
     finally:
         hts.close(ibam)
         hts.close(obam)
+        ocount.close()
 
 
 # Someday we might want to look at the CIGAR alignments.
