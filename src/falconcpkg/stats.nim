@@ -24,14 +24,14 @@ proc get_all_ctgs*(fasta_fn: string): tables.Table[string, int32] =
     return get_all_ctgs(idx)
 # get_all_ctgs() were both copied from pbreports.
 
-proc percentile(reverse_sorted_lens: seq[int32], p: float): int32 =
+proc percentile*(reverse_sorted_lens: seq[int32], p: float): int32 =
     let n = len(reverse_sorted_lens)
     var idx = (n.float64 * (1.0 - p)).int32
     if idx < 0: idx = 0
     if idx >= n: idx = n.int32 - 1
     return reverse_sorted_lens[idx]
 
-proc esize(lens: seq[int32], total: var int64): float32 =
+proc esize*(lens: seq[int32], total: var int64): float32 =
     var total: int64 = 0
     var sum_squares: int64 = 0
     for l in lens:

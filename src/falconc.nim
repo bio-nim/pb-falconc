@@ -9,6 +9,7 @@ from falconcpkg/overlapFilter import nil
 from falconcpkg/pbcromwell import nil
 from falconcpkg/pbreports import nil
 from falconcpkg/stats import nil
+from falconcpkg/stats_preasm import nil
 from falconcpkg/falcon/rr_hctg_track import nil
 import cligen
 
@@ -192,6 +193,14 @@ when isMainModule:
         [stats.assembly, cmdName = "stats-assembly",
          help = {
           "fasta-fn": "FASTA filename, preferably indexed (with .fai)",
+            }
+        ],
+        [stats_preasm.run, cmdName = "stats-preassembly",
+         help = {
+          "preads-rdb-fn": "Path to the preads (error-corrected reads) RaptorDB.",
+          "rawreads-rdb-fn": "Path to the raw reads RaptorDB.",
+          "genome-length": "Length of the genome.",
+          "cutoff-length": "Length cutoff used for assembly.",
             }
         ],
         [rr_hctg_track.run_stage1, cmdName = "rr-hctg-track1",
