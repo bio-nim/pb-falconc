@@ -10,6 +10,8 @@ from falconcpkg/pbcromwell import nil
 from falconcpkg/pbreports import nil
 from falconcpkg/stats import nil
 from falconcpkg/falcon/rr_hctg_track import nil
+from falconcpkg/bam2fasta import nil
+
 import cligen
 
 const
@@ -197,5 +199,13 @@ when isMainModule:
         [rr_hctg_track.run_stage1, cmdName = "rr-hctg-track1",
         ],
         [rr_hctg_track.run_stage2, cmdName = "rr-hctg-track2",
+        ],
+        [bam2fasta.bam_to_fasta, cmdName = "bam2clippedFasta",
+            help = {
+        "in-bam": "input bam name",
+        "region": "htslib formatted region seqid:start-end",
+        "flip-rc": "reverse complement (RC) the sequence if alignment is in RC",
+        "flag": "filter reads with flag"
+            },
         ],
     )
