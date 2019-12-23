@@ -53,7 +53,7 @@ proc calc_query_pos*(record: hts.Record): tuple[qstart: int, qend: int,
     ## qlen is original query, so (qend-start) < qlen if clipped (hard or soft)
     ## seq excludes hard-clip, so len(seq) < qlen if hard-clipped
     ## (i.e. qlen is not well-named)
-    var q: string # temp
+    var q: string             # temp
     discard hts.sequence(record, q)
 
     var qlen: int = len(q)
@@ -78,12 +78,59 @@ proc calc_query_pos*(record: hts.Record): tuple[qstart: int, qend: int,
 
     return (qstart, qend, qlen)
 
+
+proc target_to_query*(cigar: hts.Cigar, t_pos, t_start, t_end: int64): tuple[
+        q_start, q_end: int64] =
+    #given a region in target space return the coordinates of the query for the same region.
+ #for more info see page seven of the bible :  https://samtools.github.io/hts-specs/SAMv1.pdf
+
+    var t_off, q_off: int64 = 0
+    t_off += t_pos
+    result.q_start = 0
+    var start_unset, end_unset: bool = true
+    var tdiffs, tdiffe: int64 = 0
+    var ncig: int = 0
+    var last: CigarElement
+    for op in cigar:
+        last = op
+        inc(ncig)
+        let cons = op.consumes
+        if cons.query:
+            q_off += op.len
+        if cons.reference:
+            t_off += op.len
+        tdiffs = t_off - t_start
+        tdiffe = t_end - t_off
+        if t_off >= t_start and start_unset:
+            if cons.query and cons.reference:
+                if t_pos < t_start:
+                    #echo "A t_start:", t_start, "t_off:", t_off, " tdiffs:",  tdiffs , " qoff:", q_off, " op:", op, " ncig:", ncig
+                    result.q_start = qoff - tdiffs
+            else:
+                result.q_start = q_off
+            start_unset = false
+        if t_off >= t_end and end_unset:
+            if cons.query and cons.reference:
+                #echo "X t_start:", t_start, "t_off:", t_off, " tdiffe:",  tdiffe , " qoff:", q_off, " op:", op, " ncig:", ncig
+                result.q_end = (q_off + tdiffe) - 1
+            else:
+                result.q_end = q_off
+
+            end_unset = false
+            break
+
+    if end_unset:
+        if last.consumes.reference:
+            result.q_end = q_off - 1
+        else:
+            result.q_end = (q_off - last.len) - 1
+
 type
     # based on https://github.com/zeeev/bamPals/blob/master/src/enrich_optional_tags.c
     Pal = object
         ref_beg, ref_end, ref_len: int32 # alignment in reference coordinates
-        qry_len: int32                   # "I" tag in BAM
-        pct_idt: float32                 # "f" tag in BAM
+        qry_len: int32        # "I" tag in BAM
+        pct_idt: float32      # "f" tag in BAM
 
 proc pal_cigar(cigar: hts.Cigar): tuple[t_consumed, q_sclipped: int32] =
     var t_consumed, q_sclipped: int
@@ -104,7 +151,8 @@ proc pal_calc(record: hts.Record): Pal =
     result.qry_len = bam_cigar2qlen(record.b.core.n_cigar.cint,
             hts.bam_get_cigar(record.b))
 
-    let xr = bam_cigar2rlen(record.b.core.n_cigar.cint, hts.bam_get_cigar(record.b))
+    let xr = bam_cigar2rlen(record.b.core.n_cigar.cint, hts.bam_get_cigar(
+            record.b))
     assert result.ref_len == xr
 
     let (t_consumed, q_sclipped) = pal_cigar(record.cigar)
@@ -210,11 +258,13 @@ proc bam_filter_clipped(ocount: File, obam: var hts.Bam, ibam: hts.Bam,
     let targets = hts.targets(ibam.hdr)
 
     if verbose:
-        log(format("Listing skipped records, with max_clipping=$# and end_margin=$# ...",
+        log(format(
+                "Listing skipped records, with max_clipping=$# and end_margin=$# ...",
             max_clipping, end_margin))
-        log("tid chrom (qname) [start .. end+1 (0-based)] seqlen cigar(truncated)")
+        log(
+                "tid chrom (qname) [start .. end+1 (0-based)] seqlen cigar(truncated)")
     var n_skipped = 0
-    var n_kept    = 0
+    var n_kept = 0
 
     for record in ibam:
         let flag = hts.flag(record)
@@ -329,7 +379,8 @@ proc update_counts(bam_fn: string, params: Params,
     #    for line in lines(fn):
     #        sets.incl(result, line)
 
-proc bam_filter_ipa*(bams_fofn: string, all_subread_names_fn = "", min_len = -1,
+proc bam_filter_ipa*(bams_fofn: string, all_subread_names_fn = "",
+        min_len = -1,
         min_frac = 0.70) =
     ## Print subreads which have decent alignments in any of the bam inputs.
     if min_len != -1:
