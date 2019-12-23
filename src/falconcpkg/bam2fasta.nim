@@ -12,7 +12,7 @@ proc bam_to_fasta*(in_bam, region: string, flag: int = 3844,
     ## Very similar to `samtools fasta`, but the reads are subSequenced.  Output is printed to STDOUT
 
     let region = region.split({':', '-'});
- let t_start = parseInt(region[1])
+    let t_start = parseInt(region[1])
     let t_end = parseInt(region[2])
 
     var b: Bam
