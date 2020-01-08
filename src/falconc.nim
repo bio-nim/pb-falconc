@@ -12,6 +12,7 @@ from falconcpkg/stats import nil
 from falconcpkg/stats_preasm import nil
 from falconcpkg/falcon/rr_hctg_track import nil
 from falconcpkg/bam2fasta import nil
+from falconcpkg/ovl_cov_stats import nil
 
 import cligen
 
@@ -182,6 +183,11 @@ when isMainModule:
              "disable_chimer_bridge_removal": "CLIGEN-NOHELP",
              "ctg_prefix": "CLIGEN-NOHELP",
                 }
+        ],
+        [ovl_cov_stats.run, cmdName = "ovl-cov-stats",
+         help = {
+          "in-fn": "An overlap file in M4 format, or a FOFN of M4 files.",
+            }
         ],
         [pbcromwell.remove_las, cmdName = "pbcromwell-rm-las",
          short = {"dry_run": 'n'},
