@@ -82,6 +82,17 @@ when isMainModule:
         "alarms-fn": "Optional JSON file to write SMRT Link alarms. (typically used w/ -f)",
             },
         ],
+        [raptor_db.run_subsample, cmdName = "raptor-db-subsample",
+            help = {
+        "rdb_fn": "Path to the RaptorDB file.",
+        "genome_size": "Approximate genome size.",
+        "coverage": "Coverage to select from the input RaptorDB.",
+        "use-umc": "Use Unique Molecular Coverage when subsampling. If a subread is picked, then all subreads from that ZMW will be output as well.",
+        "random-seed": "Seed for random generation.",
+        "block-size-mb": "Block size of the output DB, in megabytes.",
+        "alarms-fn": "Optional JSON file to write SMRT Link alarms. (typically used w/ -f)",
+            },
+        ],
         [rotate.main, cmdName = "circ-orient",
             help = {
         "input-fn": "fasta (or fastq) file of circular sequences",

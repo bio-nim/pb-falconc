@@ -233,3 +233,233 @@ suite "raptor_db":
                         msg = fmt"Got wrong {exc.name}, not {d.expect}"
                 if "" != msg:
                     assert false, msg & "\n " & d.comment
+
+#################################
+### Random subsampling tests. ###
+#################################
+# RaptorDB with unique ZMWs.
+let content_subsampling_0 = """
+V	0.2
+F	0	subreads.bam	bam
+S	0	seq/0/0_10000	10000	0	0	10000
+S	1	seq/1/0_20000	20000	0	10000	20000
+S	2	seq/2/0_30000	30000	0	30000	30000
+S	3	seq/3/0_40000	40000	0	60000	40000
+S	4	seq/4/0_50000	50000	0	100000	50000
+S	5	seq/5/0_60000	60000	0	150000	60000
+S	6	seq/6/0_70000	70000	0	210000	70000
+S	7	seq/7/0_80000	80000	0	280000	80000
+S	8	seq/8/0_90000	90000	0	360000	90000
+S	9	seq/9/0_100000	100000	0	450000	100000
+B	0	0	10	550000
+"""
+# Input RaptorDB with some ZMWs having multiple subreads.
+# Total sum of the sequences is 890kbp.
+let content_subsampling_1 = """
+V	0.2
+F	0	subreads.bam	bam
+S	0	seq/0/0_10000	10000	0	0	10000
+S	1	seq/1/0_20000	20000	0	10000	20000
+S	2	seq/2/0_30000	30000	0	30000	30000
+S	3	seq/2/30000_60000	30000	0	60000	30000
+S	4	seq/2/60000_90000	30000	0	90000	30000
+S	5	seq/3/0_40000	40000	0	120000	40000
+S	6	seq/4/0_50000	50000	0	160000	50000
+S	7	seq/5/0_60000	60000	0	210000	60000
+S	8	seq/6/0_70000	70000	0	270000	70000
+S	9	seq/7/0_80000	80000	0	340000	80000
+S	10	seq/7/80000_160000	80000	0	420000	80000
+S	11	seq/8/0_90000	90000	0	500000	90000
+S	12	seq/9/0_100000	100000	0	590000	100000
+S	13	seq/9/100000_200000	100000	0	690000	100000
+S	14	seq/9/200000_300000	100000	0	790000	100000
+B	0	0	15	890000
+"""
+type
+    TestDataSubsampling = object
+        comment: string
+        input_data: string
+        genome_size: int64
+        coverage: float
+        use_umc: bool
+        random_seed: int64
+        block_size: int64
+        fail_low_cov: bool
+        expected: string
+        expected_exception: bool
+let test_data_subsampling = [
+    TestDataSubsampling(comment: "Empty input, should not throw on low coverage.",
+        input_data: "",
+        genome_size: 10000,
+        coverage: 5,
+        use_umc: false,
+        random_seed: 12345,
+        block_size: 1000,
+        fail_low_cov: false,
+        expected: "",
+        expected_exception: false
+    ),
+    TestDataSubsampling(comment: "Empty input, not enough coverage and expected exception.",
+        input_data: "",
+        genome_size: 10000,
+        coverage: 5,
+        use_umc: false,
+        random_seed: 12345,
+        block_size: 1000,
+        fail_low_cov: true,
+        expected: "",
+        expected_exception: true
+    ),
+    TestDataSubsampling(comment: "Proper input, randomly subsample without taking into account ZMWs. Using large block size, all seqs in the same block.",
+        input_data: content_subsampling_0,
+        genome_size: 15000,
+        coverage: 20,
+        use_umc: false,
+        random_seed: 12345,
+        block_size: 1024*1024*1024,
+        fail_low_cov: false,
+        expected: """
+V	0.2
+F	0	subreads.bam	bam
+S	0	seq/4/0_50000	50000	0	100000	50000
+S	1	seq/6/0_70000	70000	0	210000	70000
+S	2	seq/8/0_90000	90000	0	360000	90000
+S	3	seq/9/0_100000	100000	0	450000	100000
+B	0	0	4	310000
+""",
+        expected_exception: false
+    ),
+    TestDataSubsampling(comment: "Proper input, randomly subsample without taking into account ZMWs. Same as before, but using smaller block size.",
+        input_data: content_subsampling_0,
+        genome_size: 15000,
+        coverage: 20,
+        use_umc: false,
+        random_seed: 12345,
+        block_size: 80000,
+        fail_low_cov: false,
+        expected: """
+V	0.2
+F	0	subreads.bam	bam
+S	0	seq/4/0_50000	50000	0	100000	50000
+S	1	seq/6/0_70000	70000	0	210000	70000
+S	2	seq/8/0_90000	90000	0	360000	90000
+S	3	seq/9/0_100000	100000	0	450000	100000
+B	0	0	2	120000
+B	1	2	3	90000
+B	2	3	4	100000
+""",
+        expected_exception: false
+    ),
+    TestDataSubsampling(comment: "Request a very high coverage, but do not expect the fail. This should produce a valid output, all sequences from the input DB (but reblocked).",
+        input_data: content_subsampling_0,
+        genome_size: 15000,
+        coverage: 200,
+        use_umc: false,
+        random_seed: 12345,
+        block_size: 80000,
+        fail_low_cov: false,
+        expected: """
+V	0.2
+F	0	subreads.bam	bam
+S	0	seq/0/0_10000	10000	0	0	10000
+S	1	seq/1/0_20000	20000	0	10000	20000
+S	2	seq/2/0_30000	30000	0	30000	30000
+S	3	seq/3/0_40000	40000	0	60000	40000
+S	4	seq/4/0_50000	50000	0	100000	50000
+S	5	seq/5/0_60000	60000	0	150000	60000
+S	6	seq/6/0_70000	70000	0	210000	70000
+S	7	seq/7/0_80000	80000	0	280000	80000
+S	8	seq/8/0_90000	90000	0	360000	90000
+S	9	seq/9/0_100000	100000	0	450000	100000
+B	0	0	4	100000
+B	1	4	6	110000
+B	2	6	8	150000
+B	3	8	9	90000
+B	4	9	10	100000
+""",
+        expected_exception: false
+    ),
+    TestDataSubsampling(comment: "Request a very high coverage, but do expect it to fail (fail_low_cov = true).",
+        input_data: content_subsampling_0,
+        genome_size: 15000,
+        coverage: 200,
+        use_umc: false,
+        random_seed: 12345,
+        block_size: 80000,
+        fail_low_cov: true,
+        expected: "",
+        expected_exception: true
+    ),
+    TestDataSubsampling(comment: "Test on an input with multiple subreads per ZMW. Here we do not discern the ZMW IDs (each subread is viewed separately; use_umc == false).",
+        input_data: content_subsampling_1,
+        genome_size: 15000,
+        coverage: 20,
+        use_umc: false,
+        random_seed: 3323,
+        block_size: 1000000,
+        fail_low_cov: false,
+        expected: """
+V	0.2
+F	0	subreads.bam	bam
+S	0	seq/0/0_10000	10000	0	0	10000
+S	1	seq/1/0_20000	20000	0	10000	20000
+S	2	seq/2/60000_90000	30000	0	90000	30000
+S	3	seq/3/0_40000	40000	0	120000	40000
+S	4	seq/4/0_50000	50000	0	160000	50000
+S	5	seq/6/0_70000	70000	0	270000	70000
+S	6	seq/9/200000_300000	100000	0	790000	100000
+B	0	0	7	320000
+""",
+        expected_exception: false
+    ),
+    TestDataSubsampling(comment: "Test on an input with multiple subreads per ZMW. Subsampling on ZMW IDs, so if a ZMW is picked all subreads for that ZMW are used (use_umc = true).",
+        input_data: content_subsampling_1,
+        genome_size: 15000,
+        coverage: 20,
+        use_umc: true,
+        random_seed: 3323,
+        block_size: 1000000,
+        fail_low_cov: false,
+        expected: """
+V	0.2
+F	0	subreads.bam	bam
+S	0	seq/0/0_10000	10000	0	0	10000
+S	1	seq/1/0_20000	20000	0	10000	20000
+S	2	seq/2/0_30000	30000	0	30000	30000
+S	3	seq/2/30000_60000	30000	0	60000	30000
+S	4	seq/2/60000_90000	30000	0	90000	30000
+S	5	seq/3/0_40000	40000	0	120000	40000
+S	6	seq/4/0_50000	50000	0	160000	50000
+S	7	seq/6/0_70000	70000	0	270000	70000
+S	8	seq/9/0_100000	100000	0	590000	100000
+S	9	seq/9/100000_200000	100000	0	690000	100000
+S	10	seq/9/200000_300000	100000	0	790000	100000
+B	0	0	11	580000
+""",
+        expected_exception: false
+    ),
+]
+
+suite "raptor_db_subsample":
+    test "Random subsamping":
+        for d in test_data_subsampling:
+            var sin = streams.newStringStream(d.input_data)
+            let rdb_in = load_rdb(sin)
+
+            try:
+                # Run unit under test.
+                let rdb_out = get_subsampled_rdb(rdb_in, d.genome_size, d.coverage, d.use_umc, d.random_seed, d.block_size, d.fail_low_cov)
+
+                # Write the RaptorDB to stream, so we simply compare strings.
+                var sout: Stream = streams.newStringStream()
+                write_rdb(sout, rdb_out)
+
+                # Compare the subsampled DB as a string with the expected DB.
+                sout.setPosition(0)
+                let rdb_out_str = sout.readAll()
+                check rdb_out_str == d.expected
+            except Exception as exc:
+                # Exceptions are good only if expected.
+                check d.expected_exception == true
+
+
