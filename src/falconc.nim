@@ -210,6 +210,13 @@ when isMainModule:
           "circ-fn": "Text list of circular contigs (newline-delimited)",
             }
         ],
+        [pbreports.run_gen_contig_table, cmdName = "pbreports-ctg-table",
+         help = {
+          "fasta-fn": "FASTA filename, preferably indexed (with .fai)",
+          "circ-fn": "Text list of circular contigs (newline-delimited)",
+          "gff-fn": "PacBio coverage GFF file.",
+            }
+        ],
         [stats.assembly, cmdName = "stats-assembly",
          help = {
           "fasta-fn": "FASTA filename, preferably indexed (with .fai)",
