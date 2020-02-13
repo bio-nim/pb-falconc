@@ -38,13 +38,23 @@ let expected_report = %*
                 ]
             },
             {
-                "header": "Circular?",
+                "header": "Circular",
                 "id": "microbial_asm_polishing_report.contigs_table.circular",
                 "values": [
                     false,
                     true,
                     false,
                     true
+                ]
+            },
+            {
+                "header": "Coverage",
+                "id": "microbial_asm_polishing_report.contigs_table.coverage",
+                "values": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
                 ]
             }
         ],
@@ -59,9 +69,11 @@ let expected_report = %*
     }
 
 suite "pbreports":
-    test "get_report":
+    test "get_contig_table_report":
         let all_ctgs = {"C1": 10, "C2": 20, "L1": 15, "L2": 25}.toTable()
         let circ_ctgs = @["C1", "C2"]
-        let j = pbreports.get_report(all_ctgs, circ_ctgs)
+        # For legacy purposes, generate a dummy coverage dict.
+        let cov_dict = initTable[string, Table[string, string]]()
+        let j = pbreports.get_contig_table_report(all_ctgs, circ_ctgs, cov_dict)
         j["uuid"] = % "???"
         check json.pretty(j) == json.pretty(expected_report)

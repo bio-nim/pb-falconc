@@ -1,14 +1,68 @@
 RELEASE NOTES
 =============
 
+Version: 0.9.41
+---------------
+  Fixed some bugs for `setByParse` users.
+
+  Change the default `hTabSuppress` to `"CLIGEN-NOHELP"` to be more specific
+  about what it does and kind of namespace it to be cligen-specific, too.
+
+Version: 0.9.40
+---------------
+  `help["param"] == "SUPPRESS"` now removes param from the generated help
+  table.  In the unlikely event you had that (case sensitive) string as a
+  parameter help string, the string "SUPPRESS" can be adjusted via
+  `clCfg.hTabSuppress`.
+
+  Work around `csize` definition thrashing in Nim-actual by defining our own
+  non-exported `csize` in modules that need it to the uint version.  Code seems
+  to test out ok in all Nim versions >= 0.19.2.  About the only downside is
+  that a private & different `csize` could cause some confusion to casual
+  on-lookers/readers rapidly switching between in-cligen/out-of-cligen modules.
+  Anyway, you probably do not want to use cligen v0.9.39 for anything, but
+  nimble lets you say <=0.9.38 or >=0.9.40 (or #head, etc.).
+
+Version: 0.9.39
+---------------
+  initFromCL` now works on ref|ptr object types.  See `test/InitObRef.nim` and
+  `test/InitObPtr.nim` and https://github.com/c-blake/cligen/issues/118
+  discussion.
+
+  Fixed up several places that needed adjustment due to csize -> uint.
+
 Version: 0.9.38
 ---------------
-    Fix a little bug blocking abbrev(mx>0).
+  Fix a little bug blocking abbrev(mx>0).
 
-    Move `cmp`, `<=`, `-`(a, b: Timespec) from `statx` to `posixUt`.
+  Move `cmp`, `<=`, `-`(a, b: Timespec) from `statx` to `posixUt`.
+  Add argParse/argHelp support for Timespec.
 
-    cligen/[statx, magic] made somewhat autoconfiguring. (magic could probably
-    use more paths.  PRs welcome.)
+  cligen/[statx, magic] made somewhat autoconfiguring. (magic could probably
+  use more paths.  PRs welcome.)
+
+  ClAlias tuples have grown a 4th slot for default CL-author provided alias
+  definitions and a provided default reference.  CL-author must pass a
+  seq[seq[string]] empty list even if these new features are not used (to
+  match the ClAlias type).  See test/UserAliases.nim
+
+  Some new convenience API calls: `macUt.docFromProc`, textUt.termAlign\*,
+  mfile.inCore posixUt.readFile st_inode nice nanosleep.
+
+  `prsOnlyId` fix for newer Nim quote do: behavior
+
+  .config/prog/config dir looked for before .config/prog file
+
+  cfToCL includes are cfg-file relative paths if they don't start with /
+
+  includes apply to the current subcommand section (config files for multi-cmds)
+
+  only first paragraph of subcmd descrips are used in summary table
+
+  readlink 1st arg renamed to path
+
+  mergeParams no longer fails w/empty seq cmdNames arg and mergeParams is more
+  consistenly always used instead of commandLineParams
 
 Version: 0.9.37
 ---------------

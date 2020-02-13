@@ -1,12 +1,5 @@
-/t_welcome
-/t_kmers
-/t_gc
-/t_overlapFilter
-/t_pbcromwell
-/t_pbreports
-/t_stats
-/t_rotate
-/t_raptor_db
+/t_*
+!/t_*.nim
 /all
 /falconc_unit_tests_junit.xml
 /xray_summary.json

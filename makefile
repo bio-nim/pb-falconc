@@ -10,6 +10,8 @@ default: build
 nim:
 	nim c --listCmd -d:release src/falconc.nim # uses NIMBLE_DIR
 test:
+	which nim
+	nim -v
 	${MAKE} -C tests/
 integ:
 	${MAKE} -C integ-tests/
@@ -19,7 +21,8 @@ rsync:
 	rsync -av vendor/nim-heap/ ${NIMBLE_DIR}/pkgs/binaryheap-0.1.1/
 	rsync -av vendor/hts-nim/src/ ${NIMBLE_DIR}/pkgs/hts-0.2.20/
 	rsync -av vendor/msgpack4nim/ ${NIMBLE_DIR}/pkgs/msgpack4nim-0.2.9/
-	rsync -av vendor/cligen/ ${NIMBLE_DIR}/pkgs/cligen-0.9.37/
+	rsync -av vendor/cligen/ ${NIMBLE_DIR}/pkgs/cligen-0.9.41/
+	rsync -av vendor/threadpools/ ${NIMBLE_DIR}/pkgs/threadpools-0.1.0/
 
 # These 3 rules are for mobs/bamboo:
 # Someday maybe --nimcache:${CURDIR}/.cache-nim

@@ -7,6 +7,7 @@ git remote add hts-nim git@github.com:brentp/hts-nim.git
 git remote add nim-heap git@github.com:bluenote10/nim-heap.git
 git remote add nim-heap git@github.com:bio-nim/nim-heap.git
 git remote add cligen git@github.com:c-blake/cligen.git
+git remote add threadpools git@github.com:yglukhov/threadpools.git
 
 git fetch nim-kmers
 git fetch nim-networkx

@@ -1,6 +1,7 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
 #import falconcpkg/zev
 from falconcpkg/align import nil
+from falconcpkg/falcon/augmentPolishCtgs import nil
 from falconcpkg/raptor_db import nil
 from falconcpkg/rotate import nil
 from falconcpkg/phasr import nil
@@ -8,12 +9,21 @@ from falconcpkg/overlapFilter import nil
 from falconcpkg/pbcromwell import nil
 from falconcpkg/pbreports import nil
 from falconcpkg/stats import nil
+from falconcpkg/stats_preasm import nil
+from falconcpkg/falcon/rr_hctg_track import nil
+from falconcpkg/bam2fasta import nil
+from falconcpkg/ovl_cov_stats import nil
+from falconcpkg/stats_gff import nil
+
 import cligen
 
 const
     cNimbleData = staticRead("../falconc.nimble")
     cGitSha1 {.strdefine.} = staticExec("git describe --always --tags HEAD")
     cToolVersion = cNimbleData.fromNimble("version")
+
+proc get_version(): auto =
+    cToolVersion & "+git." & cGitSha1
 
 proc version() =
     echo cToolVersion & "+git." & cGitSha1
@@ -29,12 +39,43 @@ proc utils(extras: seq[string], float_req: float) =
 #    echo "finished"
 
 when isMainModule:
+    # Show version at start-up, for now.
+    stderr.writeLine("  version=", get_version(), ", nim-version=",
+            system.NimVersion)
+
     dispatchMulti(
         [version],
         [dataset, short = {}, help = {}],
         [kmers, short = {"int_dummy": 'd'}, help = {}],
         [utils, short = {}, help = {"float_req": "special help message"}],
-        [align.align_filter, cmdName = "align-filter"],
+        [align.bam_filter_ipa, cmdName = "bam-filter-ipa"],
+        [align.bam_filter_ipa, cmdName = "align-filter",
+                doc = "alias for bam-filter-ipa"],
+        [align.bam_tags_enrich, cmdName = "bam-tags-enrich",
+         help = {
+          "input-fn": "Bam or Sam filename (based on its extension), or '-'",
+          "output-fn": "Bam or Sam filename (based on its extension)",
+            }
+        ],
+        [align.bam_filter_clipped, cmdName = "bam-filter-clipped",
+         help = {
+          "input-fn": "Bam or Sam filename (based on its extension), or '-'",
+          "output-fn": "Bam or Sam filename (based on its extension)",
+          "output-count-fn": "file reporting the number of reads post filtering",
+          "max-clipping": "Maximum clipping on left or right of query, in basepairs",
+          "end-margin": "Maximum margin on contig ends, in basepairs",
+          "Flags-exclude": "Integer (0x ok) of flags to exclude, independent of other filters",
+          "tags-enrich": "Also enrich the tags. (See bam-tags-enrich.)",
+          "verbose": "Show each skipped alignment, and a count.",
+            }
+        ],
+        [augmentPolishCtgs.runner, cmdName = "falcon-read2ctg-augment",
+         help = {
+          "phase-fn": "read2ctg.txt file",
+          "bam-fn": "bam/sam file of unphased reads mapped",
+          "out-fn": "mostly same as read2ctg.txt, but augmented",
+            }
+        ],
         [raptor_db.filter, cmdName = "raptor-db-filter"],
         [raptor_db.calc_length_cutoff, cmdName = "raptor-db-calc-length-cutoff",
             help = {
@@ -42,14 +83,25 @@ when isMainModule:
         "alarms-fn": "Optional JSON file to write SMRT Link alarms. (typically used w/ -f)",
             },
         ],
+        [raptor_db.run_subsample, cmdName = "raptor-db-subsample",
+            help = {
+        "rdb_fn": "Path to the RaptorDB file.",
+        "genome_size": "Approximate genome size.",
+        "coverage": "Coverage to select from the input RaptorDB.",
+        "use-umc": "Use Unique Molecular Coverage when subsampling. If a subread is picked, then all subreads from that ZMW will be output as well.",
+        "random-seed": "Seed for random generation.",
+        "block-size-mb": "Block size of the output DB, in megabytes.",
+        "alarms-fn": "Optional JSON file to write SMRT Link alarms. (typically used w/ -f)",
+            },
+        ],
         [rotate.main, cmdName = "circ-orient",
             help = {
-        "input_fn": "fasta file of circular sequences",
-        "output_fn": "fasta file output",
-        "wl_fn": "white list of sequences to rotate, one per line, no spaces, no trailing spaces",
+        "input-fn": "fasta (or fastq) file of circular sequences",
+        "output-fn": "fasta (or fastq) file output",
+        "wl-fn": "white list of sequences to rotate, one per line, no spaces, no trailing spaces",
         "window": "window size to caculate gc-skew",
         "step": "window step",
-        "print": "print skew data to files, one per sequence"
+        "print": "print skew data to files ('SEQ.gc_skew.txt'), one per sequence"
             },
         ],
         [rotate.randomize, cmdName = "circ-randomize",
@@ -61,9 +113,9 @@ when isMainModule:
         ],
         [phasr.main, cmdName = "phasr",
           help = {
-            "aln_fn": "BAM alignment, sorted on 'coordinate'",
-            "ref_fn": "FASTA reference",
-            "out_fn": "Output file name",
+            "aln-fn": "BAM alignment, sorted on 'coordinate'",
+            "ref-fn": "FASTA reference",
+            "out-fn": "Output file name",
             "iterations": "Number of phasing iterations per read",
             "kmersize": "Kmer size",
             "delta": "Frequency cut",
@@ -77,38 +129,76 @@ when isMainModule:
         ],
         [overlapFilter.runDumpBlacklist, cmdName = "m4filt-dump-blacklist",
         ],
+        [overlapFilter.m4filtRunner, cmdName = "m4filt",
+         help = {
+          "idt-stage1": "Stage one percent identity filter, formatted as percentage, overlaps < %idt are skipped",
+          "idt-stage2": "Stage two percent identify filter",
+          "min-len": "Minimum read length, reads shorter than minLen will be discarded",
+          "min-cov": "Minimum number of overlaps on either side of a read",
+          "max-cov": "Maximum number of overlaps on either side of a read",
+          "max-diff": "Reads are skipped is abs(5p-3p) overlap counts > maxDiff",
+          "bestn": "Keep N best overlaps at 5prime AND 3prime of a read",
+          "min-depth": "Depths lower than minDepth are considered gaps",
+          "gap-filt": "Run depth filter, takes a little more time",
+          "n-proc": "Number of processes to run locally",
+          "filter-log-fn": "Write read filter stats to this file",
+          "out-fn": "Final m4 overlap file",
+            }
+        ],
         [overlapFilter.falconRunner, cmdName = "m4filt-falconRunner",
          help = {
-          "lasJson": "List of las files from falcon, e.g ../1-preads_ovl/las-merge-combine/las_fofn.json",
-          "idtStage1": "Stage one percent identity filter, formatted as percentage, overlaps < %idt are skipped",
-          "idtStage2": "Stage two percent identify filter",
-          "minLen": "Minimum read length, reads shorter than minLen will be discarded",
-          "minCov": "Minimum number of overlaps on either side of a read",
-          "maxCov": "Maximum number of overlaps on either side of a read",
-          "maxDiff": "Reads are skipped is abs(5p-3p) overlap counts > maxDiff",
-          "bestN": "Keep N best overlaps at 5prime AND 3prime of a read",
-          "minDepth": "Depths lower than minDepth are considered gaps",
-          "gapFilt": "Run depth filter, takes a little more time",
-          "nProc": "Number of processes to run locally",
-          "filterLog": "Write read filter stats to this file",
-          "outputFn": "Final m4 overlap file",
+          "las-json-fn": "List of las files from falcon, e.g ../1-preads_ovl/las-merge-combine/las_fofn.json",
+          "idt-stage1": "Stage one percent identity filter, formatted as percentage, overlaps < %idt are skipped",
+          "idt-stage2": "Stage two percent identify filter",
+          "min-len": "Minimum read length, reads shorter than minLen will be discarded",
+          "min-cov": "Minimum number of overlaps on either side of a read",
+          "max-cov": "Maximum number of overlaps on either side of a read",
+          "max-diff": "Reads are skipped is abs(5p-3p) overlap counts > maxDiff",
+          "bestn": "Keep N best overlaps at 5prime AND 3prime of a read",
+          "min-depth": "Depths lower than minDepth are considered gaps",
+          "gap-filt": "Run depth filter, takes a little more time",
+          "n-proc": "Number of processes to run locally",
+          "filter-log-fn": "Write read filter stats to this file",
+          "debug-log-fn": "Write stderr to this file",
+          "out-fn": "Final m4 overlap file",
             }
         ],
         [overlapFilter.ipaRunner, cmdName = "m4filt-ipaRunner",
          help = {
-          "ovlsFofn": "List of m4 files from ipa/raptor",
-          "idtStage1": "Stage one percent identity filter, formatted as percentage, overlaps < %idt are skipped",
-          "idtStage2": "Stage two percent identify filter",
-          "minLen": "Minimum read length, reads shorter than minLen will be discarded",
-          "minCov": "Minimum number of overlaps on either side of a read",
-          "maxCov": "Maximum number of overlaps on either side of a read",
-          "maxDiff": "Reads are skipped is abs(5p-3p) overlap counts > maxDiff",
-          "bestN": "Keep N best overlaps at 5prime AND 3prime of a read",
-          "minDepth": "Depths lower than minDepth are considered gaps",
-          "gapFilt": "Run depth filter, takes a little more time",
-          "nProc": "Number of processes to run locally",
-          "filterLog": "Write read filter stats to this file",
+          "ovls-fofn-fn": "List of m4 files from ipa/raptor",
+          "idt-stage1": "Stage one percent identity filter, formatted as percentage, overlaps < %idt are skipped",
+          "idt-stage2": "Stage two percent identify filter",
+          "min-len": "Minimum read length, reads shorter than minLen will be discarded",
+          "min-cov": "Minimum number of overlaps on either side of a read",
+          "max-cov": "Maximum number of overlaps on either side of a read",
+          "max-diff": "Reads are skipped is abs(5p-3p) overlap counts > maxDiff",
+          "bestn": "Keep N best overlaps at 5prime AND 3prime of a read",
+          "min-depth": "Depths lower than minDepth are considered gaps",
+          "gap-filt": "Run depth filter, takes a little more time",
+          "n-proc": "Number of processes to run locally",
+          "filter-log-fn": "Write read filter stats to this file",
           "outputFn": "Final m4 overlap file",
+            }
+        ],
+        [overlapFilter.m4filtContained, cmdName = "m4filt-contained",
+         short = {
+            "lfc": '\0', "disable_chimer_bridge_removal": '\0',
+            "ctg_prefix": '\0',
+            "min_len": '\0', "min_idt_pct": '\0',
+            },
+            help = {
+             "min-len": "Minimum read length; reads shorter than minLen will be discarded",
+             "min-idt-pct": "Minimum overlap identity; worse overlaps will be discarded",
+             "in-fn": "Input m4 overlap file",
+             "out-fn": "Output m4 overlap file",
+             "lfc": "CLIGEN-NOHELP",
+             "disable_chimer_bridge_removal": "CLIGEN-NOHELP",
+             "ctg_prefix": "CLIGEN-NOHELP",
+                }
+        ],
+        [ovl_cov_stats.run, cmdName = "ovl-cov-stats",
+         help = {
+          "in-fn": "An overlap file in M4 format, or a FOFN of M4 files.",
             }
         ],
         [pbcromwell.remove_las, cmdName = "pbcromwell-rm-las",
@@ -116,13 +206,45 @@ when isMainModule:
         ],
         [pbreports.circ, cmdName = "pbreports-circ",
          help = {
-          "fasta_fn": "FASTA filename, preferably indexed (with .fai)",
-          "circ_fn": "Text list of circular contigs (newline-delimited)",
+          "fasta-fn": "FASTA filename, preferably indexed (with .fai)",
+          "circ-fn": "Text list of circular contigs (newline-delimited)",
+            }
+        ],
+        [pbreports.run_gen_contig_table, cmdName = "pbreports-ctg-table",
+         help = {
+          "fasta-fn": "FASTA filename, preferably indexed (with .fai)",
+          "circ-fn": "Text list of circular contigs (newline-delimited)",
+          "gff-fn": "PacBio coverage GFF file.",
             }
         ],
         [stats.assembly, cmdName = "stats-assembly",
          help = {
-          "fasta_fn": "FASTA filename, preferably indexed (with .fai)",
+          "fasta-fn": "FASTA filename, preferably indexed (with .fai)",
             }
+        ],
+        [stats_preasm.run, cmdName = "stats-preassembly",
+         help = {
+          "preads-rdb-fn": "Path to the preads (error-corrected reads) RaptorDB.",
+          "rawreads-rdb-fn": "Path to the raw reads RaptorDB.",
+          "genome-length": "Length of the genome.",
+          "cutoff-length": "Length cutoff used for assembly.",
+            }
+        ],
+        [stats_gff.run, cmdName = "stats-gff",
+         help = {
+          "gff-fn": "A coverage.gff file generated by pbreports.",
+            }
+        ],
+        [rr_hctg_track.run_stage1, cmdName = "rr-hctg-track1",
+        ],
+        [rr_hctg_track.run_stage2, cmdName = "rr-hctg-track2",
+        ],
+        [bam2fasta.bam_to_fasta, cmdName = "bam2clippedFasta",
+            help = {
+        "in-bam": "input bam name",
+        "region": "htslib formatted region seqid:start-end",
+        "flip-rc": "reverse complement (RC) the sequence if alignment is in RC",
+        "flag": "filter reads with flag"
+            },
         ],
     )
