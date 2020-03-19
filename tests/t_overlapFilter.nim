@@ -127,8 +127,8 @@ suite "overlapFilter m4filtContained":
 001 004 -1 100.000 0 0 0 0 0 0 0 0 5
 001 005 -1 100.000 0 0 0 0 0 0 0 0 contains
 005 008 -1 100.000 0 0 0 0 0 0 0 0 overlap
-006 009 -1 100.000 0 0 0 0 0 0 0 0 overlap
-008 009 -1 100.000 0 0 0 0 0 0 0 0 overlap
+006 009 -1 100.000 0 0 0 0 0 0 0 0 overlap foo
+008 009 -1 100.000 0 0 0 0 0 0 0 0 overlap foo bar
 011 001 -1 100.000 0 0 0 0 0 0 0 0 contained
 016 006 -1 100.000 0 0 0 0 0 0 0 0 contained
 021 011 -1 100.000 0 0 0 0 0 0 0 0 overlap
@@ -141,8 +141,8 @@ suite "overlapFilter m4filtContained":
 001 002 -1 100.000 0 0 0 0 0 0 0 0 overlap
 001 003 -1 100.000 0 0 0 0 0 0 0 0 3
 001 004 -1 100.000 0 0 0 0 0 0 0 0 5
-006 009 -1 100.000 0 0 0 0 0 0 0 0 overlap
-008 009 -1 100.000 0 0 0 0 0 0 0 0 overlap
+006 009 -1 100.000 0 0 0 0 0 0 0 0 overlap foo
+008 009 -1 100.000 0 0 0 0 0 0 0 0 overlap foo bar
 """
         run(expected, given, 0, 0.0)
 
