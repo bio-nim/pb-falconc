@@ -14,6 +14,7 @@ from falconcpkg/falcon/rr_hctg_track import nil
 from falconcpkg/bam2fasta import nil
 from falconcpkg/ovl_cov_stats import nil
 from falconcpkg/stats_gff import nil
+from falconcpkg/ipa2_construct_config import nil
 
 import cligen
 
@@ -246,5 +247,11 @@ when isMainModule:
         "flip-rc": "reverse complement (RC) the sequence if alignment is in RC",
         "flag": "filter reads with flag"
             },
+        ],
+        [ipa2_construct_config.main, cmdName = "ipa2-construct-config",
+         help = {
+          "out-fmt": "Output format of the config file. (json or bash)",
+          "out-fn": "Output file.",
+            }
         ],
     )

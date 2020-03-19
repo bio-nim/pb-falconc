@@ -35,6 +35,7 @@ include "t_stats_preasm.nim"
 include "t_rotate.nim"
 include "t_raptor_db.nim"
 include "t_util.nim"
+include "t_ipa2.nim"
 
 #cleanup
 unittest.close(report_of)
