@@ -31,6 +31,23 @@ suite "overlapFilter parseOK":
         check parsed.l1 == 9656
         check parsed.l2 == 12247
 
+suite "overlapFilter extraColumns":
+    test "13":
+        let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained"
+        let parsed = parseOvl(record1)
+        check parsed.tag == "contained"
+        check parsed.tagplus == "contained"
+    test "14":
+        let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained foo"
+        let parsed = parseOvl(record1)
+        check parsed.tag == "contained"
+        check parsed.tagplus == "contained foo"
+    test "15":
+        let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained foo bar"
+        let parsed = parseOvl(record1)
+        check parsed.tag == "contained"
+        check parsed.tagplus == "contained foo bar"
+
 suite "overlapFilter containedOK":
     test "contained":
         let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained"
@@ -110,8 +127,8 @@ suite "overlapFilter m4filtContained":
 001 004 -1 100.000 0 0 0 0 0 0 0 0 5
 001 005 -1 100.000 0 0 0 0 0 0 0 0 contains
 005 008 -1 100.000 0 0 0 0 0 0 0 0 overlap
-006 009 -1 100.000 0 0 0 0 0 0 0 0 overlap
-008 009 -1 100.000 0 0 0 0 0 0 0 0 overlap
+006 009 -1 100.000 0 0 0 0 0 0 0 0 overlap foo
+008 009 -1 100.000 0 0 0 0 0 0 0 0 overlap foo bar
 011 001 -1 100.000 0 0 0 0 0 0 0 0 contained
 016 006 -1 100.000 0 0 0 0 0 0 0 0 contained
 021 011 -1 100.000 0 0 0 0 0 0 0 0 overlap
@@ -124,8 +141,8 @@ suite "overlapFilter m4filtContained":
 001 002 -1 100.000 0 0 0 0 0 0 0 0 overlap
 001 003 -1 100.000 0 0 0 0 0 0 0 0 3
 001 004 -1 100.000 0 0 0 0 0 0 0 0 5
-006 009 -1 100.000 0 0 0 0 0 0 0 0 overlap
-008 009 -1 100.000 0 0 0 0 0 0 0 0 overlap
+006 009 -1 100.000 0 0 0 0 0 0 0 0 overlap foo
+008 009 -1 100.000 0 0 0 0 0 0 0 0 overlap foo bar
 """
         run(expected, given, 0, 0.0)
 
