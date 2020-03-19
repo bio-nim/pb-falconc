@@ -31,6 +31,23 @@ suite "overlapFilter parseOK":
         check parsed.l1 == 9656
         check parsed.l2 == 12247
 
+suite "overlapFilter extraColumns":
+    test "13":
+        let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained"
+        let parsed = parseOvl(record1)
+        check parsed.tag == "contained"
+        check parsed.tagplus == "contained"
+    test "14":
+        let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained foo"
+        let parsed = parseOvl(record1)
+        check parsed.tag == "contained"
+        check parsed.tagplus == "contained foo"
+    test "15":
+        let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained foo bar"
+        let parsed = parseOvl(record1)
+        check parsed.tag == "contained"
+        check parsed.tagplus == "contained foo bar"
+
 suite "overlapFilter containedOK":
     test "contained":
         let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained"

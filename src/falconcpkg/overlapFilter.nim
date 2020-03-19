@@ -1,7 +1,7 @@
 import threadpool_simple
 import sets
 import tables
-from strutils import split, parseInt, parseFloat, parseBool
+from strutils import splitWhitespace, parseInt, parseFloat, parseBool
 #from sequtils import keepIf
 from strformat import fmt
 from ./util import isEmptyFile, log
@@ -59,7 +59,8 @@ type
         start2*: int
         end2*: int
         l2*: int
-        tag: string
+        tag*: string
+        tagplus*: string # tag (redundantly) plus extra columns
 
     coverageInfo = tuple[gap: bool, lowCov: bool, highCov: bool,
             balance: bool]
@@ -71,7 +72,7 @@ type
 
 proc parseOvl*(s: string): Overlap =
     var ovl: Overlap
-    let ld = s.split(" ")
+    let ld = s.splitWhitespace(maxsplit=12)
     if 13 != ld.len():
         let msg = "Error parsing ovl (split={ld.len()}): '{s}'".fmt
         log(msg)
@@ -88,7 +89,8 @@ proc parseOvl*(s: string): Overlap =
     ovl.start2 = parseInt(ld[9])
     ovl.end2 = parseInt(ld[10])
     ovl.l2 = parseInt(ld[11])
-    ovl.tag = ld[12]
+    ovl.tagplus = ld[12]
+    ovl.tag = ovl.tagplus.splitWhitespace(maxsplit=1)[0]
     return ovl
 
 proc `$`(o: Overlap): string =
@@ -97,7 +99,7 @@ proc `$`(o: Overlap): string =
     if o.strand1: strand1 = 1
     if o.strand2: strand2 = 1
 
-    result = "{o.ridA} {o.ridB} {o.score} {o.idt:.3f} {strand1} {o.start1} {o.end1} {o.l1} {strand2} {o.start2} {o.end2} {o.l2} {o.tag}".fmt
+    result = "{o.ridA} {o.ridB} {o.score} {o.idt:.3f} {strand1} {o.start1} {o.end1} {o.l1} {strand2} {o.start2} {o.end2} {o.l2} {o.tagplus}".fmt
 
 proc lowIdt*(o: Overlap, idt: float): bool =
     ##Check if percent identity is below threshold
