@@ -10,6 +10,7 @@ git remote add cligen git@github.com:c-blake/cligen.git
 git remote add threadpools git@github.com:yglukhov/threadpools.git
 git remote add comprehension git@github.com:alehander92/comprehension.git
 git remote add c_alikes git@github.com:ReneSac/c_alikes.git
+git remote add BitVector git@github.com:MarcAzar/BitVector.git
 
 git fetch nim-kmers
 git fetch nim-networkx
