@@ -24,6 +24,10 @@ proc collectComments*(buf: var string, n: NimNode, depth: int = 0) =
         buf.add(" ")
         buf.add(n.strVal)
 
+proc toString*(n: NimNode): string =
+  ## Get compile-time string from a symbol or literal.
+  if n.kind == nnkSym: n.getImpl.strVal else: $n
+
 proc toStrIni*(c: range[0 .. 255]): NimNode =
   ## Transform a literal 'x' into string literal initializer "x"
   newStrLitNode($chr(c))
@@ -35,10 +39,14 @@ proc toStrSeq*(strSeqInitializer: NimNode): seq[string] =
       result.add($kid)
 
 proc toIdSeq*(strSeqInitializer: NimNode): seq[NimNode] =
-  ## Transform a literal @[ "a", .. ] into compile-time seq[ident]
-  if strSeqInitializer.len > 1:
-    for kid in strSeqInitializer[1]:
-      result.add(ident($kid))
+  ## Get a compile-time ``seq[ident]`` from a symbol or literal @[ "a", .. ].
+  if strSeqInitializer.kind == nnkSym:
+    for n in strSeqInitializer.getImpl:
+      result.add(ident(n.strVal))
+  else:
+    if strSeqInitializer.len > 1:
+      for kid in strSeqInitializer[1]:
+        result.add(ident($kid))
 
 proc srcPath*(n: NimNode): string =
   let fileParen = lineInfo(n)
@@ -119,3 +127,19 @@ macro docFromProc*(sym: typed{nkSym}): untyped =
   var cmtDoc = ""
   collectComments(cmtDoc, impl)
   newStrLitNode(strip(cmtDoc))
+
+proc maybeDestrop*(id: NimNode): NimNode =
+  ## Used to remove stropping backticks \`\`, if present, from an ident node
+  if id.kind == nnkAccQuoted: id[0] else: id
+
+macro with*(ob: typed, fields: untyped, body: untyped): untyped =
+  ## Usage ``with(ob, [ f1, f2, ... ]): body`` where ``ob`` is any expression
+  ## with (unquoted) fields ``f1``,  ``f2``, ... and ``body`` is a code block
+  ## which will be given templates named ``f1``, ``f2``, ... providing
+  ## abbreviated access to ``ob``.
+  result = newStmtList()
+  for name in fields:
+    result.add quote do:
+      template `name`(): untyped {.used.} = `ob`.`name`
+  result.add body
+  result = nnkBlockStmt.newTree(newEmptyNode(), result)

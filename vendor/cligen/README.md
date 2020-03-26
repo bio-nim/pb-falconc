@@ -1,18 +1,18 @@
 cligen: A Native API-Inferred Command-Line Interface Generator For Nim
 ======================================================================
 This approach to CLIs was inspired by [Andrey Mikhaylenko's nice Python module
-'argh'](https://pythonhosted.org/argh/) (which in turn was preceded by
+'argh'](https://pythonhosted.org/argh/) (in turn preceded by
 [Plac](https://github.com/micheles/plac) ).
 The basic idea is that native language proc signatures already encode/declare
 almost everything needed to generate a CLI - names, types, and default values.
 A little reflection/introspection then suffices to generate a parser-dispatcher
-that translates a `seq[string]` command input into calls to a wrapped proc.
+that translates `seq[string]` command input into calls to a wrapped proc.
 In Nim, adding a CLI can be as easy as adding one line of code:
 ```nim
 proc fun(foo=1,bar=2.0,baz="hi",verb=false,paths: seq[string]): int=
-  ##Some existing API call
+  ## Some existing API call
   result = 1        # Of course, real code would have real logic here
-import cligen; dispatch(fun) #Whoa..Just 1 line??
+import cligen; dispatch(fun) # Whoa..Just 1 line??
 ```
 Compile it to `fun` (e.g., `nim c fun.nim`) and then run `./fun --help`
 to get a minimal (but not so useless!) help message:
@@ -20,9 +20,9 @@ to get a minimal (but not so useless!) help message:
 Usage:
   fun [optional-params] [paths: string...]
 Some existing API call
-  Options(opt-arg sep :|=|spc):
+Options:
   -h, --help                    print this cligen-erated help
-  --help-syntax                 advanced: prepend, multi-val,..
+  --help-syntax                 advanced: prepend,plurals,..
   -f=, --foo=    int     1      set foo
   -b=, --bar=    float   2.0    set bar
   --baz=         string  "hi"   set baz
@@ -58,8 +58,8 @@ it becomes required input, but the syntax for input is the same as for optional
 values.  So, in the below
 ```nim
 proc fun(myRequired: float, mynums: seq[int], foo=1, verb=false) =
-  discard           #Of course, real code would have real logic here
-when isMainModule:  #Preserve ability to `import api`/call from Nim
+  discard           # Of course, real code would have real logic here
+when isMainModule:  # Preserve ability to `import api`/call from Nim
   import cligen; dispatch(fun)
 ```
 the command-line user must give `--myRequired=something` somewhere to avoid an
@@ -74,10 +74,10 @@ sub-`dispatch`.  Tune command syntax and help strings in the same way as
 `dispatch` as in:
 ```nim
 proc foo(myRequired: int, mynums: seq[int], foo=1, verb=false) =
-  ##Some API call
+  ## Some API call
   discard
 proc bar(yippee: int, myfloats: seq[float], verb=false) =
-  ##Some other API call
+  ## Some other API call
   discard
 when isMainModule:
   import cligen
@@ -103,14 +103,14 @@ the same keyword parameters as the most salient features of `dispatch`:
 type App* = object
   srcFile*: string
   show*: bool
-const dfl* = App(srcFile: "junk")  #set defaults != default for type
+const dfl* = App(srcFile: "junk")  # set defaults != default for type
 
 proc logic*(a: var App) = echo "app is: ", a
 
 when isMainModule:
   import cligen
   var app = initFromCL(dfl, help = { "srcFile": "yadda yadda" })
-  app.logic()  #Only --help/--version/parse errors cause early exit
+  app.logic()  # Only --help/--version/parse errors cause early exit
 ```
 
 More Controls For More Subtle Cases/More Picky CLI authors
@@ -129,10 +129,12 @@ short options, give `short` a key of `""`.
 
 The default exit protocol is (with boolean short-circuiting) `quit(int(result))
 or (echo $result or discard; quit(0))`.  If `echoResult==true`, it's just
-`echo $result; quit(0)`, while if `noAutoEcho==true` it's `quit(int(result)) or (discard; quit(0))`.
+`echo $result; quit(0)`, while if `noAutoEcho==true` it's
+`quit(int(result)) or (discard; quit(0))`.  The `or`s above are based on whether
+the wrapped proc has a return type or `$` defined on the type.
 So,
 ```nim
-import editdistance, cligen   #gen CLI for Nim stdlib editDistance
+import editdistance, cligen   # gen CLI for Nim stdlib editDistance
 dispatch(editDistanceASCII, echoResult=true)
 ```
 makes a program to print edit distance between two required parameters.
@@ -154,8 +156,8 @@ but before `dispatch`/`dispatchMulti`:
 import cligen, os, strutils
 proc mergeParams(cmdNames: seq[string],
                  cmdLine=commandLineParams()): seq[string] =
-  let e = os.getEnv(toUpperAscii(join(cmdNames, "_")))   #$MULTI_(FOO|_BAR)
-  if e.len > 0: parseCmdLine(e) & cmdLine else: cmdLine  #See os.parseCmdLine
+  let e = os.getEnv(toUpperAscii(join(cmdNames, "_")))  # $MULTI_(FOO|_BAR)
+  if e.len > 0: parseCmdLine(e) & cmdLine else: cmdLine # See os.parseCmdLine
 dispatchMulti([foo, short={"verb": 'v'}], [bar])
 ```
 You can also just `include cligen/mergeCfgEnv` between `import cligen` and

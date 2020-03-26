@@ -54,6 +54,7 @@ proc copy*(h: Header): Header =
 
 proc from_string*(h:Header, header_string:string) =
     ## create a new header from a string
+    var header_string = header_string
     h.hdr = sam_hdr_parse(header_string.len.cint, header_string.cstring)
     if h.hdr == nil:
         raise newException(ValueError, "error parsing header string:" & header_string)
@@ -61,13 +62,14 @@ proc from_string*(h:Header, header_string:string) =
 proc from_string*(r:Record, record_string:string) =
     ## update the record with the given SAM record. note that this does
     ## not make a copy of `record_string` and will modify the string in-place.
+    var record_string = record_string
     if r.hdr == nil:
       raise newException(ValueError, "must set header for record before calling from_string")
     if r.b == nil:
       raise newException(ValueError, "must create record with NewRecord before calling from_string")
 
 
-    var kstr = kstring_t(s:record_string.cstring, m:record_string.len, l:record_string.len)
+    var kstr = kstring_t(s:record_string.cstring, m:record_string.len.csize, l:record_string.len.csize)
     var ret = sam_parse1(kstr.addr, r.hdr.hdr, r.b)
     if ret != 0:
       raise newException(ValueError, "error:" & $ret & " in from_string parsing record: " & record_string)
@@ -153,10 +155,6 @@ proc stop*(r: Record): int {.inline.} =
   ## `stop` returns end position of the read.
   return bam_endpos(r.b)
 
-proc copy*(r: Record): Record =
-  ## `copy` makes a copy of the record.
-  return Record(b: bam_dup1(r.b), hdr: r.hdr)
-
 proc qname*(r: Record): string {. inline .} =
   ## `qname` returns the query name.
   return $(bam_get_qname(r.b))
@@ -239,7 +237,7 @@ iterator query*(bam: Bam, chrom:string, start:int=0, stop:int=0): Record =
       slen = sam_itr_next(bam.hts, qiter, bam.rec.b)
     hts_itr_destroy(qiter)
     if slen < -1:
-      stderr.write_line("[hts-nim] error in bam.query:" & $slen)
+      stderr.write_line(&"[hts-nim] error:{slen} in bam.query for tid:{chrom} {start}..{stop}")
 
 
 iterator query*(bam: Bam, tid:int, start:int=0, stop:int=(-1)): Record =
@@ -256,7 +254,7 @@ iterator query*(bam: Bam, tid:int, start:int=0, stop:int=(-1)): Record =
       slen = sam_itr_next(bam.hts, qiter, bam.rec.b)
     hts_itr_destroy(qiter)
     if slen < -1:
-      stderr.write_line("[hts-nim] error in bam.queryi:" & $slen)
+      stderr.write_line(&"[hts-nim] error:{slen} in bam.queryi for tid:{tid} {start}..{stop}")
 
 proc `$`*(r: Record): string =
     return format("Record($1:$2-$3):$4", [r.chrom, intToStr(r.start), intToStr(r.stop), r.qname])
@@ -295,6 +293,12 @@ proc finalize_bam(bam: Bam) =
 
 proc finalize_record(rec: Record) =
   bam_destroy1(rec.b)
+
+proc copy*(r: Record): Record {.noInit.} =
+  ## `copy` makes a copy of the record.
+  new(result, finalize_record)
+  result.b = bam_dup1(r.b)
+  result.hdr = r.hdr
 
 proc write_header*(bam: var Bam, header: Header) =
   ## write the bam the the bam stream. useful when a bam is opened in write mode.
@@ -345,7 +349,7 @@ proc open*(bam: var Bam, path: cstring, threads: int=0, mode:string="r", fai: cs
   if mode[0] == 'r' and 0 != threads and 0 != hts_set_threads(hts, cint(threads)):
       raise newException(ValueError, "error setting number of threads")
 
-  if mode[0] == 'r' and bam.hts.format.format != hts_concat.sam and hts_check_EOF(hts) != 1:
+  if mode[0] == 'r' and hts_check_EOF(hts) < 1:
     raise newException(ValueError, "invalid bgzf file")
 
   if mode[0] == 'w':

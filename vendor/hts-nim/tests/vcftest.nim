@@ -336,6 +336,13 @@ suite "genotypes suite":
       check a[12] == -1
       check a[13] == 0
 
+  test "contig names":
+    var v:VCF
+    check open(v, "tests/csq-bug.vcf.gz")
+    var ctgs = v.contigs
+    for i, ctg in ctgs:
+      if i > 21: break
+      check ctg.name == $(i + 1)
 
 suite "header record":
   test "info test":
@@ -356,6 +363,41 @@ suite "header record":
     var h = ivcf.header.get("AD", BCF_HEADER_TYPE.BCF_HL_FMT)
     check $h == """{ID:AD, Number:R, Type:Integer, Description:"Allelic depths for the ref and alt alleles in the order listed", IDX:80}"""
     check h["Type"] == "Integer"
+
+suite "vcf alleles":
+
+  test "update alleles with low-level setters works":
+
+    var ivcf:VCF
+    check ivcf.open("tests/test.vcf.gz")
+    var alleles_str = "AAA,CCC"
+
+    var alleles = allocCStringArray(@["TTT", "GGG"])
+
+    for v in ivcf:
+      check 0 == bcf_update_alleles_str(ivcf.header.hdr, v.c, alleles_str.cstring)
+      check v.REF == "AAA"
+      check v.ALT == @["CCC"]
+      check 0 == bcf_update_alleles(ivcf.header.hdr, v.c, alleles, 2)
+      check v.REF == "TTT"
+      check v.ALT == @["GGG"]
+
+    alleles.deallocCStringArray
+
+  test "update alleles with high-level setters works":
+    var ivcf:VCF
+    check ivcf.open("tests/test.vcf.gz")
+
+    for v in ivcf:
+      v.REF = "ACGT"
+      check v.REF == "ACGT"
+
+      v.ALT = "ACAAA"
+      check v.ALT == @["ACAAA"]
+
+      v.ALT = @["A", "T"]
+      check v.ALT == @["A", "T"]
+
 
 suite "bug suite":
     test "csq reader":

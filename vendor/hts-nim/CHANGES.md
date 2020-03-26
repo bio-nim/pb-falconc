@@ -1,3 +1,20 @@
+v0.2.23
+=======
++ hts/bam fix from_string for bam record and header. See quinlan-lab/STRling#10
++ hts/files add fname.file_type to get the file type given a path
+
+v0.2.22
+=======
++ changes for latest nim
++ fix several memory leaks in rarely-used functions
+
+v0.2.21
+=======
++ hts/vcf allow setting id.
++ hts/vcf flush stdout on close.
++ hts/bam correct check for EOF (#48)
++ hts/bam better error message for error in interation
+
 v0.2.20
 =======
 + hts/files (iterate over bgzipped or text files identically)

@@ -92,12 +92,6 @@ enum hts_fmt_option {
 #define HTS_IDX_NONE   (-5)
 
 
-void *malloc(size_t size);
-void free(void *);
-
-char *strncpy(char *dst, char *src, size_t size);
-long int strtol (const char* str, char** endptr, int base);
-
 #define BCF_DT_ID       0 // dictionary type
 #define BCF_DT_CTG      1
 #define BCF_DT_SAMPLE   2
@@ -146,6 +140,10 @@ BGZF* bgzf_open(const char* path, const char *mode);
 int bgzf_close(BGZF *fp);
 BGZF* bgzf_hopen(struct hFILE *fp, const char *mode);
 int bgzf_flush(BGZF *fp);
+
+hFILE *hopen(const char *filename, const char *mode, ...);
+int hclose(hFILE *fp);
+
 
     /**
      * Write _length_ bytes from _data_ to the file.  If no I/O errors occur,
@@ -254,7 +252,6 @@ hts_itr_t *hts_itr_query(const hts_idx_t *idx, int tid, int beg, int stop, hts_r
 void hts_itr_destroy(hts_itr_t *iter);
 
 int hts_itr_next(BGZF *fp, hts_itr_t *iter, void *r, void *data);
-const char **hts_idx_seqnames(const hts_idx_t *idx, int *n, hts_id2name_f getid, void *hdr);
 
 typedef hts_itr_t *hts_itr_query_func(const hts_idx_t *idx, int tid, int beg, int end, hts_readrec_func *readrec);
 typedef int (*hts_name2id_f)(void*, const char*);
@@ -398,6 +395,7 @@ hts_itr_t *sam_itr_queryi(const hts_idx_t *idx, int tid, int beg, int end);
 
 int hts_detect_format(struct hFILE *fp, htsFormat *fmt);
 char *hts_format_description(const htsFormat *format);
+
 
 
 #define sam_itr_next(htsfp, itr, r) hts_itr_next((htsfp)->fp.bgzf, (itr), (r), (htsfp))
@@ -689,7 +687,8 @@ void bcf_destroy(bcf1_t *v);
 int bcf_add_filter(const bcf_hdr_t *hdr, bcf1_t *line, int flt_id);
 int bcf_update_id(const bcf_hdr_t *hdr, bcf1_t *line, const char *id);
 int bcf_update_info(const bcf_hdr_t *hdr, bcf1_t *line, const char *key, const void *values, int n, int type);
-int bcf_update_alleles_str(const bcf_hdr_t *hdr, bcf1_t *line, char ***dst);
+int bcf_update_alleles_str(const bcf_hdr_t *hdr, bcf1_t *line, char *alleles_str);
+int bcf_update_alleles(const bcf_hdr_t *hdr, bcf1_t *line, char **alleles, int nals);
 
 int bcf_hdr_set_samples(bcf_hdr_t *hdr, const char *samples, int is_file);
 int bcf_subset_format(const bcf_hdr_t *hdr, bcf1_t *rec);
@@ -700,6 +699,9 @@ int bcf_get_format_string(const bcf_hdr_t *hdr, bcf1_t *line, const char *tag, c
 //typedef htsFile vcfFile;
 int bcf_hdr_append(bcf_hdr_t *h, const char *line);
 int bcf_hdr_sync(bcf_hdr_t *h);
+const char **bcf_hdr_seqnames(const bcf_hdr_t *h, int *nseqs);
+
+
 
 int bcf_update_format_string(const bcf_hdr_t *hdr, bcf1_t *line, const char *key, const char **values, int n);
 int bcf_update_format(const bcf_hdr_t *hdr, bcf1_t *line, const char *key, const void *values, int n, int type);
@@ -710,6 +712,9 @@ int vcf_format(const bcf_hdr_t *h, const bcf1_t *v, kstring_t *s);
 
 hts_idx_t *bcf_index_load(char *fn);
 #define bcf_itr_queryi(idx, tid, beg, end) hts_itr_query((idx), (tid), (beg), (end), bcf_readrec)
+
+const char **hts_idx_seqnames(const hts_idx_t *idx, int *n, hts_id2name_f getid, void *hdr); // free only the array, not the values
+
 
 int bcf_itr_next(htsFile *, hts_itr_t* iter, bcf1_t*);
 

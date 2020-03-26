@@ -1,4 +1,5 @@
 import ./private/hts_concat
+import ./utils
 import strformat
 import strutils
 import system
@@ -82,9 +83,8 @@ proc set_samples*(v:VCF, samples:seq[string]) =
     isamples = @["-"]
   var sample_str = join(isamples, ",")
   var ret = bcf_hdr_set_samples(v.header.hdr, sample_str.cstring, 0)
-  if ret < 0:
-    stderr.write_line("hts-nim/vcf: error setting samples in " & v.fname)
-    quit(1)
+  doAssert ret >= 0, ("[hts-nim/vcf]: error setting samples in " & v.fname)
+  doAssert bcf_hdr_sync(v.header.hdr) == 0, "[hts/nim-vcf] error in vcf.set_samples"
 
 proc samples*(v:VCF): seq[string] =
   ## get the list of samples
@@ -199,7 +199,7 @@ proc toSeq[T](data: var seq[T], p:pointer, n:int) {.inline.} =
   if data.len != n:
     data.set_len(n)
   if n == 0: return
-  copyMem(data[0].addr, p, (n * sizeof(T).csize))
+  copyMem(data[0].addr, p, csize(n * sizeof(T)))
 
 proc bcf_hdr_id2type(hdr:ptr bcf_hdr_t, htype:int, int_id:int): int {.inline.}=
   # translation of htslib macro.
@@ -403,7 +403,7 @@ proc destroy_variant(v:Variant) =
     free(v.p)
 
 proc from_string*(v: var Variant, h: Header, s:var string) =
-  var str = kstring_t(s:s.cstring, l:s.len, m:s.len)
+  var str = kstring_t(s:s.cstring, l:s.len.csize, m:s.len.csize)
   if v == nil:
     new(v, destroy_variant)
   if v.c == nil:
@@ -434,7 +434,8 @@ proc close*(v:VCF) =
         when defined(debug):
             stderr.write_line "[hts-nim] error closing vcf"
     v.hts = nil
-
+  if v.fname in ["/dev/stdout", "-"]:
+    flushFile(stdout)
 
 proc copy_header*(v: var VCF, hdr: Header) =
   v.header = Header(hdr:bcf_hdr_dup(hdr.hdr))
@@ -443,6 +444,10 @@ proc bcf_hdr_id2name(hdr: ptr bcf_hdr_t, rid: cint): cstring {.inline.} =
   ## for looking up contigs
   var v = cast[CPtr[bcf_idpair_t]](hdr.id[1])
   return v[rid.int].key
+
+let bcf_hdr_id2namep = proc(hdr: pointer, rid: cint): cstring {.cdecl.} =
+  ## for looking up contigs
+  result = bcf_hdr_id2name(cast[ptr bcf_hdr_t](hdr), rid)
 
 proc write_header*(v: VCF): bool =
   ## write a the header to the file (must have been opened in write mode) and return a bool for success.
@@ -576,13 +581,51 @@ iterator items*(v:VCF): Variant =
     stderr.write_line "last read variant:", variant.tostring()
     quit(2)
 
-proc load_index*(v: VCF, path: string) =
+
+type Contig* = object
+  ## Contig is a chromosome+length from the VCF header
+  ## if the length is not found, it is set to -1
+  name*: string
+  length*: int64
+
+proc `$`*(c:Contig): string =
+  return &"Contig(name:\"{c.name}\", length:{c.length}'i64)"
+
+proc load_index*(v: VCF, path: string, force:bool=false) =
   ## load the index at the given path (remote or local).
+  if not force and (v.bidx != nil or v.tidx != nil):
+    return
   v.bidx = hts_idx_load2(v.fname, path)
   if v.bidx == nil:
     v.tidx = tbx_index_load2(v.fname, path)
   if v.bidx == nil and v.tidx == nil:
     raise newException(OSError, "unable to load index at:" & path)
+
+proc contigs*(v:VCF): seq[Contig] =
+  var n:cint
+  var cnames = bcf_hdr_seqnames(v.header.hdr, n.addr)
+  if n > 0:
+    result.setLen(n.int)
+    for i in 0..<n:
+      result[i].name = $cnames[i]
+      result[i].length = -1
+  else:
+    try:
+       v.load_index("")
+    except OSError:
+      raise newException(OSError, "hts-nim/vcf: unable to find contigs in header or index")
+    if v.bidx != nil:
+      var f:hts_id2name_f = bcf_hdr_id2namep
+      cnames = hts_idx_seqnames(v.bidx, n.addr, f, v.header.hdr)
+    else:
+      cnames = tbx_seqnames(v.tidx, n.addr)
+    if n > 0:
+      result.setLen(n.int)
+      for i in 0..<n:
+        result[i].name = $cnames[i]
+        result[i].length = -1
+  free(cnames)
+
 
 iterator vquery(v:VCF, region:string): Variant =
   ## internal iterator for VCF regions called from query()
@@ -738,6 +781,24 @@ proc ALT*(v:Variant): seq[string] {.inline.} =
   for i in 1..(v.c.n_allele.int - 1):
     result[i-1] = $(v.c.d.allele[i])
 
+proc `REF=`*(v:Variant, allele:string) {.inline.} =
+  ## the reference allele
+  assert v.c != nil
+  var a = @[allele]
+  a.add(v.ALT)
+  let als = allocCStringArray(a)
+  doAssert 0 == bcf_update_alleles(v.vcf.header.hdr, v.c, als, a.len.cint)
+  deallocCStringArray(als)
+
+proc `ALT=`*(v:Variant, alleles:string|seq[string]) {.inline.} =
+  ## the reference allele
+  assert v.c != nil
+  var a = @[v.REF]
+  a.add(alleles)
+  let als = allocCStringArray(a)
+  doAssert 0 == bcf_update_alleles(v.vcf.header.hdr, v.c, als, a.len.cint)
+  deallocCStringArray(als)
+
 type
   Genotypes* {.shallow.} = object
     ## Genotypes are the genotype calls for each sample.
@@ -762,7 +823,7 @@ proc copy*(g: Genotypes): Genotypes =
   return Genotypes(gts:gts, ploidy:g.ploidy)
 
 proc phased*(a:Allele): bool {.inline.} =
-  ## is the allele pahsed.
+  ## is the allele phased.
   return (cast[int32](a) and 1) == 1
 
 proc value*(a:Allele): int {.inline.} =
@@ -808,7 +869,7 @@ proc alts*(g:Genotype): int8 {.inline.} =
   if likely(g.len == 2):
     var g0 = g[0].value
     var g1 = g[1].value
-    if g0 >= 0 and g1 >= 0:
+    if likely(g0 >= 0 and g1 >= 0):
       return int8(g0 + g1)
     # only unknown if both are unknown
     if (g0 == -1 and g1 == -1) or g1 < -1:
