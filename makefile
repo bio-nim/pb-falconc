@@ -23,6 +23,7 @@ rsync:
 	rsync -av vendor/msgpack4nim/ ${NIMBLE_DIR}/pkgs/msgpack4nim-0.2.9/
 	rsync -av vendor/cligen/ ${NIMBLE_DIR}/pkgs/cligen-0.9.41/
 	rsync -av vendor/threadpools/ ${NIMBLE_DIR}/pkgs/threadpools-0.1.0/
+	rsync -av vendor/comprehension/ ${NIMBLE_DIR}/pkgs/comprehension-0.1.0/
 
 # These 3 rules are for mobs/bamboo:
 # Someday maybe --nimcache:${CURDIR}/.cache-nim
