@@ -1,8 +1,10 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
-#from ./util import isEmptyFile, log
+from ./util import isEmptyFile, log, raiseEx, PbError
 from os import quoteShell
 from strformat import `&`
 import json, tables, sets, sequtils, strutils, streams
+
+export PbError
 
 var default_config = """
 config_genome_size = 0
@@ -77,7 +79,7 @@ proc validate_param_names(valid_params, test_params: ConfigTable) =
             unknown_params.add(p)
     if len(unknown_params) != 0:
         let msg = "Unknown config parameters specified: " & $unknown_params
-        raiseAssert($unknown_params)
+        raiseEx(msg)
 
 proc parse*(in_str: string): ConfigTable =
     # Load the defaults.

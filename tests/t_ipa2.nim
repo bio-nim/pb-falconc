@@ -58,7 +58,28 @@ suite "ipa2_construct_config":
     outs.setPosition(0)
     check outs.readAll() == expected_default_json
 
+  test "unset":
+    let cfg = parse("config_coverage=")
+    check cfg["config_coverage"] == ""
+    check cfg["config_block_size"] == "4096"
+
   test "override":
     let cfg = parse("config_coverage=11")
     check cfg["config_coverage"] == "11"
     check cfg["config_block_size"] == "4096"
+
+  test "separated by semicolon":
+    let cfg = parse("config_coverage=11; config_genome_size=12")
+    check cfg["config_coverage"] == "11"
+    check cfg["config_genome_size"] == "12"
+    check cfg["config_block_size"] == "4096"
+
+  test "separated by newline":
+    let cfg = parse("config_coverage=11\nconfig_genome_size=12")
+    check cfg["config_coverage"] == "11"
+    check cfg["config_genome_size"] == "12"
+    check cfg["config_block_size"] == "4096"
+
+  test "invalid":
+    expect PbError:
+        let cfg = parse("foo=bar")
