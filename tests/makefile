@@ -13,5 +13,6 @@ each:
 	nim c -r t_raptor_db.nim
 	nim c -r t_align.nim
 	nim c -r t_util.nim
+	nim c -r t_ipa2.nim
 
 .PHONY: all
