@@ -967,16 +967,114 @@ macro unpack_proxy(n: typed): untyped =
     result = quote do:
       s.unpack `n`
 
+proc is_string*[ByteStream](s: ByteStream): bool =
+  let c = s.peekChar
+  if c >= chr(0xa0) and c <= chr(0xbf):
+    return true
+  result = c in {chr(0xd9), chr(0xda), chr(0xdb)}
+
+proc is_map*[ByteStream](s: ByteStream): bool =
+  let c = s.peekChar
+  if c >= chr(0x80) and c <= chr(0x8f):
+    return true
+  result = c in {chr(0xde), chr(0xdf)}
+
+proc is_array*[ByteStream](s: ByteStream): bool =
+  let c = s.peekChar
+  if c >= chr(0x90) and c <= chr(0x9f):
+    return true
+  result = c in {chr(0xdc), chr(0xdd)}
+
+proc is_bin*[ByteStream](s: ByteStream): bool =
+  let c = s.peekChar
+  result = c in {chr(0xc4), chr(0xc5), chr(0xc6)}
+
+proc is_ext*[ByteStream](s: ByteStream): bool =
+  let c = s.peekChar
+  if c >= chr(0xd4) and c <= chr(0xd8):
+    return true
+  result = c in {chr(0xc7), chr(0xc8), chr(0xc9)}
+
+proc is_bool*[ByteStream](s: ByteStream): bool =
+  let c = s.peekChar
+  result = c in {chr(0xc3), chr(0xc2)}
+
+proc is_float*[ByteStream](s: ByteStream): bool =
+  let c = s.peekChar
+  result = c in {chr(0xca), chr(0xcb)}
+
+proc is_uint*[ByteStream](s: ByteStream): bool =
+  let c = s.peekChar
+  if c >= chr(0xcc) and c <= chr(0xcf):
+    return true
+  result = c < chr(128)
+
+proc is_int*[ByteStream](s: ByteStream): bool =
+  let c = s.peekChar
+  if c >= chr(0xe0) and c <= chr(0xff):
+    return true
+  if c >= chr(0x00) and c <= chr(0x7f):
+    return true
+  if c >= chr(0xd0) and c <= chr(0xd3):
+    return true
+  if c >= chr(0xcc) and c <= chr(0xcf):
+    return true
+
+proc skip_msg*[ByteStream](s: ByteStream) =
+  let c = ord(s.peekChar)
+  var len = 0
+  case c
+  of 0x00..0x7f, 0xc0..0xc3, 0xe0..0xff:
+    discard s.readChar()
+  of 0x80..0x8f, 0xde..0xdf:
+    len = s.unpack_map()
+    for i in 0..len-1:
+      skip_msg(s)
+      skip_msg(s)
+  of 0x90..0x9f, 0xdc..0xdd:
+    len = s.unpack_array()
+    for i in 0..len-1:
+      skip_msg(s)
+  of 0xa0..0xbf, 0xd9..0xdb:
+    len = s.unpack_string()
+    discard s.readStr(len)
+  of 0xc4..0xc6:
+    len = s.unpack_bin()
+    discard s.readStr(len)
+  of 0xc7..0xc9, 0xd4..0xd8:
+    let (_, extlen) = s.unpack_ext()
+    discard s.readStr(extlen)
+  of 0xca:
+    discard s.unpack_imp_float32()
+  of 0xcb:
+    discard s.unpack_imp_float64()
+  of 0xcc..0xcf:
+    discard s.unpack_imp_uint64()
+  of 0xd0..0xd3:
+    discard s.unpack_imp_int64()
+  else:
+    raise conversionError("unknown command during skip")
+
 proc unpack_type*[ByteStream; T: tuple|object](s: ByteStream, val: var T) =
   template dry_and_wet(): untyped =
     when defined(msgpack_obj_to_map):
       let len = s.unpack_map()
       var name: string
+      var found: bool
       for i in 0..len-1:
+        if not s.is_string:
+          s.skip_msg()
+          s.skip_msg()
+          continue
         unpack_proxy(name)
+        found = false
         for field, value in fieldPairs(val):
           if field == name:
+            found = true
             unpack_proxy(value)
+            break
+        if not found:
+          s.skip_msg()
     elif defined(msgpack_obj_to_stream):
       for field in fields(val):
         unpack_proxy(field)
@@ -1000,11 +1098,21 @@ proc unpack_type*[ByteStream; T: tuple|object](s: ByteStream, val: var T) =
     of MSGPACK_OBJ_TO_MAP:
       let len = s.unpack_map()
       var name: string
+      var found: bool
       for i in 0..len-1:
+        if not s.is_string:
+          s.skip_msg()
+          s.skip_msg()
+          continue
         unpack_proxy(name)
+        found = false
         for field, value in fieldPairs(val):
           if field == name:
+            found = true
             unpack_proxy(value)
+            break
+        if not found:
+          s.skip_msg()
     of MSGPACK_OBJ_TO_STREAM:
       for field in fields(val):
         unpack_proxy(field)
@@ -1101,6 +1209,12 @@ proc unpack*[T](data: string, val: var T) =
   var s = MsgStream.init(data)
   s.setPosition(0)
   s.unpack(val)
+
+proc unpack*[ByteStream, T](s: ByteStream, val: typedesc[T]): T {.inline.} =
+  unpack(s, result)
+
+proc unpack*[T](data: string, val: typedesc[T]): T {.inline.} =
+  unpack(data, result)
 
 proc stringify[ByteStream](s: ByteStream, zz: ByteStream) =
   let c = ord(s.peekChar)
