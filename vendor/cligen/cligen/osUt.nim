@@ -9,7 +9,7 @@
 ##    for path in both(fileStrings(file, delim), paths)(): discard
 ##  dispatch(something)
 
-import os, terminal, strutils #, sets, tables, strformat, ./sysUt #`:=`
+import os, terminal, strutils, dynlib, times, stats, math
 type csize = uint
 
 proc perror*(x: cstring, len: int) =
@@ -68,16 +68,28 @@ proc both*[T](it: iterator(): T, s: seq[T]): iterator(): T =
     for e in it(): yield e
     for e in s: yield e
 
-proc uriteBuffer*(f: File, buffer: pointer, len: Natural): int =
-  proc c_fwrite(buf: pointer, size, n: csize, f: File): cint {.
-          importc: "fwrite_unlocked", header: "<stdio.h>".}
+proc uriteBuffer*(f: File, buffer: pointer, len: Natural): int {.inline.} =
+  when defined(linux) and not defined(android):
+    proc c_fwrite(buf: pointer, size, n: csize, f: File): cint {.
+            importc: "fwrite_unlocked", header: "<stdio.h>".}
+  else:
+    proc c_fwrite(buf: pointer, size, n: csize, f: File): cint {.
+            importc: "fwrite", header: "<stdio.h>".}
   result = c_fwrite(buffer, 1, len.csize, f)
 
-proc urite*(f: File, s: string) =
-  if uriteBuffer(f, cstring(s), s.len) != s.len:
-    raise newException(IOError, "cannot write string to file")
+#when defined(nimHasExceptionsQuery):
+#  const gotoBasedExceptions* = compileOption("exceptions", "goto")
+#else:
+#  const gotoBasedExceptions* = false
 
-proc urite*(f: File, a: varargs[string, `$`]) =
+proc urite*(f: File, s: string) {.inline.} =
+# when gotoBasedExceptions:
+#   if uriteBuffer(f, cstring(s), s.len) != s.len:
+#     raise newException(IOError, "cannot write string to file")
+  discard uriteBuffer(f, cstring(s), s.len)
+
+proc urite*(f: File, a: varargs[string, `$`]) {.inline.} =
+  ## Unlocked (i.e. single threaded) libc write (maybe Linux-only).
   for x in items(a): urite(f, x)
 
 proc simplifyPath*(path: string, collapseDotDot=false): string =
@@ -99,3 +111,48 @@ proc simplifyPath*(path: string, collapseDotDot=false): string =
       result.setLen(result.len - 1)
   else:
     result = "." & (if path.endsWith($DirSep): $DirSep else: "")
+
+proc loadSym*(x: string): pointer =
+  ## split ``x`` on ``':'`` into library:symbol parts, ``dynlib.loadLib`` the
+  ## library and then ``dynlib.symAddr`` the symbol.  Returns the pointer or nil
+  ## if either operation fails.
+  let cols = x.split(':')
+  if cols.len != 2:
+    stderr.write("\"" & x & "\" not of form <lib.so>:<func>\n"); return
+  let lib = loadLib(cols[0])
+  if lib == nil:
+    stderr.write("could not loadLib \"" & cols[0] & "\"\n"); return
+  let sym = symAddr(lib, cols[1])
+  if sym == nil:
+    stderr.write("could not find \"" & cols[1] & "\"\n")
+  sym
+
+template timeIt*(output: untyped, label: string, unit=1e-6, places=3,
+                 sep="\n", reps=1, body: untyped) =
+  ## A simple benchmark harness.  ``output`` should be something like ``echo``
+  ## or ``stdout.write`` depending on desired formatting.  ``label`` comes
+  ## before time(``reps == 1``)|time statistics(``rep > 1``), while ``sep``
+  ## comes after the numbers.
+  var dt: RunningStat
+  for r in 1..reps:
+    let t0 = epochTime()
+    body
+    dt.push (epochTime() - t0)/unit
+  if reps > 1:
+    output label, " ", formatFloat(dt.min, ffDecimal, places), "..",
+           formatFloat(dt.max, ffDecimal, places), " ",
+           formatFloat(dt.mean, ffDecimal, places),
+           " +- ",    # Report standard deviation *of the above mean*
+           formatFloat(sqrt(dt.varianceS / dt.n.float), ffDecimal, places),
+           sep
+  else:
+    output label, " ", formatFloat(dt.sum, ffDecimal, places), sep
+
+proc writeNumberToFile*(path: string, num: int) =
+  ## Best effort attempt to write a single number to a file.
+  try:
+    let f = open(path, fmWrite)
+    f.write $num, '\n'
+    f.close
+  except:
+    stderr.write "cannot open \"", path, "\" to write ", $num, '\n'

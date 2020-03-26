@@ -1,4 +1,19 @@
-import posix, sets, tables, strutils, ./sysUt, ./argcvt, parseUtils
+import posix, sets,tables, strutils,strformat, ./sysUt, ./argcvt, parseUtils
+
+proc log*(f: File, s: string) {.inline.} =
+  ## This does nothing if ``f`` is ``nil``, but otherwise calls ``write``.
+  if f != nil: f.write s
+
+template localAlloc*(param; typ: typedesc) {.dirty.} =
+  ## One often wants to allow auxiliary data that may or may not be discovered
+  ## as part of an operation to be returned optionally.  One convenient pattern
+  ## for this in Nim is accepting a ``ptr T`` which can be ``nil`` when the
+  ## caller does not want the auxiliary data.  Routines using this pattern
+  ## define local space but only use its addr if callers provide none, as in
+  ## ``var loc; let par = if par == nil: loc.addr else par``.  This template
+  ## abstracts that away to simply ``localAlloc(par, parTypeLessPtr)``.
+  var `param here`: typ
+  let param = if param == nil: `param here`.addr else: param
 
 proc getTime*(): Timespec =
   ##Placeholder to avoid `times` module
@@ -96,6 +111,27 @@ template defineIdentities(ids,Id,Entry,getid,rewind,getident,en_id,en_nm) {.dirt
 defineIdentities(users, Uid, Passwd, getpwuid,setpwent,getpwent,pw_uid,pw_name)
 defineIdentities(groups, Gid, Group, getgrgid,setgrent,getgrent,gr_gid,gr_name)
 
+template defineIds(ids,Id,Entry,getid,rewind,getident,en_id,en_nm) {.dirty.} =
+  proc ids*(): Table[string, Id] =
+    ##Populate Table[Id, string] with data from system account files
+    when NimVersion < "0.20.0": result = initTable[Id, string]()
+    var id: ptr Entry
+    when defined(android):
+      proc getid(id: Id): ptr Entry {.importc.}
+      for i in 0 ..< 32768:
+        if (id := getid(i)) != nil:
+          let idStr = $id.en_nm
+          if idStr notin result:              #first entry wins, not last
+            result[idStr] = id.en_id
+    else:
+      rewind()
+      while (id := getident()) != nil:
+        let idStr = $id.en_nm
+        if idStr notin result:                #first entry wins, not last
+          result[idStr] = id.en_id
+defineIds(userIds, Uid, Passwd, getpwuid, setpwent, getpwent, pw_uid, pw_name)
+defineIds(groupIds, Gid, Group , getgrgid, setgrent, getgrent, gr_gid, gr_name)
+
 proc readlink*(path: string, err=stderr): string =
   ##Call POSIX readlink reliably: Start with a nominal size buffer & loop while
   ##the answer may have been truncated.  (Could also pathconf(p,PC_PATH_MAX)).
@@ -113,7 +149,7 @@ proc readlink*(path: string, err=stderr): string =
     result.setLen(n)
 
 proc `$`*(st: Stat): string =
-  ##stdlib automatic `$`(Stat) broken due to pad0 junk.
+  ##stdlib automatic ``$(Stat)`` broken due to pad0 junk.
   "(dev: "     & $st.st_dev     & ", " & "ino: "    & $st.st_ino    & ", " &
    "nlink: "   & $st.st_nlink   & ", " & "mode: "   & $st.st_mode   & ", " &
    "uid: "     & $st.st_uid     & ", " & "gid: "    & $st.st_gid    & ", " &
@@ -277,9 +313,178 @@ proc nice*(pid: Pid, niceIncr: cint): int =
     let mx = 20
   setpriority(0.cint, pid.uint32, max(-20, min(mx, niceIncr)).cint).int
 
+proc statOk*(path: string; st: ptr Stat=nil, err=stderr): bool {.inline.} =
+  ## ``stat path`` optionally populating ``st`` if non-nil and writing any
+  ## OS error message to ``err`` if non-nil.
+  localAlloc(st, Stat)
+  st[].st_nlink = 0                     #<1 illegal for st_nlink.  We clear in
+  if stat(path, st[]) != 0'i32:         #..case error otherwise leaves stale.
+    err.log &"stat({path}): {strerror(errno)}\n"
+    return false
+  return true
+
+proc lstatOk*(path: string; st: ptr Stat=nil, err=stderr): bool {.inline.} =
+  ## ``lstat path`` optionally populating ``st`` if non-nil and writing any
+  ## OS error message to ``err`` if non-nil.
+  localAlloc(st, Stat)
+  st[].st_nlink = 0                     #<1 illegal for st_nlink.  We clear in
+  if lstat(path, st[]) != 0'i32:        #..case error otherwise leaves stale.
+    err.log &"lstat({path}): {strerror(errno)}\n"
+    return false
+  return true
+
 proc st_inode*(path: string, err=stderr): Ino =
   ## Return just the ``Stat.st_inode`` field for a path.
   var st: Stat
   if stat(path, st) == -1:
     err.write "stat(\"", $path, "\"): ", strerror(errno), "\n"
   st.st_ino
+
+proc `//`(prefix, suffix: string): string =
+  # This is like stdlib os.`/` but simpler basically just for the needs of
+  # `dirEntries` and `recEntries`.
+  if prefix == "./":
+    if suffix == "": "."
+    else: suffix
+  elif prefix.endsWith('/'): prefix & suffix
+  else: prefix & '/' & suffix
+
+iterator dirEntries*(dir: string; st: ptr Stat=nil; canRec: ptr bool=nil;
+                     dt: ptr int8=nil; err=stderr; follow=false;
+                     relative=false): string =
+  ## This iterator wraps ``readdir``, optionally filling ``st[]`` if it was
+  ## necessary to read, whether an entry can be recursed upon, and the ``dirent
+  ## d_type`` in ``dt[]`` (or if unavailable ``DT_UNKNOWN``).  OS error messages
+  ## are sent to File ``err`` (which can be ``nil``).  Yielded paths are
+  ## relative to ``dir`` iff.  ``relative`` is true.
+  ##
+  ## ``follow`` is for the mode where outer, recursive iterations want to chase
+  ## symbolic links to dirs.  ``st[]`` is filled only if needed to compute
+  ## ``canRec``.  ``lstat`` is used only if ``not follow and dt[]==DT_UNKNOWN``)
+  ## else ``stat`` is used.  If ``dt[]==DT_DIR`` then only ``st_ino`` is
+  ## assigned.  Callers can detect if ``st`` was filled by ``st_nlink > 0``.
+  localAlloc(st, Stat)
+  localAlloc(dt, int8)
+  var d = opendir(dir)
+  if d == nil:
+    err.log &"opendir({dir}): {strerror(errno)}\n"
+  else:
+    defer: discard d.closedir
+    while true:                         #Main loop: read,filter,classify,yield
+      let de = readdir(d)
+      if de == nil: break
+      if (de.d_name[0]=='.' and de.d_name[1]=='\0') or (de.d_name[0]=='.' and
+          de.d_name[1]=='.' and de.d_name[2]=='\0'):
+        continue                        #Skip "." and ".."
+      var ent = $de.d_name.addr.cstring #Make a Nim string
+      var path = dir // ent             #Join path down from `dir`
+      dt[] = de.d_type
+      st[].st_nlink = 0                 #Tell caller we did no stat/lstat
+      if canRec != nil:
+        canRec[] = false
+        if   dt[] == DT_DIR:
+          canRec[] = true
+          if follow:                    #Caller must track st_dev(dir) to block
+            st[].st_ino = de.d_ino      #..cross dev+descend+symLink loops.
+        elif dt[] == DT_LNK:
+          if follow and statOk(path, st, err) and S_ISDIR(st.st_mode):
+            canRec[] = true
+        elif dt[] == DT_UNKNOWN:        #Weak FSes may have DT_UNKNOWN for all
+          if follow:
+            if statOk(path, st, err) and S_ISDIR(st.st_mode): canRec[] = true
+          else:                         #Not follow-mode: only ever need `lstat`
+            if lstatOk(path, st, err) and S_ISDIR(st.st_mode): canRec[] = true
+      yield (if relative: ent else: path)
+
+iterator recEntries*(dir: string; st: ptr Stat=nil; dt: ptr int8=nil,
+                     follow=false, maxDepth=0, err=stderr): string =
+  ## This recursively yields all paths in the FS tree up to ``maxDepth`` levels
+  ## beneath ``dir`` or without bound for ``maxDepth==0``. If ``follow`` then
+  ## recursion follows symbolic links to dirs. If ``err!=nil`` then OS error
+  ## messages are written there.  Unlike the stdlib ``walkDirRec``, in addition
+  ## to a ``maxDepth`` limit, following here avoids infinite symLink loops.
+  ## If provided pointers are non-nil then they are filled like ``dirEntries``.
+  ## Example:
+  ##
+  ## .. code-block:: nim
+  ##   var st: Stat; var sum = 0      #`du` 1st & 2nd level under "." only
+  ##   for path in recEntries(".", st.addr, follow=true, recurse=2):
+  ##     if st.st_nlink == 0 and not statOk(path, st): stderr.write "err\n"
+  ##     sum += st_blocks * 512
+  localAlloc(st, Stat)
+  localAlloc(dt, int8)
+  type DevIno = tuple[dev: Dev, ino: Ino]             #For directory identity
+  var dev: Dev                                        #Local st_dev(sub)
+  var id: DevIno                                      #Local full identity
+  if statOk(dir, st, err) and S_ISDIR(st[].st_mode):  #Ensure target is a dir
+    var did {.noInit.}: HashSet[DevIno]               #..and also init `did`
+    if follow:                                        #..with its dev,ino.
+      did = initHashSet[DevIno](8)                    #Did means "put in stack"
+      did.incl (dev: st[].st_dev, ino: st[].st_ino)   #..not "iterated over dir"
+    var canRecurse = false                            #->true based on `follow`
+    var paths  = @[""]                                #Init recursion stacks
+    var dirDev = @[ st.st_dev ]
+    let dir = if dir.endsWith('/'): dir else: dir & '/'
+    yield dir
+    while paths.len > 0:
+      let sub = paths.pop()                           #sub-directory or ""
+      if follow: dev = dirDev.pop()                   #Get st_dev(sub)
+      let subDepth = sub.count('/')                   #XXX depth stack instead?
+      for path in dirEntries(dir // sub, st, canRecurse.addr, dt, err, follow):
+        if canRecurse and (maxDepth == 0 or subDepth + 1 < maxDepth):
+          if follow:
+            let d = if st[].st_nlink > 0: st[].st_dev else: dev
+            id = (dev: st[].st_dev, ino: st[].st_ino)
+            if id in did:                         #Already did stack put of this
+              err.log &"pruning symLink loop at {path}\n"   #Warn & skip
+              continue
+            did.incl id                           #Register as done
+            dirDev.add d                          #Put st_dev(path about to add)
+          paths.add path                          #Add path to recursion stack
+        yield dir // path
+
+#These two are almost universally available although not technically "POSIX"
+proc setGroups*(size: csize, list: ptr Gid): cint {. importc: "setgroups",
+                                                     header: "grp.h" .}
+
+proc initGroups*(user: cstring, group: Gid): cint {. importc: "initgroups",
+                                                     header: "grp.h" .}
+
+proc dropPrivilegeTo*(newUser, newGroup: string, err=stderr): bool =
+  ## Change from super-user/root to a less privileged account taking care to
+  ## also change gid and re-initialize supplementary groups to what /etc/group
+  ## says.  I.e., like ``su``, but in-process. (Test this works on your system
+  ## by compiling this module with ``-d:testDropPriv``.)
+  var gid: Gid
+  var uid: Uid
+  try:
+    gid = groupIds()[newGroup]
+  except:
+    err.write "no such group: ", newGroup, '\n'
+    return false
+  try:
+    uid = userIds()[newUser]
+  except:
+    err.write "no such user: ", newUser, '\n'
+    return false
+  if setGroups(0, nil) != 0:          #Drop supplementary group privilege
+    err.write "setgroups(0,nil): ", strerror(errno), '\n'
+    return false
+  if initGroups(newGroup.cstring, gid) != 0:    #Init suppl gids per /etc/group
+    err.write "initgroups(): ", strerror(errno), '\n'
+    return false
+  if setregid(gid, gid) != 0:         #Drop group privilege
+    err.write "setregid(): ", strerror(errno), '\n'
+    return false
+  if setreuid(uid, uid) != 0:         #Finally drop user privilege
+    err.write "setreuid(): ", strerror(errno), '\n'
+    return false
+  return true
+
+when defined(testDropPriv):
+  if dropPrivilegeTo("man", "man"):
+    let arg0 = "id"
+    let argv = allocCStringArray(@[ arg0 ])
+    discard execvp(arg0.cstring, argv)
+    stderr.write "cannot exec `id`\n"
+  quit(1)

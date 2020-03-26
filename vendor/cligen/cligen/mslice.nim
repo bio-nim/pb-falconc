@@ -26,9 +26,16 @@ type MSlice* = object
   mem*: pointer
   len*: int
 
-proc toMSlice*(a: string): MSlice =  #I'd prefer to call this MSlice, but if I
-  result.mem = a.cstring             #do here I get an already-defined error.
-  result.len = a.len                 #(Works in another module, though.)
+proc toMSlice*(a: string, keep=false): MSlice =
+  ## Convert string to an MSlice.  If ``keep`` is true, a copy is allocated
+  ## which may be freed via ``dealloc(result.mem)``.
+  result.len = a.len
+  if keep:
+    let data = alloc0(a.len + 1)
+    copyMem(data, a[0].unsafeAddr, a.len)
+    result.mem = cast[cstring](data)
+  else:
+    result.mem = a.cstring
 
 proc toCstr*(p: pointer): cstring {.inline.} =
   ## PROBABLY UNTERMINATED cstring.  BE VERY CAREFUL.
@@ -62,8 +69,12 @@ proc write*(f: File, ms: MSlice) {.inline.} =
 
 proc urite*(f: File, ms: MSlice) {.inline.} =
   ## unlocked write ``ms`` data to file ``f``.
-  proc c_fwrite(buf: pointer, size, n: csize, f: File): cint {.
-          importc: "fwrite_unlocked", header: "<stdio.h>".}
+  when defined(linux) and not defined(android):
+    proc c_fwrite(buf: pointer, size, n: csize, f: File): cint {.
+            importc: "fwrite_unlocked", header: "<stdio.h>".}
+  else:
+    proc c_fwrite(buf: pointer, size, n: csize, f: File): cint {.
+            importc: "fwrite", header: "<stdio.h>".}
   discard c_fwrite(ms.mem, 1, ms.len.csize, f)
 
 proc `==`*(a: string, ms: MSlice): bool {.inline.} =
@@ -265,6 +276,11 @@ proc split*(s: Splitr, line: string, cols: var seq[string], n=0) {.inline.} =
 
 proc split*(s: Splitr, line: string, n=0): seq[string] {.inline.} =
   s.split(line, result, n)
+
+iterator items*(a: MSlice): char {.inline.} =
+  ## Iterates over each char of `a`.
+  for i in 0 ..< a.len:
+    yield a[i]
 
 when isMainModule:  #Run tests with n<1, nCol, <nCol, repeat=false,true.
   let s = "1_2__3"

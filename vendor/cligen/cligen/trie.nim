@@ -1,9 +1,9 @@
 ##This module implements a Trie, a container for a set|mapping of strings in the
 ##digital search tree family.  It is drop-in compatible-ish with ``CritBitTree``
-##which itself compatible-ish with both ``HashSet`` & ``Table``.  It was easier
-##for me to extend this with ``match`` & ``nearLev`` than ``CritBitTree``.
+##itself compatible with both ``HashSet[string]`` & ``Table[string,*]``.  It was
+##easier for me to extend this with ``match``&``nearLev`` than ``CritBitTree``.
 
-import sets, ./sysUt, algorithm   #HashSet, findUO|findO, :=, reverse
+import sets, ./sysUt, algorithm, strutils   #HashSet, findUO|findO, :=, reverse
 type
   NodeOb[T] {.acyclic.} = object
     term*: bool
@@ -109,6 +109,8 @@ proc uniquePfxPat*[T](t: Trie[T], key: string, sep="*"): string =
 
 proc match[T](a: var HashSet[string], n: Node[T], pat="", i=0, key: var string,
               a1='?', aN='*', limit=2) =
+  if n == nil:
+    return
   if i >= pat.len:
     if n.term and key.len > 0:
       a.incl key
@@ -134,10 +136,23 @@ proc match[T](a: var HashSet[string], n: Node[T], pat="", i=0, key: var string,
     key.add n.kidc[h]
     a.match(p, pat, i + 1, key, a1, aN, limit)
 
+proc simplifyPattern*(pat: string, a1='?', aN='*'): string =
+  ## Map "(>1 of ?)*" --> "?*" or "*(>1 '?')" --> just "*?".
+  result = pat                                    #This could be more efficient
+  let pre  = a1 & a1 & aN
+  let pre2 = a1 & aN
+  while pre in result:
+    result = result.replace(pre, pre2)
+  let post = aN & a1 & a1
+  let post2 = a1 & aN
+  while post in result:
+    result = result.replace(post, post2)
+
 proc match*[T](t: Trie[T], pat="", limit=0, a1='?', aN='*'): seq[string] =
   ## Return up to ``limit`` matches of shell [?*] glob pattern ``pat`` in ``t``.
   var key: string
   var s: HashSet[string]
+  let pat = pat.simplifyPattern(a1, aN)
   try: s.match(t.root, pat, 0, key, a1, aN, if limit == 0: t.len else: limit)
   except IOError: discard
   for x in s.items: result.add x  #WTF - items necessary sometimes?
@@ -346,3 +361,7 @@ proc uniqueSfxPat*(x: openArray[string], sep="*"): seq[string] =
   for i, s in revd:
     result[i] = t.uniquePfxPat(s)
     result[i].reverse
+
+proc toTrie*(x: openArray[string]): Trie[void] =
+  ## Compute & return a ``Trie[void]`` based on input parameter.
+  for s in x: result.incl s

@@ -1,6 +1,48 @@
 RELEASE NOTES
 =============
 
+Version: 0.9.43
+---------------
+  In most contexts for most parameters you can now use a compile-time `const`
+  value instead of a literal.
+
+  Default `cligen/helpTmpl.nim:clUse` dropped overly chatty text redundant
+  upon first real line of `--help-syntax`.
+
+  Updated generated documentation and include CSS (Thanks, @kaushalmodi!)
+
+  `cligen/textUt.match` changed its return type to `tuple[key:string, val:T]`.
+  If anyone else is using this, existing call sites need only add a `.val` to
+  track the change.  (Sometimes it is nice/necessary to know the matched key.)
+  Also for `Table` similarity, added `cligen/textUt.toCritBitTree`.  For UI
+  ease add `match` overload to prints to a File if non-`nil` and also raise.
+
+  `cligen/posixUt` grew an infinite-symlink-loop avoidant `recEntries` with a
+  more traditional Unix API (user just says `follow=true` or not the way many
+  Unix CLI utilities work) than `os.walkDirRec`.  At the API level, pointers
+  are also optionally accepted to let callers receive all the metadata acquired
+  and so avoid duplicate syscalls.
+
+Version: 0.9.42
+---------------
+  Allow stropped aka \`backquoted\` params to have a `help` entry.  Add new
+  test program for such.  Probably the first of only quite a few places we will
+  need `maybeDestrop`.
+
+  Add `cligen.initDispatchGen`.  See doc comment/commit comment for details.
+
+  `textUt.getAll(cb: CritBitTree[T], key: string)` now returns a seq of len==1
+  when the key is in the table (even if that key prefixes other keys).
+
+  Add `cligen/osUt.loadSym` proc combining loadLib and symAddr operations.
+
+  Add `cligen/abbrev.expandFit` to re-expand glob patterns as much as can be
+  done without impacting a terminal column structure.  (Used by `lc`.)  Also
+  add pattern quoting option (5th column to `Abbrev` initializer is "?;[]..")
+  that can happen independently of `expandFit` as well as after it.
+
+  `cligen/abbrev.uniqueAbbrevs` signature changes slightly.
+
 Version: 0.9.41
 ---------------
   Fixed some bugs for `setByParse` users.

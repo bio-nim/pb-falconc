@@ -1,10 +1,3 @@
-#
-##
-# not used for `doc`
-## A variety of procs related to xyz
-##
-## Some more description.
-
 proc demo(alpha=1, beta=2.0, verb=false, item="", files: seq[string]) =
   ## demo entry point with varied, meaningless parameters.
   echo "alpha:", alpha, " beta:", beta, " verb:", verb, " item:", item
@@ -31,6 +24,9 @@ proc nel_Ly(hooves=4, races=9, verb=false, names: seq[string]): string =
 when isMainModule:
   import cligen; include cligen/mergeCfgEnv
   {.push hint[GlobalVar]: off.}
+
+  const hlUse = "\e[7m$command $args\e[0m\n\e[1m${doc}\e[0mOptions:\n$options"
+
   const nimbleFile = staticRead "../cligen.nimble"  #Use YOURPKG not cligen
   let docLine = nimbleFile.fromNimble("description") & "\n\n"
 
@@ -51,7 +47,7 @@ Run "$command help" to get *comprehensive* help.$ifVersion"""
   {.pop.}
   noVsn.version = ""
   dispatchMulti([ "multi", doc = docLine, usage = topLvlUse ],
-                [ demo, help = { "verb": "on=chatty, off=quiet" } ],
-                [ show, cmdName="print", short = { "gamma": 'z' } ],
-                [ punt, echoResult=true, cf=noVsn ],
-                [ nel_Ly, cmdName="nel-ly", noAutoEcho=true ] )
+                [ demo, usage=hlUse, help = { "verb": "on=chatty, off=quiet" }],
+                [ show, cmdName="print", usage=hlUse, short = { "gamma": 'z' }],
+                [ punt, echoResult=true, usage=hlUse, cf=noVsn ],
+                [ nel_Ly, cmdName="nel-ly", usage=hlUse, noAutoEcho=true ] )
