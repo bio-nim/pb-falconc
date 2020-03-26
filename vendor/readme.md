@@ -13,20 +13,20 @@ git remote add comprehension git@github.com:alehander92/comprehension.git
 git remote add c_alikes git@github.com:ReneSac/c_alikes.git
 git remote add BitVector git@github.com:MarcAzar/BitVector.git
 
-git fetch nim-kmers
-git fetch nim-networkx
+git fetch cligen
 
 # To start from upstream:
-#git read-tree --prefix=vendor/nim-kmers -u nim-kmers/master
-#git read-tree --prefix=vendor/nim-networkx -u nim-networkx/nodi
+## git rm -rf vendor/cligen
+#git read-tree --prefix=vendor/cligen -u cligen/master
 
-# To update from upstream:
-#git merge -s subtree --squash nim-networkx/nodi
-## git merge -X subtree=vendor/nim-networkx --squash nim-networkx/nodi
+# To update from upstream (but seems only to work if we include histories):
+#git merge -s subtree --squash cligen/master
+## git merge -X subtree=vendor/cligen --squash cligen/master
+#  --allow-unrelated-histories
 #git commit
 
 # To modify from here:
-#git checkout -B backport nim-networkx/nodi
+#git checkout -B backport cligen/master
 #git cherry-pick -x --strategy=subtree (commits)
 # --strategy=subtree is not usually needed.
 
