@@ -4,6 +4,7 @@ git remote add nim-kmers https://github.com/bio-nim/nim-kmers.git
 git remote add nim-networkx https://github.com/bio-nim/nim-networkx.git
 git remote add msgpack4nim git@github.com:jangko/msgpack4nim.git
 git remote add hts-nim git@github.com:brentp/hts-nim.git
+git remote add bio-hts-nim git@github.com:bio-nim/hts-nim.git
 git remote add nim-heap git@github.com:bluenote10/nim-heap.git
 git remote add nim-heap git@github.com:bio-nim/nim-heap.git
 git remote add cligen git@github.com:c-blake/cligen.git
