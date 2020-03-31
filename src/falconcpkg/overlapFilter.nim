@@ -1,3 +1,4 @@
+import times
 import threadpool_simple
 import sets
 import tables
@@ -353,6 +354,7 @@ proc stage2Filter(overlaps: seq[Overlap],
     var left, right: seq[ScoredOverlap]
     result = newSeq[string]()
 
+    assert len(overlaps) > 0
     if overlaps[0].Aname in readsToFilter:
         return
 
@@ -392,7 +394,7 @@ proc mergeBlacklists*(blistFofn: string,
         var tmp = initTable[string, int]()
         var fstream = newFileStream(bFile, fmRead)
         defer: fstream.close()
-        echo "[INFO] merging blacklist file: {bFile}".fmt
+        log("merging blacklist file: {bFile}".fmt)
         fstream.unpack(tmp)
         for k, v in tmp:
             if k in readsToFilter:
@@ -602,18 +604,26 @@ proc m4filt(icmds: seq[string],
         msgpackFofnS1.writeLine(blacklist_fn)
     msgpackFofnS1.close()
 
+    let timeStart = times.getTime()
     for x in stage1:
         threadpool.spawn startStage1(x)
         #startStage1(x)
     threadpool.sync()
 
+    let timeStage1 = times.getTime()
+    log("TIME stage1:", (timeStage1 - timeStart))
     runMergeBlacklists(blacklist_msgpack_fn, merged_blacklist_msgpack_fn)
     summarize(opts.filterLogFn, merged_blacklist_msgpack_fn)
 
+    let timeBlacklist = times.getTime()
+    log("TIME blacklist:", (timeBlacklist - timeStage1))
     for x in stage2:
         threadpool.spawn startStage2(x)
         #startStage2(x)
     threadpool.sync()
+    let timeEnd = times.getTime()
+
+    log("TIME stage2:", (timeEnd - timeBlacklist))
 
     var outFile = open(opts.outFn, fmWrite)
 
