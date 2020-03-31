@@ -197,6 +197,10 @@ when isMainModule:
              "ctg_prefix": "CLIGEN-NOHELP",
                 }
         ],
+        [overlapFilter.index, cmdName = "m4filt-index",
+          help = {
+            }
+        ],
         [ovl_cov_stats.run, cmdName = "ovl-cov-stats",
          help = {
           "in-fn": "An overlap file in M4 format, or a FOFN of M4 files.",

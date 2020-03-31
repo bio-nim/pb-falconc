@@ -4,6 +4,8 @@ import tables
 from strutils import splitWhitespace, parseInt, parseFloat, parseBool
 #from sequtils import keepIf
 from strformat import fmt
+#from os import getFileInfo
+from system/io import getFileSize
 from ./util import isEmptyFile, log
 from ./overlapParser import Overlap, parseOverlap, getNextPile, parseM4, toString
 import msgpack4nim
@@ -849,6 +851,58 @@ proc ipaRunner*(ovlsFofnFn: string,
 
     m4filt(icmds, opts, threadpool)
 
+iterator readNextPileup(f: File, pileup: var string): int =
+    # A "pileup" is a block of newline-delimited lines which
+    # each start with the same string.
+    # On each iteration, set "pileup" to that string and yield
+    # the number of lines in the pileup.
+    var
+        curr: string = "" # Everything starts with this.
+        line: string
+        index = 0
+        count = 0
+    pileup.setLen(0)
+
+    while io.readLine(f, line):
+        if not strutils.startsWith(line, curr):
+            yield count
+            count = 0
+            pileup.setLen(0)
+        if 0 == count:
+            assert 0 == pileup.len
+            let iSpace = strutils.find(line, ' ')
+            assert iSpace != -1, line
+            curr = line[0 .. iSpace]
+        pileup.add(line)
+        pileup.add("\n") # since it was stripped by readLine()
+        count += 1
+    if 0 != count:
+        assert 0 != pileup.len
+        yield count
+
+proc doIndex*(ovls_f, idx_f: File): int =
+    ## Given foo.m4, create index file foo.m4.idx
+    ## (Over-write if exists.)
+    ## That file has newline and pile boundaries.
+    var i = 0
+    var pileup: string
+    for count in readNextPileup(ovls_f, pileup):
+        let desc: string = "{i} {pileup.len} {count}\n".fmt
+        io.write(idx_f, desc)
+        i += pileup.len
+    return i
+
+proc index*(ovls_fn: string) =
+    let idx_fn = ovls_fn & ".idx"
+    var ovls_f: File = open(ovls_fn)
+    var idx_f: File = open(idx_fn, fmWrite)
+    #let finfo = os.getFileInfo(ovls_fn)
+    #let fsize = finfo.size
+    let fsize = io.getFileSize(ovls_f)
+    let i = doIndex(ovls_f, idx_f)
+    echo "i=", i, ", n=", fsize
+    idx_f.close()
+    ovls_f.close()
 
 proc main() =
     echo "main"
