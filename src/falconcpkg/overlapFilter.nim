@@ -851,7 +851,7 @@ proc ipaRunner*(ovlsFofnFn: string,
 
     m4filt(icmds, opts, threadpool)
 
-iterator readNextPileup(f: File, pileup: var string): int =
+iterator readNextPileup(f: streams.Stream, pileup: var string): int =
     # A "pileup" is a block of newline-delimited lines which
     # each start with the same string.
     # On each iteration, set "pileup" to that string and yield
@@ -863,7 +863,7 @@ iterator readNextPileup(f: File, pileup: var string): int =
         count = 0
     pileup.setLen(0)
 
-    while io.readLine(f, line):
+    while streams.readLine(f, line):
         if not strutils.startsWith(line, curr):
             yield count
             count = 0
@@ -880,17 +880,18 @@ iterator readNextPileup(f: File, pileup: var string): int =
         assert 0 != pileup.len
         yield count
 
-proc doIndex*(ovls_f, idx_f: File): int =
+proc index*(ovls_s, idx_s: streams.Stream): int =
     ## Given foo.m4, create index file foo.m4.idx
     ## (Over-write if exists.)
-    ## That file has newline and pile boundaries.
-    var i = 0
+    ## "start len count", where count is the number of overlaps in the pile
+    ## Return the sum of all pileups, which should exactly match filesize.
+    var pos = 0
     var pileup: string
-    for count in readNextPileup(ovls_f, pileup):
-        let desc: string = "{i} {pileup.len} {count}\n".fmt
-        io.write(idx_f, desc)
-        i += pileup.len
-    return i
+    for count in readNextPileup(ovls_s, pileup):
+        let desc: string = "{pos} {pileup.len} {count}\n".fmt
+        streams.write(idx_s, desc)
+        pos += pileup.len
+    return pos
 
 proc index*(ovls_fn: string) =
     let idx_fn = ovls_fn & ".idx"
@@ -899,8 +900,8 @@ proc index*(ovls_fn: string) =
     #let finfo = os.getFileInfo(ovls_fn)
     #let fsize = finfo.size
     let fsize = io.getFileSize(ovls_f)
-    let i = doIndex(ovls_f, idx_f)
-    echo "i=", i, ", n=", fsize
+    let used = index(streams.newFilestream(ovls_f), streams.newFilestream(idx_f))
+    assert used == fsize
     idx_f.close()
     ovls_f.close()
 
