@@ -891,10 +891,6 @@ iterator readNextPileup(f: streams.Stream, pileup: var string): int =
         yield count
 
 proc index*(ovls_s, idx_s: streams.Stream): int =
-    ## Given foo.m4, create index file foo.m4.idx
-    ## (Over-write if exists.)
-    ## "start len count", where count is the number of overlaps in the pile
-    ## Return the sum of all pileups, which should exactly match filesize.
     var pos = 0
     var pileup: string
     for count in readNextPileup(ovls_s, pileup):
@@ -903,7 +899,11 @@ proc index*(ovls_s, idx_s: streams.Stream): int =
         pos += pileup.len
     return pos
 
-proc index*(ovls_fn: string) =
+proc idx*(ovls_fn: string) =
+    ## Given foo.m4, create index file foo.m4.idx
+    ## (Over-write if exists.)
+    ## "start len count", where count is the number of overlaps in the pile
+    ## Return the sum of all pileups, which should exactly match filesize.
     let idx_fn = ovls_fn & ".idx"
     var ovls_f: File = open(ovls_fn)
     var idx_f: File = open(idx_fn, fmWrite)
