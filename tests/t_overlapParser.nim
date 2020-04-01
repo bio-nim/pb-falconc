@@ -36,6 +36,29 @@ proc helperPileToString(pile: seq[uut.Overlap]): string =
         result.add(uut.toString(ov))
         result.add('\n')
 
+suite "overlapFilter parseOK":
+    let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained"
+    let parsed = uut.parseOverlap(record1)
+    test "ids":
+        check parsed.Aname == "000000001"
+        check parsed.Bname == "000001050"
+    test "score":
+        check parsed.score == -9662
+    test "idt":
+        check parsed.idt == 98.67
+    test "strands":
+        check parsed.Arev == false
+        check parsed.Brev == true
+    test "starts":
+        check parsed.Astart == 0
+        check parsed.Bstart == 626
+    test "ends":
+        check parsed.Aend == 9656
+        check parsed.Bend == 10288
+    test "lengths":
+        check parsed.Alen == 9656
+        check parsed.Blen == 12247
+
 suite "overlapParser parseOverlap":
     test "empty input":
         let record= ""
@@ -57,10 +80,17 @@ suite "overlapParser parseOverlap":
         expect Exception:
             let parsed = uut.parseOverlap(record)
 
-    test "wrong number of fields, more than 13":
-        let record = "000000001 000001050 -9662 98.670 0 0 9656 9656 1 626 10288 12247 contained extraField"
-        expect Exception:
-            let parsed = uut.parseOverlap(record)
+    test "line with extra fields, 14 provided here":
+        let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained foo"
+        let parsed = uut.parseOverlap(record1)
+        check parsed.tag == "contained"
+        check parsed.tagplus == "contained foo"
+
+    test "line with extra fields, 15 provided here":
+        let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained foo bar"
+        let parsed = uut.parseOverlap(record1)
+        check parsed.tag == "contained"
+        check parsed.tagplus == "contained foo bar"
 
 suite "overlapParser getNextBlock":
     test "empty input":
