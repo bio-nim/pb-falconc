@@ -24,8 +24,8 @@ proc parse_gff_line*(line: string): GFFCoverageLine =
 
     # Parse the location information.
     record.seq_name = ld[0]
-    record.seq_start = parseInt(ld[3]) - 1   # GFF is 1-based.
-    record.seq_end = parseInt(ld[4])         # GFF end is inclusive.
+    record.seq_start = parseInt(ld[3]) - 1 # GFF is 1-based.
+    record.seq_end = parseInt(ld[4]) # GFF end is inclusive.
     record.direction = ld[6]
 
     # Parse the coverage.
@@ -45,7 +45,7 @@ proc parse_gff_line*(line: string): GFFCoverageLine =
 
     return record
 
-iterator yield_gff_record*(sin: Stream): GFFCoverageLine = 
+iterator yield_gff_record*(sin: Stream): GFFCoverageLine =
     var buff: string
     while(readLine(sin, buff)):
         if buff.len() == 0:

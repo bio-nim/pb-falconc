@@ -14,7 +14,7 @@ proc median*(xs: seq[int]): float =
     var ys = xs
     algorithm.sort(ys, system.cmp[int])
     # The seq.high is the index of the last element in the seq, i.e. one less than len.
-    return 0.5 * float(ys[ys.high div 2] + ys[ys.len div 2]) 
+    return 0.5 * float(ys[ys.high div 2] + ys[ys.len div 2])
 
 proc count_overlaps*(pile: seq[overlapParser.Overlap]): (int, int) =
     var count5, count3: int = 0

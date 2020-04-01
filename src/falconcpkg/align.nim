@@ -53,7 +53,7 @@ proc calc_query_pos*(record: hts.Record): tuple[qstart: int, qend: int,
     ## qlen is original query, so (qend-start) < qlen if clipped (hard or soft)
     ## seq excludes hard-clip, so len(seq) < qlen if hard-clipped
     ## (i.e. qlen is not well-named)
-    var q: string             # temp
+    var q: string # temp
     discard hts.sequence(record, q)
 
     var qlen: int = len(q)
@@ -82,7 +82,7 @@ proc calc_query_pos*(record: hts.Record): tuple[qstart: int, qend: int,
 proc target_to_query*(cigar: hts.Cigar, t_pos, t_start, t_end: int64): tuple[
         q_start, q_end: int64] =
     #given a region in target space return the coordinates of the query for the same region.
- #for more info see page seven of the bible :  https://samtools.github.io/hts-specs/SAMv1.pdf
+#for more info see page seven of the bible :  https://samtools.github.io/hts-specs/SAMv1.pdf
 
     var t_off, q_off: int64 = 0
     t_off += t_pos
@@ -129,8 +129,8 @@ type
     # based on https://github.com/zeeev/bamPals/blob/master/src/enrich_optional_tags.c
     Pal = object
         ref_beg, ref_end, ref_len: int32 # alignment in reference coordinates
-        qry_len: int32        # "I" tag in BAM
-        pct_idt: float32      # "f" tag in BAM
+        qry_len: int32                   # "I" tag in BAM
+        pct_idt: float32                 # "f" tag in BAM
 
 proc pal_cigar(cigar: hts.Cigar): tuple[t_consumed, q_sclipped: int32] =
     var t_consumed, q_sclipped: int

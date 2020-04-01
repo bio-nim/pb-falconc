@@ -253,8 +253,8 @@ S	8	seq/8/0_90000	90000	0	360000	90000
 S	9	seq/9/0_100000	100000	0	450000	100000
 B	0	0	10	550000
 """
-# Input RaptorDB with some ZMWs having multiple subreads.
-# Total sum of the sequences is 890kbp.
+    # Input RaptorDB with some ZMWs having multiple subreads.
+    # Total sum of the sequences is 890kbp.
 let content_subsampling_1 = """
 V	0.2
 F	0	subreads.bam	bam

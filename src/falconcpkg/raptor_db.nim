@@ -293,8 +293,8 @@ proc alarm(e: ref Exception, fn: string) =
     defer: fout.close()
     let uuid = nuuid.generateUUID()
     let createdAt = $times.now().utc() #datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S'),
- # this is propagated to SMRT Link UI
- # see PacBioAlarm class in pbcommand.models.common for details -- nat
+                                       # this is propagated to SMRT Link UI
+                                       # see PacBioAlarm class in pbcommand.models.common for details -- nat
     let alarms = %* [
         {
             "exception": $e.name,
@@ -377,7 +377,7 @@ proc get_subsampled_rdb*(rdb: ref Db, genome_size: int64,
     assert genome_size > 0, fmt"Genome size needs to be > 0. Provided value: genome_size = {genome_size}"
 
     # Reproducibility, if a valid seed is given.
-    if random_seed > 0:    
+    if random_seed > 0:
         random.randomize(random_seed)
 
     let min_desired_size: int64 = int64(float(genome_size) * coverage)
