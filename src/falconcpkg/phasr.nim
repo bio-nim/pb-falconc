@@ -108,7 +108,7 @@ proc algo(
 
 
     var phase = newTable[int, int]() # Node -> local-phase-id
-    var stats = newTable[int, PhaseStats]()             # Node -> local-phase-id
+    var stats = newTable[int, PhaseStats]() # Node -> local-phase-id
 
     const ploidy = 2
 

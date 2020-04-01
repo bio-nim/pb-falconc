@@ -26,26 +26,26 @@ config_phasing_piles = 10000
 """
 
 type
-  ConfigTable* = tables.OrderedTable[string, string]
-  #ConfigTuple = tuple
-  #  genome_size,
-  #    coverage,
-  #    polish_run,
-  #    phase_run,
-  #    existing_db_prefix,
-  #    block_size,
-  #    seqdb_opt,
-  #    seeddb_opt,
-  #    ovl_opt,
-  #    ovl_min_idt,
-  #    ovl_min_len,
-  #    ovl_filter_opt,
-  #    use_seq_ids,
-  #    phase_opt,
-  #    phasing_piles: string
+    ConfigTable* = tables.OrderedTable[string, string]
+    #ConfigTuple = tuple
+    #  genome_size,
+    #    coverage,
+    #    polish_run,
+    #    phase_run,
+    #    existing_db_prefix,
+    #    block_size,
+    #    seqdb_opt,
+    #    seeddb_opt,
+    #    ovl_opt,
+    #    ovl_min_idt,
+    #    ovl_min_len,
+    #    ovl_filter_opt,
+    #    use_seq_ids,
+    #    phase_opt,
+    #    phasing_piles: string
 
 proc formatter_json(config_dict: ConfigTable): string =
-    return json.pretty(% config_dict, 4)
+    return json.pretty( % config_dict, 4)
 
 proc formatter_bash(config_dict: ConfigTable): string =
     var lines: seq[string]
@@ -67,8 +67,8 @@ proc convert_config_to_dict*(config: string): ConfigTable =
         let keyval = strutils.split(stripped, '=')
         doAssert len(keyval) == 2, "Malformed config option. Each config option needs to have exactly one '=' character, specifying the config option on the left side, and the value on the right side. Line: " & $stripped
         let
-          param_name = strutils.strip(keyval[0])
-          param_val = strutils.strip(keyval[1])
+            param_name = strutils.strip(keyval[0])
+            param_val = strutils.strip(keyval[1])
         result[param_name] = param_val
 
 proc validate_param_names(valid_params, test_params: ConfigTable) =
@@ -116,7 +116,7 @@ proc main*(out_fn: string, out_fmt: string = "json", in_fn = "-", no_sort = fals
     ## Input/output is on stdin/stdout. Options which aren't set explicitly in the input
     ## will be set to default (configurable via args).
 
-    var fp_in = if in_fn=="-": streams.newFileStream(stdin) else: streams.newFileStream(in_fn, fmRead)
+    var fp_in = if in_fn == "-": streams.newFileStream(stdin) else: streams.newFileStream(in_fn, fmRead)
     var fp_out = streams.newFileStream(out_fn, fmWrite)
     run(fp_out, fp_in, out_fmt[0], not no_sort)
     fp_out.close()

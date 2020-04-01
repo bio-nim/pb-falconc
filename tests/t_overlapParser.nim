@@ -61,7 +61,7 @@ suite "overlapFilter parseOK":
 
 suite "overlapParser parseOverlap":
     test "empty input":
-        let record= ""
+        let record = ""
         expect Exception:
             let parsed = uut.parseOverlap(record)
 

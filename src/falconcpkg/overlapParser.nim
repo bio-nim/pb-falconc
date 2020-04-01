@@ -22,7 +22,7 @@ type
 
 proc parseOverlap*(s: string): Overlap =
     var ovl: Overlap
-    let ld = s.splitWhitespace(maxsplit=12)
+    let ld = s.splitWhitespace(maxsplit = 12)
     if ld.len() < 12:
         let msg = "Error parsing ovl (split={ld.len()}): '{s}'".fmt
         log(msg)
@@ -43,7 +43,7 @@ proc parseOverlap*(s: string): Overlap =
     ovl.tagplus = ""
     if ld.len() >= 13:
         ovl.tagplus = ld[12]
-        ovl.tag = ovl.tagplus.splitWhitespace(maxsplit=1)[0]
+        ovl.tag = ovl.tagplus.splitWhitespace(maxsplit = 1)[0]
     return ovl
 
 proc toString*(o: Overlap): string =

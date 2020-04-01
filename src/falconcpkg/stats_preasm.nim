@@ -32,13 +32,13 @@ proc parse_seq_len_tuples*(sin: Stream): seq[SeqLenTuple] =
         let tokens = line.split('\t')
         if tokens.len() != 7:
             raise newException(Exception, fmt"Malformed sequence ('S') line in the RaptorDB stream. Line = '{line}'")
-        ret.add( (id: parseInt(tokens[1]).int64, name: tokens[2], bases: parseInt(tokens[3]).int32) )
+        ret.add( (id: parseInt(tokens[1]).int64, name: tokens[2], bases: parseInt(tokens[3]).int32))
     return ret
 
 proc get_lens_from_seq_tuples*(seq_tuples: seq[SeqLenTuple]): seq[int32] =
     var ret = newSeq[int32]()
     for vals in seq_tuples:
-        ret.add(vals[2])    # Add the bases.
+        ret.add(vals[2]) # Add the bases.
     return ret
 
 proc cutoff_lengths*(length_cutoff: int32, seq_lens: seq[int32]): seq[int32] =
@@ -73,7 +73,7 @@ proc compute_truncation*(seq_tuples_raw, seq_tuples_preads: seq[SeqLenTuple]): f
     result = total_diff.float32 / seq_tuples_preads.len().float32
     return result
 
-proc calc_length_stats*(unsorted_lengths: seq[int32]): Stats = 
+proc calc_length_stats*(unsorted_lengths: seq[int32]): Stats =
     if unsorted_lengths.len() == 0:
         return
     var lengths = algorithm.sorted(unsorted_lengths,
@@ -94,7 +94,7 @@ proc calc_length_stats*(unsorted_lengths: seq[int32]): Stats =
 
     return result
 
-proc round2(val: float32): float = 
+proc round2(val: float32): float =
     return parseFloat(fmt"{val:.2f}")
 
 proc calc_stats*(genome_length, length_cutoff: int32, stats_raw, stats_seed, stats_preads: Stats, truncation: float32): string =
@@ -131,8 +131,8 @@ proc calc_stats*(genome_length, length_cutoff: int32, stats_raw, stats_seed, sta
             "preassembled_esize": round2(stats_preads.esize),
             "preassembled_yield": round2(preassembled_yield),
             # Fragmentation in HGAP4 represents the average number of preads that a seed read is broken into.
-            # This is not applicable here, because we limit at most 1 fragment per seed read, so that we avoid
-            # potential coverage biases and issues with chimeric reads.
+                # This is not applicable here, because we limit at most 1 fragment per seed read, so that we avoid
+                # potential coverage biases and issues with chimeric reads.
             "preassembled_seed_fragmentation": 1.0,
             "preassembled_seed_truncation": round2(truncation),
         }

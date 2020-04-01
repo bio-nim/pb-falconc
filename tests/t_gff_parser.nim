@@ -23,8 +23,8 @@ ctg.s1.000000F	.	region	1	5000	0.00	+	.	cov=5979,6096,6236;cov2=6091.505,51.392;
 ctg.s1.000000F	.	region	5001	10000	0.00	+	.	cov=5765,5944,6276;cov2=5988.380,139.385;gaps=0,0
 ctg.s1.000000F	.	region	10001	15000	0.00	+	.	cov=5813,6137,6413;cov2=6142.946,156.044;gaps=0,0
 """
-##################
-##################
+    ##################
+    ##################
 
 suite "gff_parser":
     test "parse_line_1 empty input":
@@ -64,7 +64,7 @@ suite "gff_parser":
             assert false
         except Exception as exc:
             assert true
-    
+
     test "yield_gff_record_1 empty input":
         # Input.
         let in_data = ""
@@ -107,7 +107,7 @@ suite "gff_parser":
     test "yield_gff_record_2 proper input":
         # Input.
         let in_data = test_data_gff_parser_content_2
-    
+
         # Expected.
         let expected_records = @[
             GFFCoverageLine(
