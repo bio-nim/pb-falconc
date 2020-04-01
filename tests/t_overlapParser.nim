@@ -57,10 +57,17 @@ suite "overlapParser parseOverlap":
         expect Exception:
             let parsed = uut.parseOverlap(record)
 
-    test "wrong number of fields, more than 13":
-        let record = "000000001 000001050 -9662 98.670 0 0 9656 9656 1 626 10288 12247 contained extraField"
-        expect Exception:
-            let parsed = uut.parseOverlap(record)
+    test "line with extra fields, 14 provided here":
+        let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained foo"
+        let parsed = uut.parseOverlap(record1)
+        check parsed.tag == "contained"
+        check parsed.tagplus == "contained foo"
+
+    test "line with extra fields, 15 provided here":
+        let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained foo bar"
+        let parsed = uut.parseOverlap(record1)
+        check parsed.tag == "contained"
+        check parsed.tagplus == "contained foo bar"
 
 suite "overlapParser getNextBlock":
     test "empty input":

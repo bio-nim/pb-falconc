@@ -1,4 +1,4 @@
-from strutils import split, parseInt, parseFloat, parseBool
+from strutils import splitWhitespace, split, parseInt, parseFloat, parseBool
 from strformat import fmt
 from ./util import isEmptyFile, log
 import streams
@@ -17,12 +17,13 @@ type
         Bstart*: int
         Bend*: int
         Blen*: int
-        tag: string
+        tag*: string
+        tagplus*: string # tag (redundantly) plus extra columns
 
 proc parseOverlap*(s: string): Overlap =
     var ovl: Overlap
-    let ld = s.split(" ")
-    if ld.len() < 12 or ld.len() > 13:
+    let ld = s.splitWhitespace(maxsplit=12)
+    if ld.len() < 12:
         let msg = "Error parsing ovl (split={ld.len()}): '{s}'".fmt
         log(msg)
     doAssert (ld.len() == 12 or ld.len() == 13)
@@ -39,24 +40,26 @@ proc parseOverlap*(s: string): Overlap =
     ovl.Bend = parseInt(ld[10])
     ovl.Blen = parseInt(ld[11])
     ovl.tag = ""
+    ovl.tagplus = ""
     if ld.len() >= 13:
-        ovl.tag = ld[12]
+        ovl.tagplus = ld[12]
+        ovl.tag = ovl.tagplus.splitWhitespace(maxsplit=1)[0]
     return ovl
 
 proc toString*(o: Overlap): string =
     var strandA = 0
     var strandB = 0
-    var tag = ""
+    var tagplus = ""
     if o.Arev: strandA = 1
     if o.Brev: strandB = 1
-    if o.tag != "": tag = " " & o.tag
-    result = "{o.Aname} {o.Bname} {o.score} {o.idt:.3f} {strandA} {o.Astart} {o.Aend} {o.Alen} {strandB} {o.Bstart} {o.Bend} {o.Blen}{tag}".fmt
+    if o.tagplus != "": tagplus = " " & o.tagplus
+    result = "{o.Aname} {o.Bname} {o.score} {o.idt:.3f} {strandA} {o.Astart} {o.Aend} {o.Alen} {strandB} {o.Bstart} {o.Bend} {o.Blen}{tagplus}".fmt
 
 proc `$`(o: Overlap): string =
     return toString(o)
 
-proc toTuple*(o: Overlap): (string, string, int, float64, bool, int, int, int, bool, int, int, int, string) =
-    return (o.Aname, o.Bname, o.score, o.idt, o.Arev, o.Astart, o.Aend, o.Alen, o.Brev, o.Bstart, o.Bend, o.Blen, o.tag)
+proc toTuple*(o: Overlap): (string, string, int, float64, bool, int, int, int, bool, int, int, int, string, string) =
+    return (o.Aname, o.Bname, o.score, o.idt, o.Arev, o.Astart, o.Aend, o.Alen, o.Brev, o.Bstart, o.Bend, o.Blen, o.tag, o.tagplus)
 
 iterator getNextPile*(sin: Stream): seq[Overlap] =
     var
