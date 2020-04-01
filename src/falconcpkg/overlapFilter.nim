@@ -893,16 +893,17 @@ iterator readNextPileup(f: streams.Stream, pileup: var string): int =
 
 type
     M4IndexRecord {.packed.} = object
+        #name: string # should be int, and not needed here anyway
+        count: int32
         pos: int64
         len: int32
-        count: int32
     M4Index = seq[M4IndexRecord]
 
 proc index*(ovls_s: streams.Stream): M4Index =
     var pos: int64 = 0
     var pileup: string
     for count in readNextPileup(ovls_s, pileup):
-        let rec = M4IndexRecord(pos: pos, len: pileup.len.int32, count: count.int32)
+        let rec = M4IndexRecord(count: count.int32, pos: pos, len: pileup.len.int32)
         result.add(rec)
         pos += pileup.len
 
