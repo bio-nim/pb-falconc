@@ -1,5 +1,5 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
-from strutils import splitWhitespace, split, parseInt, parseFloat, parseBool
+from strutils import splitWhitespace, parseInt, parseFloat, parseBool
 from strformat import fmt
 from ./util import isEmptyFile, log
 from streams import nil

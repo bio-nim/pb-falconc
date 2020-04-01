@@ -3,7 +3,6 @@ import times
 import threadpool_simple
 import sets
 import tables
-from strutils import splitWhitespace, parseInt, parseFloat, parseBool
 #from sequtils import keepIf
 from strformat import fmt
 #from os import getFileInfo
