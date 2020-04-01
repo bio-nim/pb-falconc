@@ -197,6 +197,11 @@ when isMainModule:
              "ctg_prefix": "CLIGEN-NOHELP",
                 }
         ],
+        [overlapFilter.idx, cmdName = "m4filt-idx",
+          help = {
+            "ovls-fn": "Path to .m4 file. Index filename will have '.idx' appended.",
+            }
+        ],
         [ovl_cov_stats.run, cmdName = "ovl-cov-stats",
          help = {
           "in-fn": "An overlap file in M4 format, or a FOFN of M4 files.",

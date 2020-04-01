@@ -1,11 +1,14 @@
+# vim: sw=4 ts=4 sts=4 tw=0 et:
+import times
 import threadpool_simple
 import sets
 import tables
-from strutils import splitWhitespace, parseInt, parseFloat, parseBool
 #from sequtils import keepIf
 from strformat import fmt
+#from os import getFileInfo
+from system/io import getFileSize
 from ./util import isEmptyFile, log
-from ./overlapParser import Overlap, parseOverlap, getNextPile, parseM4, toString
+from ./overlapParser import Overlap, parseOverlap, getNextPile, parseM4, toString, index
 import msgpack4nim
 import streams
 import json
@@ -266,15 +269,14 @@ proc gapInCoverage*(ovls: seq[Overlap], minDepth: int, minIdt: float): bool =
     return false
 
 proc stage1Filter*(overlaps: seq[Overlap],
-maxDiff: int,
-maxOvlp: int,
-minOvlp: int,
-minLen: int,
-minDepth: int,
-gapFilt: bool,
-minIdt: float,
-readsToFilter: var Table[string, int]) =
-
+ maxDiff: int,
+ maxOvlp: int,
+ minOvlp: int,
+ minLen: int,
+ minDepth: int,
+ gapFilt: bool,
+ minIdt: float,
+ readsToFilter: var Table[string, int]) =
     var fivePrimeCount, threePrimeCount: int = 0
     var ridA = overlaps[0].Aname
     var containedBreads = initHashSet[string]()
@@ -351,6 +353,7 @@ proc stage2Filter(overlaps: seq[Overlap],
     var left, right: seq[ScoredOverlap]
     result = newSeq[string]()
 
+    assert len(overlaps) > 0
     if overlaps[0].Aname in readsToFilter:
         return
 
@@ -390,7 +393,7 @@ proc mergeBlacklists*(blistFofn: string,
         var tmp = initTable[string, int]()
         var fstream = newFileStream(bFile, fmRead)
         defer: fstream.close()
-        echo "[INFO] merging blacklist file: {bFile}".fmt
+        log("merging blacklist file: {bFile}".fmt)
         fstream.unpack(tmp)
         for k, v in tmp:
             if k in readsToFilter:
@@ -600,18 +603,26 @@ proc m4filt(icmds: seq[string],
         msgpackFofnS1.writeLine(blacklist_fn)
     msgpackFofnS1.close()
 
+    let timeStart = times.getTime()
     for x in stage1:
         threadpool.spawn startStage1(x)
         #startStage1(x)
     threadpool.sync()
 
+    let timeStage1 = times.getTime()
+    log("TIME stage1:", (timeStage1 - timeStart))
     runMergeBlacklists(blacklist_msgpack_fn, merged_blacklist_msgpack_fn)
     summarize(opts.filterLogFn, merged_blacklist_msgpack_fn)
 
+    let timeBlacklist = times.getTime()
+    log("TIME blacklist:", (timeBlacklist - timeStage1))
     for x in stage2:
         threadpool.spawn startStage2(x)
         #startStage2(x)
     threadpool.sync()
+    let timeEnd = times.getTime()
+
+    log("TIME stage2:", (timeEnd - timeBlacklist))
 
     var outFile = open(opts.outFn, fmWrite)
 
@@ -849,6 +860,30 @@ proc ipaRunner*(ovlsFofnFn: string,
 
     m4filt(icmds, opts, threadpool)
 
+proc indexHuman*(ovls_s, idx_s: streams.Stream): int64 =
+    let m4idx = index(ovls_s)
+    var pos: int64 = 0
+    for rec in m4idx:
+        let desc = "0000 {rec.count} {rec.pos} {rec.len}\n".fmt
+        streams.write(idx_s, desc)
+        pos = rec.pos + rec.len
+    return pos
+
+proc idx*(ovls_fn: string) =
+    ## Given foo.m4, create index file foo.m4.idx
+    ## (Over-write if exists.)
+    ## "start len count", where count is the number of overlaps in the pile
+    ## Return the sum of all pileups, which should exactly match filesize.
+    let idx_fn = ovls_fn & ".idx"
+    var ovls_f: File = open(ovls_fn)
+    var idx_f: File = open(idx_fn, fmWrite)
+    #let finfo = os.getFileInfo(ovls_fn)
+    #let fsize = finfo.size
+    let fsize = io.getFileSize(ovls_f)
+    let used = indexHuman(streams.newFilestream(ovls_f), streams.newFilestream(idx_f))
+    assert used == fsize
+    idx_f.close()
+    ovls_f.close()
 
 proc main() =
     echo "main"
