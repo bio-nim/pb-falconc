@@ -213,7 +213,7 @@ proc checkIndex(m4, expected: string) =
     streams.setPosition(sout, 0)
     check streams.readAll(sout) == expected
 
-suite "m4filt-idx":
+suite "m4 indexHuman (temporary)":
     test "empty":
         checkIndex("", "")
     test "one":

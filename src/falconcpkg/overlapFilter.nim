@@ -9,7 +9,7 @@ from strformat import fmt
 #from os import getFileInfo
 from system/io import getFileSize
 from ./util import isEmptyFile, log
-from ./overlapParser import Overlap, parseOverlap, getNextPile, parseM4, toString
+from ./overlapParser import Overlap, parseOverlap, getNextPile, parseM4, toString, index
 import msgpack4nim
 import streams
 import json
@@ -861,51 +861,6 @@ proc ipaRunner*(ovlsFofnFn: string,
     let threadpool = threadpool_simple.newThreadPool(nProc)
 
     m4filt(icmds, opts, threadpool)
-
-iterator readNextPileup(f: streams.Stream, pileup: var string): int =
-    # A "pileup" is a block of newline-delimited lines which
-    # each start with the same string.
-    # On each iteration, set "pileup" to that string and yield
-    # the number of lines in the pileup.
-    var
-        curr: string = "" # Everything starts with this.
-        line: string
-        index = 0
-        count = 0
-    pileup.setLen(0)
-
-    while streams.readLine(f, line):
-        if not strutils.startsWith(line, curr):
-            yield count
-            count = 0
-            pileup.setLen(0)
-        if 0 == count:
-            assert 0 == pileup.len
-            let iSpace = strutils.find(line, ' ')
-            assert iSpace != -1, line
-            curr = line[0 .. iSpace]
-        pileup.add(line)
-        pileup.add("\n") # since it was stripped by readLine()
-        count += 1
-    if 0 != count:
-        assert 0 != pileup.len
-        yield count
-
-type
-    M4IndexRecord {.packed.} = object
-        #name: string # should be int, and not needed here anyway
-        count: int32
-        pos: int64
-        len: int32
-    M4Index = seq[M4IndexRecord]
-
-proc index*(ovls_s: streams.Stream): M4Index =
-    var pos: int64 = 0
-    var pileup: string
-    for count in readNextPileup(ovls_s, pileup):
-        let rec = M4IndexRecord(count: count.int32, pos: pos, len: pileup.len.int32)
-        result.add(rec)
-        pos += pileup.len
 
 proc indexHuman*(ovls_s, idx_s: streams.Stream): int64 =
     let m4idx = index(ovls_s)
