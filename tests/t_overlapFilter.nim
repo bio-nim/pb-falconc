@@ -197,8 +197,9 @@ suite "chimera filter":
         for i in getNextPile(fn_105513170):
             check gapInCoverage(i, 4, 90.0) == false
 
-suite "m4filt workflow"
+suite "m4filt workflow":
     test "check sanity of output":
+        discard
         # TODO: the output needs to be checked against a simple example.
         # It can be as simple as something that just passes through.
         # This will probably require some refactoring, because the function operates
