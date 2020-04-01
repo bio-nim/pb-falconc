@@ -270,15 +270,14 @@ proc gapInCoverage*(ovls: seq[Overlap], minDepth: int, minIdt: float): bool =
     return false
 
 proc stage1Filter*(overlaps: seq[Overlap],
-maxDiff: int,
-maxOvlp: int,
-minOvlp: int,
-minLen: int,
-minDepth: int,
-gapFilt: bool,
-minIdt: float,
-readsToFilter: var Table[string, int]) =
-
+ maxDiff: int,
+ maxOvlp: int,
+ minOvlp: int,
+ minLen: int,
+ minDepth: int,
+ gapFilt: bool,
+ minIdt: float,
+ readsToFilter: var Table[string, int]) =
     var fivePrimeCount, threePrimeCount: int = 0
     var ridA = overlaps[0].Aname
     var containedBreads = initHashSet[string]()
