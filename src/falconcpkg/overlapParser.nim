@@ -29,42 +29,40 @@ type
     M4Index* = seq[M4IndexRecord]
 
 
-iterator readNextPile(f: streams.Stream, pile: var string): int =
+iterator determineNextPile(f: streams.Stream): tuple[count, len:int32] =
     # A "pile" is a block of newline-delimited lines which
     # each start with the same string.
-    # On each iteration, set "pile" to that string and yield
+    # On each iteration, set "lenPile" to the length of that string and yield
     # the number of lines in the pile.
     var
         curr: string = "" # Everything starts with this.
         line: string
         index = 0
-        count = 0
-    pile.setLen(0)
+        count = 0'i32
+        lenPile = 0'i32
 
     while streams.readLine(f, line):
         if not strutils.startsWith(line, curr):
-            yield count
+            yield (count, lenPile)
             count = 0
-            pile.setLen(0)
+            lenPile = 0
         if 0 == count:
-            assert 0 == pile.len
+            assert 0 == lenPile
             let iSpace = strutils.find(line, ' ')
             assert iSpace != -1, line
             curr = line[0 .. iSpace]
-        pile.add(line)
-        pile.add("\n") # since it was stripped by readLine()
+        lenPile += int32(len(line) + 1) # Note: bug if "\r\l"
         count += 1
     if 0 != count:
-        assert 0 != pile.len
-        yield count
+        assert 0 != lenPile
+        yield (count, lenPile)
 
 proc index*(ovls_s: streams.Stream): M4Index =
     var pos: int64 = 0
-    var pile: string
-    for count in readNextPile(ovls_s, pile):
-        let rec = M4IndexRecord(count: count.int32, pos: pos, len: pile.len.int32)
+    for count, lenPile in determineNextPile(ovls_s):
+        let rec = M4IndexRecord(count: count, pos: pos, len: lenPile)
         result.add(rec)
-        pos += pile.len
+        pos += lenPile
 
 
 proc parseOverlap*(s: string): Overlap =
