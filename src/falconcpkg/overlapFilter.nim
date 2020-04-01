@@ -865,7 +865,7 @@ proc indexHuman*(ovls_s, idx_s: streams.Stream): int64 =
     let m4idx = index(ovls_s)
     var pos: int64 = 0
     for rec in m4idx:
-        let desc = "{rec.pos} {rec.len} {rec.count}\n".fmt
+        let desc = "0000 {rec.count} {rec.pos} {rec.len}\n".fmt
         streams.write(idx_s, desc)
         pos = rec.pos + rec.len
     return pos
