@@ -890,13 +890,28 @@ iterator readNextPileup(f: streams.Stream, pileup: var string): int =
         assert 0 != pileup.len
         yield count
 
-proc index*(ovls_s, idx_s: streams.Stream): int =
-    var pos = 0
+type
+    M4IndexRecord {.packed.} = object
+        pos: int64
+        len: int32
+        count: int32
+    M4Index = seq[M4IndexRecord]
+
+proc index*(ovls_s: streams.Stream): M4Index =
+    var pos: int64 = 0
     var pileup: string
     for count in readNextPileup(ovls_s, pileup):
-        let desc: string = "{pos} {pileup.len} {count}\n".fmt
-        streams.write(idx_s, desc)
+        let rec = M4IndexRecord(pos: pos, len: pileup.len.int32, count: count.int32)
+        result.add(rec)
         pos += pileup.len
+
+proc indexHuman*(ovls_s, idx_s: streams.Stream): int64 =
+    let m4idx = index(ovls_s)
+    var pos: int64 = 0
+    for rec in m4idx:
+        let desc = "{rec.pos} {rec.len} {rec.count}\n".fmt
+        streams.write(idx_s, desc)
+        pos = rec.pos + rec.len
     return pos
 
 proc idx*(ovls_fn: string) =
@@ -910,7 +925,7 @@ proc idx*(ovls_fn: string) =
     #let finfo = os.getFileInfo(ovls_fn)
     #let fsize = finfo.size
     let fsize = io.getFileSize(ovls_f)
-    let used = index(streams.newFilestream(ovls_f), streams.newFilestream(idx_f))
+    let used = indexHuman(streams.newFilestream(ovls_f), streams.newFilestream(idx_f))
     assert used == fsize
     idx_f.close()
     ovls_f.close()

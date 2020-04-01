@@ -208,12 +208,12 @@ suite "m4filt workflow":
 proc checkIndex(m4, expected: string) =
     let sin = streams.newStringStream(m4)
     var sout = streams.newStringStream()
-    let used = index(sin, sout)
+    let used = indexHuman(sin, sout)
     check used == m4.len
     streams.setPosition(sout, 0)
     check streams.readAll(sout) == expected
 
-suite "m4filt-index":
+suite "m4filt-idx":
     test "empty":
         checkIndex("", "")
     test "one":
