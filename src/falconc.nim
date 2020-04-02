@@ -142,8 +142,9 @@ when isMainModule:
           "min-depth": "Depths lower than minDepth are considered gaps",
           "gap-filt": "Run depth filter, takes a little more time",
           "n-proc": "Number of processes to run locally",
+          "in-fn": "M4 overlaps file",
           "filter-log-fn": "Write read filter stats to this file",
-          "out-fn": "Final m4 overlap file",
+          "out-fn": "Final m4 overlaps file",
             }
         ],
         [overlapFilter.falconRunner, cmdName = "m4filt-falconRunner",
