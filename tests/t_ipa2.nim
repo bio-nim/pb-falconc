@@ -4,6 +4,7 @@ import falconcpkg/ipa2_construct_config
 import unittest, streams, tables
 
 let expected_default_bash = """
+config_autocomp_max_cov=1
 config_block_size=4096
 config_coverage=0
 config_existing_db_prefix=''
@@ -23,6 +24,7 @@ config_use_seq_ids=0
 
 let expected_default_json = """
 {
+    "config_autocomp_max_cov": "1",
     "config_block_size": "4096",
     "config_coverage": "0",
     "config_existing_db_prefix": "",
