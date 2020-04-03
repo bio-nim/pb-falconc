@@ -6,14 +6,17 @@ import tables
 #from sequtils import keepIf
 from strformat import fmt
 #from os import getFileInfo
+from os import nil
 from system/io import getFileSize
 from ./util import isEmptyFile, log
-from ./overlapParser import Overlap, parseOverlap, getNextPile, parseM4, toString, index
+from ./overlapParser import Overlap, parseOverlap, getNextPile, parseM4, toString, index, M4Index
 import msgpack4nim
 import streams
 import json
 import osproc
 import algorithm
+
+export index
 
 
 #[
@@ -713,6 +716,18 @@ proc m4filtContained*(
     fh.write($n)
     fh.close()
 
+proc getM4Index(ovls_fn: string): M4Index =
+    let idx_fn = ovls_fn & ".idx"
+    if os.fileExists(idx_fn):
+        util.raiseEx("Not yet ready to read M4 index '{idx_fn}'".fmt)
+    var ovls_s = streams.newFilestream(ovls_fn)
+    result = index(ovls_s)
+
+proc m4filt(inFn: string,
+    #index: M4Index,
+    opts: M4filtOptions,
+    threadpool: threadpool_simple.ThreadPool) =
+    discard
 
 proc m4filtRunner*(
  idtStage1: float = 90.0,
@@ -726,20 +741,16 @@ proc m4filtRunner*(
  gapFilt: bool = false,
  keepIntermediates: bool = false,
  nProc: int = 24,
+ inFn: string,
  filterLogFn: string,
  outFn: string) =
-    ## Run the multi-stage m4 overlap filter.
-    ## Read the m4 filenames from stdin.
+    ## Run the multi-stage m4 overlap filter (for HiFi Asm).
+    ## Take only one m4 file, inFn. If in+'.idx' exists, that is the index.
     ## In stage one, reads that
     ## trigger a filter are marked including containment, gaps in coverage along the
     ## A-read, and repeat reads.
     ## In stage two the filters are applied and the N-best
     ## overlaps are kept for the 5prime and 3prime of each read.
-
-    var icmds: seq[string]
-    for line in lines(stdin):
-        let icmd = "cat {line}".fmt
-        icmds.add(icmd)
 
     let opts = M4filtOptions(
         idtStage1: idtStage1,
@@ -757,7 +768,7 @@ proc m4filtRunner*(
 
     let threadpool = threadpool_simple.newThreadPool(nProc)
 
-    m4filt(icmds, opts, threadpool)
+    m4filt(inFn, opts, threadpool)
 
 proc falconRunner*(db: string,
  lasJsonFn: string,
@@ -860,28 +871,26 @@ proc ipaRunner*(ovlsFofnFn: string,
 
     m4filt(icmds, opts, threadpool)
 
-proc indexHuman*(ovls_s, idx_s: streams.Stream): int64 =
-    let m4idx = index(ovls_s)
-    var pos: int64 = 0
+proc dumpIndexHuman*(m4idx: M4Index, idx_s: streams.Stream) =
     for rec in m4idx:
         let desc = "0000 {rec.count} {rec.pos} {rec.len}\n".fmt
         streams.write(idx_s, desc)
-        pos = rec.pos + rec.len
-    return pos
 
 proc idx*(ovls_fn: string) =
     ## Given foo.m4, create index file foo.m4.idx
     ## (Over-write if exists.)
     ## "start len count", where count is the number of overlaps in the pile
     ## Return the sum of all pileups, which should exactly match filesize.
-    let idx_fn = ovls_fn & ".idx"
     var ovls_f: File = open(ovls_fn)
+    let idx_fn = ovls_fn & ".idx"
     var idx_f: File = open(idx_fn, fmWrite)
     #let finfo = os.getFileInfo(ovls_fn)
     #let fsize = finfo.size
-    let fsize = io.getFileSize(ovls_f)
-    let used = indexHuman(streams.newFilestream(ovls_f), streams.newFilestream(idx_f))
-    assert used == fsize
+    #let fsize = io.getFileSize(ovls_f)
+    var ovls_s = streams.newFilestream(ovls_fn)
+    let m4idx = index(ovls_s)
+    var idx_s = streams.newFilestream(idx_f)
+    dumpIndexHuman(m4idx, idx_s)
     idx_f.close()
     ovls_f.close()
 
