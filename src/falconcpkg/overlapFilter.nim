@@ -279,6 +279,8 @@ proc stage1Filter*(overlaps: seq[Overlap],
  gapFilt: bool,
  minIdt: float,
  readsToFilter: var Table[string, int]) =
+    if 0 == len(overlaps):
+        return
     var fivePrimeCount, threePrimeCount: int = 0
     var ridA = overlaps[0].Aname
     var containedBreads = initHashSet[string]()
@@ -355,6 +357,8 @@ proc stage2Filter(overlaps: seq[Overlap],
     var left, right: seq[ScoredOverlap]
     result = newSeq[string]()
 
+    if 0 == len(overlaps):
+        return
     assert len(overlaps) > 0
     if overlaps[0].Aname in readsToFilter:
         return
@@ -409,8 +413,6 @@ proc dumpBlacklist*(readsToFilter: var Table[string, int]) =
 
 type
     Stage1 = ref object
-        icmd: string
-        sin: Stream
         maxDiff: int
         maxCov: int
         minCov: int
@@ -419,16 +421,38 @@ type
         gapFilt: bool
         minDepth: int
         blacklist: string
-    Stage2 = ref object
+        # Used only san M4Index:
         icmd: string
         sin: Stream
+        # Used only with the M4Index:
+        index: M4Index
+        m4Fn: string
+    Stage2 = ref object
         minIdt: float
         bestN: int
         blacklistIn: string
         filteredOutput: string
+        # Used only san M4Index:
+        icmd: string
+        sin: Stream
+        # Used only with the M4Index:
+        index: M4Index
+        m4Fn: string
 proc doStage1(args: Stage1) =
     var readsToFilter1 = initTable[string, int]()
     for i in op.getNextPile(args.sin):
+        stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+                args.minDepth, args.gapFilt,
+                args.minIdt, readsToFilter1)
+    var fstream = newFileStream(args.blacklist, fmWrite)
+    defer: fstream.close()
+    fstream.pack(readsToFilter1)
+proc doStage1Indexed(args: Stage1) =
+    # Here, we actually use the index in the Stage1 obj.
+    var readsToFilter1 = initTable[string, int]()
+    var sin = streams.newFileStream(args.m4Fn, fmRead)
+    defer: sin.close()
+    for i in getNextPile(sin, args.index):
         stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
                 args.minDepth, args.gapFilt,
                 args.minIdt, readsToFilter1)
@@ -445,6 +469,22 @@ proc doStage2(args: Stage2) =
     defer: output.close()
 
     for i in op.getNextPile(args.sin):
+        let lines = stage2Filter(i, args.minIdt, args.bestN, readsToFilter2)
+        for l in lines:
+            output.writeLine(l)
+proc doStage2Indexed(args: Stage2) =
+    # Here, we actually use the index in the Stage2 obj.
+    var readsToFilter2 = initTable[string, int]()
+    var fstream = newFileStream(args.blacklistIn, fmRead)
+    defer: fstream.close()
+    fstream.unpack(readsToFilter2)
+
+    var output = open(args.filteredOutput, fmWrite)
+    defer: output.close()
+
+    var sin = streams.newFileStream(args.m4Fn, fmRead)
+    defer: sin.close()
+    for i in getNextPile(sin, args.index):
         let lines = stage2Filter(i, args.minIdt, args.bestN, readsToFilter2)
         for l in lines:
             output.writeLine(l)
@@ -550,7 +590,113 @@ type
         filterLogFn: string
         outFn: string
 
-proc m4filt(icmds: seq[string],
+proc m4filtSingleton(m4Fn: string,
+  splits: seq[int],
+  index: M4Index,
+  opts: M4filtOptions,
+  threadpool: threadpool_simple.ThreadPool) =
+    # This m4filt operates on a single M4 file.
+    # The parallelism is on split portions of it.
+
+    log("Pile-weighted splits:", splits)
+    #util.raiseEx("HELLO")
+    var stage1 = newSeq[Stage1]()
+    var stage2 = newSeq[Stage2]()
+    var ovls = newSeq[string]()
+
+    let minDepthGapFilt =
+        if opts.gapFilt:
+            opts.minDepth
+        else:
+            0
+
+    var counter = 0
+    let blacklist_msgpack_fn = "blacklist_fofn.stage1.msgpck"
+    var msgpackFofnS1 = open(blacklist_msgpack_fn, fmWrite)
+
+    let merged_blacklist_msgpack_fn = "merged_blacklist.stage1.msgpck"
+
+    var intermediateFns: seq[string]
+    intermediateFns.add(blacklist_msgpack_fn)
+    intermediateFns.add(merged_blacklist_msgpack_fn)
+
+    var
+        pileBeg = 0
+        pileEnd = 0
+
+    for npiles in splits:
+        inc(counter)
+        pileBeg = pileEnd
+        pileEnd = pileBeg + npiles
+
+        let blacklist_fn = "{counter}.stage1.tmp.msgpck".fmt
+        intermediateFns.add(blacklist_fn)
+        let args1 = Stage1(
+            m4Fn: m4Fn,
+            index: index[pileBeg ..< pileEnd],
+            #icmd: icmd,
+            maxDiff: opts.maxDiff,
+            maxCov: opts.maxCov,
+            minCov: opts.minCov,
+            minLen: opts.minLen,
+            minIdt: opts.idtStage1,
+            gapFilt: opts.gapFilt,
+            minDepth: minDepthGapFilt,
+            blacklist: blacklist_fn)
+        stage1.add(args1)
+
+        # We will generate merged_blacklist_msgpack btw stage 1 and 2.
+        let ovlFn = "{counter}.tmp.ovl".fmt
+        let args2 = Stage2(
+            m4Fn: m4Fn,
+            index: index[pileBeg ..< pileEnd],
+            #icmd: icmd,
+            minIdt: opts.idtStage2,
+            bestN: opts.bestN,
+            filteredOutput: ovlFn,
+            blacklistIn: merged_blacklist_msgpack_fn)
+        stage2.add(args2)
+
+        ovls.add(ovlFn)
+        msgpackFofnS1.writeLine(blacklist_fn)
+    msgpackFofnS1.close()
+
+    let timeStart = times.getTime()
+    for x in stage1:
+        threadpool.spawn doStage1Indexed(x)
+        #doStage1Indexed(x)
+    threadpool.sync()
+
+    let timeStage1 = times.getTime()
+    log("TIME stage1:", (timeStage1 - timeStart))
+    runMergeBlacklists(blacklist_msgpack_fn, merged_blacklist_msgpack_fn)
+    summarize(opts.filterLogFn, merged_blacklist_msgpack_fn)
+
+    let timeBlacklist = times.getTime()
+    log("TIME blacklist:", (timeBlacklist - timeStage1))
+    for x in stage2:
+        threadpool.spawn doStage2Indexed(x)
+        #doStage2Indexed(x)
+    threadpool.sync()
+    let timeEnd = times.getTime()
+
+    log("TIME stage2:", (timeEnd - timeBlacklist))
+
+    var outFile = open(opts.outFn, fmWrite)
+
+    for i in ovls:
+        let ov = open(i, fmRead)
+        defer: ov.close()
+        for line in ov.lines:
+            outFile.writeLine(line)
+    outFile.writeLine("---")
+    outFile.close()
+
+    if not opts.keepIntermediates:
+        util.removeFiles(ovls)
+        util.removeFiles(intermediateFns)
+
+proc m4filtPiped(icmds: seq[string],
     opts: M4filtOptions,
     threadpool: threadpool_simple.ThreadPool) =
 
@@ -580,6 +726,7 @@ proc m4filt(icmds: seq[string],
         let blacklist_fn = "{counter}.stage1.tmp.msgpck".fmt
         intermediateFns.add(blacklist_fn)
         let args1 = Stage1(
+            #index: index,
             icmd: icmd,
             maxDiff: opts.maxDiff,
             maxCov: opts.maxCov,
@@ -715,11 +862,23 @@ proc m4filtContained*(
     fh.write($n)
     fh.close()
 
+proc split(index: M4Index, nProc: int): seq[int] =
+    # Split index into at most nProc subsets, weighted by the
+    # overlap count of each pile.
+    # len(result) will be <= nProc
+
+    var sizes: seq[int]
+    for rec in index:
+        sizes.add(rec.count)
+    return util.splitWeighted(nProc, sizes)
+
 proc m4filt(inFn: string,
-    #index: M4Index,
-    opts: M4filtOptions,
-    threadpool: threadpool_simple.ThreadPool) =
-    discard
+ nProc: int,
+ opts: M4filtOptions) =
+    let index = getM4Index(inFn)
+    let threadpool = threadpool_simple.newThreadPool(nProc)
+    let splits = split(index, nProc)
+    m4filtSingleton(inFn, splits, index, opts, threadpool)
 
 proc m4filtRunner*(
  idtStage1: float = 90.0,
@@ -758,9 +917,7 @@ proc m4filtRunner*(
         filterLogFn: filterLogFn,
         outFn: outFn)
 
-    let threadpool = threadpool_simple.newThreadPool(nProc)
-
-    m4filt(inFn, opts, threadpool)
+    m4filt(inFn, nProc, opts)
 
 proc falconRunner*(db: string,
  lasJsonFn: string,
@@ -810,7 +967,7 @@ proc falconRunner*(db: string,
 
     let threadpool = threadpool_simple.newThreadPool(nProc)
 
-    m4filt(icmds, opts, threadpool)
+    m4filtPiped(icmds, opts, threadpool)
 
 proc ipaRunner*(ovlsFofnFn: string,
  idtStage1: float = 90.0,
@@ -861,7 +1018,7 @@ proc ipaRunner*(ovlsFofnFn: string,
 
     let threadpool = threadpool_simple.newThreadPool(nProc)
 
-    m4filt(icmds, opts, threadpool)
+    m4filtPiped(icmds, opts, threadpool)
 
 proc idx*(in_fn: string) =
     ## Given foo.m4, create index file foo.m4.idx
