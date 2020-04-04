@@ -915,13 +915,6 @@ proc m4filtContained*(
 
     let n = m4filtContainedStreams(sin, sout, min_len, min_idt_pct)
 
-    # Write the number of lines into a separate file (to aid parsing, someday).
-    let
-        nout_fn = out_fn & ".n"
-        fh = open(nout_fn, fmWrite)
-    fh.write($n)
-    fh.close()
-
 proc split(index: M4Index, nProc: int): seq[int] =
     # Split index into at most nProc subsets, weighted by the
     # overlap count of each pile.
