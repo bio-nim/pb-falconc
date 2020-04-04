@@ -198,7 +198,7 @@ iterator getNextPile*(sin: streams.Stream): seq[Overlap] =
                 if ov.Aname != readA:
                     yield ovls
                     readA = ov.Aname
-                    ovls = @[]
+                    ovls.setLen(0)
                 ovls.add(ov)
             yield ovls
         except AssertionError:
