@@ -895,6 +895,7 @@ proc m4filtContainedStreams*(
 proc m4filtContained*(
  in_fn: string,
  out_fn: string,
+ nProc: int = 24,
  lfc = false, # IGNORED
  disable_chimer_bridge_removal = false, # IGNORED
  ctg_prefix = "", # IGNORED

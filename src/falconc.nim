@@ -191,6 +191,7 @@ when isMainModule:
             help = {
              "min-len": "Minimum read length; reads shorter than minLen will be discarded",
              "min-idt-pct": "Minimum overlap identity; worse overlaps will be discarded",
+             "n-proc": "Number of processes to run locally (ignored for now)",
              "in-fn": "Input m4 overlap file",
              "out-fn": "Output m4 overlap file",
              "lfc": "CLIGEN-NOHELP",
