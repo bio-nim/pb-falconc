@@ -1,5 +1,6 @@
 # vim: sts=4:ts=4:sw=4:et:tw=0
 #from cpuinfo import nil
+from math import nil
 from os import nil
 #from threadpool import nil
 from streams import nil
@@ -135,3 +136,31 @@ proc thousands*(v: SomeInteger): string =
         result = result[1 .. ^1]
     if negative:
         result = '-' & result
+
+proc splitWeighted*(n: int, sizes: seq[int]): seq[int] =
+    # Split sizes into n contiguous subsets, weighted by each size.
+    # Each elem of result will represent a range of elems of sizes.
+    # len(result) will be <= n
+
+    if n == 0:
+        return
+    var sums: seq[int]
+    var totalSize = math.sum(sizes)
+    var remSize = totalSize
+    var curr = 0
+    var remN = min(n, len(sizes))
+    while len(sizes) > curr:
+        #assert len(sizes) > curr, "not enough elements in sizes {len(sizes)} <= {curr}".fmt
+        result.add(0)
+        let approx = int(math.ceil(remSize / remN))
+        #echo "approx={approx}, remaining={remN}, tot={remSize}".fmt
+        sums.add(0)
+        while sums[^1] < approx:
+            result[^1] += 1
+            sums[^1] += sizes[curr]
+            curr += 1
+        remN -= 1
+        remSize -= sums[^1]
+    assert math.sum(result) == len(sizes)
+    assert math.sum(sizes) == totalSize
+    assert len(result) <= n
