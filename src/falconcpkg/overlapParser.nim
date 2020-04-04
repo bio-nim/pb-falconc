@@ -146,6 +146,41 @@ proc `$`(o: Overlap): string =
 proc toTuple*(o: Overlap): (string, string, int, float64, bool, int, int, int, bool, int, int, int, string, string) =
     return (o.Aname, o.Bname, o.score, o.idt, o.Arev, o.Astart, o.Aend, o.Alen, o.Brev, o.Bstart, o.Bend, o.Blen, o.tag, o.tagplus)
 
+iterator getNextPile*(sin: streams.Stream, index: M4Index): seq[Overlap] =
+    var
+        readA: string
+        ov: Overlap
+        buff = ""
+        ovls = newSeq[Overlap]()
+
+    var totalCount = 0
+    #for rec in index:
+    #    #echo "count=", rec.count
+    #    #for i in 0 ..< count:
+    #    #    echo i
+    #    totalCount += rec.count
+    #echo "totalCount=", totalCount
+    #if 0 == len(index):
+    #    return
+    #echo " index[0]:", index[0]
+    assert not sin.isNil
+    streams.setPosition(sin, index[0].pos.int)
+    for rec in index:
+        #echo "  rec:", rec
+        assert streams.getPosition(sin) == rec.pos
+        #let pile = streams.readStr(sin, rec.len)
+        #var ssin = streams.newStringStream(pile)
+        for i in 0 ..< rec.count:
+            let ok = streams.readLine(sin, buff)
+            assert ok, "Failed to read at M4Index {index[i]}".fmt
+            ov = parseOverlap(buff)
+            ovls.add(ov)
+        #if true:
+        #    yield @[]
+        #    return
+        yield ovls
+        ovls.setLen(0)
+
 iterator getNextPile*(sin: streams.Stream): seq[Overlap] =
     var
         readA: string
