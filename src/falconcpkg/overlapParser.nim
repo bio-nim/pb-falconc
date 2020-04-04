@@ -1,4 +1,5 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
+from os import nil
 from strutils import splitWhitespace, parseInt, parseFloat, parseBool
 from strformat import fmt
 from ./util import isEmptyFile, log
@@ -28,6 +29,31 @@ type
         len*: int32
     M4Index* = seq[M4IndexRecord]
 
+proc dumpIndexQuick*(m4idx: M4Index, idx_s: streams.Stream) =
+    # Dummy field for Aread.
+    for rec in m4idx:
+        let desc = "0000 {rec.count} {rec.pos} {rec.len}\n".fmt
+        streams.write(idx_s, desc)
+
+proc sscanf(s: cstring, frmt: cstring): cint {.varargs, importc,
+        header: "<stdio.h>".}
+
+proc parseM4IndexQuick*(sin: streams.Stream): M4Index =
+    # Ignore the Aread field.
+    let s_frmt = "%*s %lld %ld %lld"
+    var
+        line: string
+        count: clonglong
+        pos: clong
+        len: clonglong
+        rec: M4IndexRecord
+    while streams.readLine(sin, line):
+        let scanned = sscanf(line.cstring, s_frmt.cstring,
+            addr rec.count, addr rec.pos, addr rec.len)
+        if 3 != scanned:
+            let msg = "Too few fields ({scanned}) for '{line}'".fmt
+            raise newException(util.TooFewFieldsError, msg)
+        result.add(rec)
 
 iterator determineNextPile(f: streams.Stream): tuple[count, len:int32] =
     # A "pile" is a block of newline-delimited lines which
@@ -64,6 +90,20 @@ proc index*(ovls_s: streams.Stream): M4Index =
         result.add(rec)
         pos += lenPile
 
+proc getM4Index*(ovls_fn: string): M4Index =
+    let idx_fn = ovls_fn & ".idx"
+    if os.fileExists(idx_fn):
+        #log("Not yet ready to read M4 index '{idx_fn}'. Skipping.".fmt)
+        log("Using existing index '{idx_fn}'.".fmt)
+        return parseM4IndexQuick(streams.openFilestream(idx_fn, fmRead))
+    var ovls_s = streams.openFilestream(ovls_fn)
+    let sout = streams.openFilestream(idx_fn, fmWrite)
+    if sout.isNil:
+        log("Cannot open '{idx_fn}' for write. Not writing index.".fmt)
+    result = index(ovls_s)
+    if not sout.isNil:
+        log("Writing 'quick' index '{idx_fn}', w/ phony Aread names.".fmt)
+        dumpIndexQuick(result, sout)
 
 proc parseOverlap*(s: string): Overlap =
     var ovl: Overlap
