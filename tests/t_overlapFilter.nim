@@ -204,37 +204,3 @@ suite "m4filt workflow":
         # It can be as simple as something that just passes through.
         # This will probably require some refactoring, because the function operates
         # on files and not streams.
-
-proc checkIndex(m4, expected: string) =
-    let sin = streams.newStringStream(m4)
-    var sout = streams.newStringStream()
-    let m4idx = index(sin)
-    check sin.getPosition() == m4.len
-    dumpIndexHuman(m4idx, sout)
-    streams.setPosition(sout, 0)
-    check streams.readAll(sout) == expected
-
-suite "m4 dumpIndexHuman (temporary)":
-    test "empty":
-        checkIndex("", "")
-    test "one":
-        let
-            m4 = "foo bar 1 2 3\n"
-            expected = "0000 1 0 14\n"
-        checkIndex(m4, expected)
-    test "several":
-        let
-            m4 = """
-001 001 -1 100.000 0 0 0 0 0 0 0 0 overlap
-001 002 -1 100.000 0 0 0 0 0 0 0 0 overlap
-001 003 -1 100.000 0 0 0 0 0 0 0 0 3
-005 008 -1 100.000 0 0 0 0 0 0 0 0 overlap
-006 008 -1 100.000 0 0 0 0 0 0 0 0 overlap foo
-006 009 -1 100.000 0 0 0 0 0 0 0 0 overlap foo
-"""
-            expected = """
-0000 3 0 123
-0000 1 123 43
-0000 2 166 94
-"""
-        checkIndex(m4, expected)

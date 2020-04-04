@@ -200,7 +200,7 @@ when isMainModule:
         ],
         [overlapFilter.idx, cmdName = "m4filt-idx",
           help = {
-            "ovls-fn": "Path to .m4 file. Index filename will have '.idx' appended.",
+            "in-fn": "Path to .m4 file. Index filename will have '.idx' appended.",
             }
         ],
         [ovl_cov_stats.run, cmdName = "ovl-cov-stats",
