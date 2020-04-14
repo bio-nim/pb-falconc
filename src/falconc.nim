@@ -15,6 +15,7 @@ from falconcpkg/bam2fasta import nil
 from falconcpkg/ovl_cov_stats import nil
 from falconcpkg/stats_gff import nil
 from falconcpkg/ipa2_construct_config import nil
+from falconcpkg/ipa2_polish import nil
 
 import cligen
 
@@ -258,6 +259,14 @@ when isMainModule:
          help = {
           "out-fmt": "Output format of the config file. (json or bash)",
           "out-fn": "Output file.",
+            }
+        ],
+        [ipa2_polish.split, cmdName = "ipa2-polish-prepare",
+         help = {
+          "max-nshards": "Maximum number of distributed jobs",
+          "read-to-contig-fn": "2-columns: read# ctg-name",
+          "out-shard-prefix": "Shard files are prefix.*.ext",
+          "out-block-prefix": "Block files are prefix.*.ext",
             }
         ],
     )
