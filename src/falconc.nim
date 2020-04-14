@@ -264,9 +264,9 @@ when isMainModule:
         [ipa2_polish.split, cmdName = "ipa2-polish-prepare",
          help = {
           "max-nshards": "Maximum number of distributed jobs",
-          "read-to-contig-fn": "2-columns: read# ctg-name",
-          "out-shard-prefix": "Shard files are prefix.*.ext",
-          "out-block-prefix": "Block files are prefix.*.ext",
+          #"read-to-contig-fn": "2-columns: read# ctg-name",
+          "block-prefix": "Block files are (prefix).(block_id).reads (prepared previously)",
+          "shard-prefix": "The output. Shard files are (prefix).(shard_id).block_ids",
             }
         ],
     )

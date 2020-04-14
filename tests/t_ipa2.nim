@@ -1,6 +1,7 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
 
 import falconcpkg/ipa2_construct_config
+import falconcpkg/ipa2_polish
 import unittest, streams, tables
 
 let expected_default_bash = """
@@ -85,3 +86,15 @@ suite "ipa2_construct_config":
     test "invalid":
         expect PbError:
             let cfg = parse("foo=bar")
+
+suite "ipa2_polish_prepare":
+    test "countReadsInBlock":
+        let sample = """
+0001
+0002
+"""
+        let count = countReadsInBlock(streams.newStringStream(sample))
+        check count == 2
+    test "getBlockIdFromFilename":
+        check 0 == getBlockIdFromFilename("foo/bar.0.reads")
+        check 99 == getBlockIdFromFilename("foobar.99.reads")
