@@ -108,7 +108,7 @@ proc missingTerminus*(o: Overlap): bool =
 
 
 
-proc summarize(filterLog: string, readsToFilter: var Table[string, int]) =
+proc summarize(filterLog: string, readsToFilter: var tables.Table[string, int]) =
     var readFilterCounts = initCountTable[string]()
     for k, v in readsToFilter:
         if (v and CREAD) > 0: readFilterCounts.inc("contained read")
@@ -162,7 +162,7 @@ proc summarize(filterLog: string, readsToFilter: var Table[string, int]) =
     fout.write(report)
 
 proc summarize(filterLog: string, fn: string) =
-    var readsToFilterSum = initTable[string, int]()
+    var readsToFilterSum = tables.initTable[string, int]()
     var fstream = newFileStream(fn, fmRead)
     defer: fstream.close()
     fstream.unpack(readsToFilterSum)
@@ -198,7 +198,7 @@ proc gapInCoverage*(ovls: seq[Overlap], minDepth: int, minIdt: float): bool =
     positions.sort()
 
     var runningClip, runningCov, runningClean = 0
-    var posInfo = initOrderedTable[int, Info]()
+    var posInfo = tables.initOrderedTable[int, Info]()
     # turn running start/end into a depth at each start/end
     for i in 0 .. (positions.len() - 1):
         if positions[i].tag:
@@ -278,7 +278,7 @@ proc stage1Filter*(overlaps: seq[Overlap],
  minDepth: int,
  gapFilt: bool,
  minIdt: float,
- readsToFilter: var Table[string, int]) =
+ readsToFilter: var tables.Table[string, int]) =
     if 0 == len(overlaps):
         return
     var fivePrimeCount, threePrimeCount: int = 0
@@ -352,7 +352,7 @@ proc comp(x, y: ScoredOverlap): int =
 proc stage2Filter(overlaps: seq[Overlap],
  minIdt: float,
  bestN: int,
- readsToFilter: var Table[string, int]): seq[string] =
+ readsToFilter: var tables.Table[string, int]): seq[string] =
 
     var left, right: seq[ScoredOverlap]
     result = newSeq[string]()
@@ -389,14 +389,14 @@ proc stage2Filter(overlaps: seq[Overlap],
             break
 
 proc mergeBlacklists*(blistFofn: string,
- readsToFilter: var Table[string, int]) =
+ readsToFilter: var tables.Table[string, int]) =
     let f = open(blistFofn, fmRead)
     defer: f.close()
 
     var bFile: string
 
     while f.readLine(bFile):
-        var tmp = initTable[string, int]()
+        var tmp = tables.initTable[string, int]()
         var fstream = newFileStream(bFile, fmRead)
         defer: fstream.close()
         log("merging blacklist file: {bFile}".fmt)
@@ -407,7 +407,7 @@ proc mergeBlacklists*(blistFofn: string,
             else:
                 readsToFilter[k] = v
 
-proc dumpBlacklist*(readsToFilter: var Table[string, int]) =
+proc dumpBlacklist*(readsToFilter: var tables.Table[string, int]) =
     for k, v in readsToFilter:
         echo "{k:09} {v}".fmt
 
@@ -439,7 +439,7 @@ type
         index: M4Index
         m4Fn: string
 proc doStage1(args: Stage1) =
-    var readsToFilter1 = initTable[string, int]()
+    var readsToFilter1 = tables.initTable[string, int]()
     for i in op.getNextPile(args.sin):
         stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
                 args.minDepth, args.gapFilt,
@@ -449,7 +449,7 @@ proc doStage1(args: Stage1) =
     fstream.pack(readsToFilter1)
 proc doStage1Indexed(args: Stage1) =
     # Here, we actually use the index in the Stage1 obj.
-    var readsToFilter1 = initTable[string, int]()
+    var readsToFilter1 = tables.initTable[string, int]()
     var sin = streams.newFileStream(args.m4Fn, fmRead)
     defer: sin.close()
     for i in getNextPile(sin, args.index):
@@ -460,7 +460,7 @@ proc doStage1Indexed(args: Stage1) =
     defer: fstream.close()
     fstream.pack(readsToFilter1)
 proc doStage2(args: Stage2) =
-    var readsToFilter2 = initTable[string, int]()
+    var readsToFilter2 = tables.initTable[string, int]()
     var fstream = newFileStream(args.blacklistIn, fmRead)
     defer: fstream.close()
     fstream.unpack(readsToFilter2)
@@ -474,7 +474,7 @@ proc doStage2(args: Stage2) =
             output.writeLine(l)
 proc doStage2Indexed(args: Stage2) =
     # Here, we actually use the index in the Stage2 obj.
-    var readsToFilter2 = initTable[string, int]()
+    var readsToFilter2 = tables.initTable[string, int]()
     var fstream = newFileStream(args.blacklistIn, fmRead)
     defer: fstream.close()
     fstream.unpack(readsToFilter2)
@@ -559,7 +559,7 @@ proc runStage2*(
     doStage2(args)
 
 proc runMergeBlacklists*(blistFofn: string, outFn: string) =
-    var readsToFilter = initTable[string, int]()
+    var readsToFilter = tables.initTable[string, int]()
 
     mergeBlacklists(blistFofn, readsToFilter)
 
@@ -568,7 +568,7 @@ proc runMergeBlacklists*(blistFofn: string, outFn: string) =
     fstream.pack(readsToFilter)
 
 proc runDumpBlacklist*(blacklist: string) =
-    var readsToFilter = initTable[string, int]()
+    var readsToFilter = tables.initTable[string, int]()
     var fstream = newFileStream(blacklist, fmRead)
     defer: fstream.close()
     fstream.unpack(readsToFilter)
