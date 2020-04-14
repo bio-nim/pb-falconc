@@ -55,7 +55,7 @@ proc parseM4IndexQuick*(sin: streams.Stream): M4Index =
             raise newException(util.TooFewFieldsError, msg)
         result.add(rec)
 
-iterator determineNextPile(f: streams.Stream): tuple[count, len:int32] =
+iterator determineNextPile(f: streams.Stream): tuple[count, len: int32] =
     # A "pile" is a block of newline-delimited lines which
     # each start with the same string.
     # On each iteration, set "lenPile" to the length of that string and yield
