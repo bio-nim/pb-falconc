@@ -1,8 +1,8 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
 from ./util import log
-from algorithm import nil
+#from algorithm import nil
 from os import nil
-from sequtils import nil
+#from sequtils import nil
 from streams import nil
 from strformat import fmt
 from strutils import nil
@@ -47,7 +47,7 @@ proc countBlocks(prefix: string): BlockCounts =
     for block_id in 0 ..< len(counts):
         result.add(counts[block_id])
 
-proc shardBlocks(prefix: string, block_counts: BlockCounts, nShards: int) =
+proc shardBlocks(prefix: string, block_counts: BlockCounts, nShards: int): seq[int] =
     # Shard contigs into at most nShards subsets, weighted by the
     # number of reads for each block (which is a contig).
     # Assume block_ids are 0 .. len(block_counts)-1.
@@ -65,7 +65,13 @@ proc shardBlocks(prefix: string, block_counts: BlockCounts, nShards: int) =
             fout.writeLine(block_id)
             block_id += 1
             count -= 1
+    return shards
 
-proc split*(max_nshards: int, shard_prefix="shard_id", block_prefix="block_id") =
-    echo "prepare {max_nshards} shard:{shard_prefix} block:{block_prefix}".fmt
-    shardBlocks(shard_prefix, countBlocks(block_prefix), max_nshards)
+proc split*(max_nshards: int, shard_prefix="shard_id", block_prefix="block_id", out_ids_fn="") =
+    log("prepare {max_nshards} shard:{shard_prefix} block:{block_prefix}".fmt)
+    let shards = shardBlocks(shard_prefix, countBlocks(block_prefix), max_nshards)
+    if out_ids_fn != "":
+        var fout = open(out_ids_fn, fmWrite)
+        for shard_id in 0 ..< len(shards):
+            fout.writeLine(shard_id)
+        fout.close()
