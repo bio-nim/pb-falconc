@@ -66,6 +66,6 @@ proc shardBlocks(prefix: string, block_counts: BlockCounts, nShards: int) =
             block_id += 1
             count -= 1
 
-proc split*(max_nshards: int, shard_prefix, block_prefix: string) =
+proc split*(max_nshards: int, shard_prefix="shard_id", block_prefix="block_id") =
     echo "prepare {max_nshards} shard:{shard_prefix} block:{block_prefix}".fmt
     shardBlocks(shard_prefix, countBlocks(block_prefix), max_nshards)
