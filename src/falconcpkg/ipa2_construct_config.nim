@@ -24,6 +24,7 @@ config_ovl_filter_opt = --max-diff 80 --max-cov 100 --min-cov 1 --bestn 10 --min
 config_use_seq_ids = 0
 config_phasing_opt =
 config_phasing_piles = 10000
+config_max_polish_block_mb = 100
 """
 
 type
