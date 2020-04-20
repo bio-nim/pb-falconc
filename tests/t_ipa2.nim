@@ -89,7 +89,7 @@ suite "ipa2_construct_config":
         expect PbError:
             let cfg = parse("foo=bar")
 
-suite "ipa2_polish_prepare":
+suite "ipa_polish_prepare":
     test "countReadsInBlock":
         let sample = """
 0001

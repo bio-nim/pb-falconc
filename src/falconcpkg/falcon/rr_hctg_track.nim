@@ -226,7 +226,7 @@ proc get_rid_to_ctg*(fn: string): auto =
 
 #min_len, bestn, rid_to_ctg, rid_to_phase
 type
-    Settings* {.requiresInit.} = object
+    Settings*{.requiresInit.} = object
         n_core*: int                #48
         file_list*: seq[string]
         db_fn*: string              #"?/raw_reads.db"

@@ -22,8 +22,8 @@ type
         tag*: string
         tagplus*: string # tag (redundantly) plus extra columns
 
-    M4IndexRecord* {.packed.} = object # does not need to be packed unless mem-mapped
-                                       #name: string # should be int, and not needed here anyway
+    M4IndexRecord*{.packed.} = object # does not need to be packed unless mem-mapped
+                                      #name: string # should be int, and not needed here anyway
         count*: int32
         pos*: int64
         len*: int32
