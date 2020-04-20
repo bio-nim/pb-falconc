@@ -10,6 +10,7 @@ config_block_size=4096
 config_coverage=0
 config_existing_db_prefix=''
 config_genome_size=0
+config_max_polish_block_mb=100
 config_ovl_filter_opt='--max-diff 80 --max-cov 100 --min-cov 1 --bestn 10 --min-len 4000 --gapFilt --minDepth 4'
 config_ovl_min_idt=98
 config_ovl_min_len=1000
@@ -30,6 +31,7 @@ let expected_default_json = """
     "config_coverage": "0",
     "config_existing_db_prefix": "",
     "config_genome_size": "0",
+    "config_max_polish_block_mb": "100",
     "config_ovl_filter_opt": "--max-diff 80 --max-cov 100 --min-cov 1 --bestn 10 --min-len 4000 --gapFilt --minDepth 4",
     "config_ovl_min_idt": "98",
     "config_ovl_min_len": "1000",
