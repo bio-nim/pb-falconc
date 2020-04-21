@@ -18,7 +18,7 @@ let expected_json = """{
 }"""
 let expected_table = """Assembly statistics
        120  sum
-        40. mean
+        40  mean
         40  median
         50  max
         30  min (aka N100)
@@ -27,7 +27,7 @@ let expected_table = """Assembly statistics
          3  L90
         40  N50
          2  L50
-        42. E-Size (aka expected size of contig for a random base)
+        42  E-Size (aka expected size of contig for a random base)
 """
 
 suite "stats":

@@ -89,7 +89,7 @@ proc to_json*(st: Stats): string =
 proc to_table*(st: Stats): string =
     result = strformat.fmt"""Assembly statistics
 {st.sum:>10}  sum
-{math.round(st.mean):>11.0f} mean
+{math.round(st.mean):>10.0f}  mean
 {st.median:>10}  median
 {st.max:>10}  max
 {st.nl100.nx:>10}  min (aka N100)
@@ -98,7 +98,7 @@ proc to_table*(st: Stats): string =
 {st.nl90.lx:>10}  L90
 {st.nl50.nx:>10}  N50
 {st.nl50.lx:>10}  L50
-{math.round(st.esize):>11.0f} E-Size (aka expected size of contig for a random base)
+{math.round(st.esize):>10.0f}  E-Size (aka expected size of contig for a random base)
 """
 
 proc calc_stats*(unsorted_lengths: seq[int32]): Stats =
