@@ -8,7 +8,7 @@ from strformat import nil
 import osproc
 import times
 
-type PbError* = object of Exception
+type PbError* = object of CatchableError
 type GenomeCoverageError* = object of PbError
 type FieldTooLongError* = object of PbError
 type TooFewFieldsError* = object of PbError
