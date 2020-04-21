@@ -1,5 +1,5 @@
 # vim: sw=2 ts=2 sts=2 tw=0 et:
-from sequtils import nil
+#from sequtils import nil
 from hashes import nil
 from strutils import format
 from sets import incl, excl, contains, isValid
