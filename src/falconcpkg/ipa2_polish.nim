@@ -104,19 +104,20 @@ proc writeBlocksMulti(contig2len: tables.TableRef[string, int], contig2reads: Co
 
     var count = 0
     for bloke in blocks:
+        let
+            ctg_id_fn = "{prefix}.{count}.ctg_id".fmt
+            reads_fn = "{prefix}.{count}.reads".fmt
+        var
+            ctg_id_fout = system.open(ctg_id_fn, fmWrite)
+            reads_fout = system.open(reads_fn, fmWrite)
         for contig in bloke:
+            ctg_id_fout.writeLine(contig)
             let
                 reads = contig2reads[contig]
-                ctg_id_fn = "{prefix}.{count}.ctg_id".fmt
-                reads_fn = "{prefix}.{count}.reads".fmt
-            block:
-                var fout = system.open(ctg_id_fn, fmWrite)
-                fout.writeLine(contig)
-                system.close(fout)
-            var fout = system.open(reads_fn, fmWrite)
             for read in reads:
-                fout.writeLine(read)
-            system.close(fout)
+                reads_fout.writeLine(read)
+        system.close(reads_fout)
+        system.close(ctg_id_fout)
         count += 1
 
 proc writeBlocksLikeAwk(contig2reads: Contig2Reads, prefix: string) =
