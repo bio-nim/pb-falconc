@@ -261,13 +261,23 @@ when isMainModule:
           "out-fn": "Output file.",
             }
         ],
-        [ipa2_polish.split, cmdName = "ipa2-polish-prepare",
+        [ipa2_polish.split, cmdName = "ipa-polish-split",
          help = {
           "max-nshards": "Maximum number of distributed jobs",
-          #"read-to-contig-fn": "2-columns: read# ctg-name",
+          "mb-per-block": "Try to target megabases total in all contigs in any block",
+          "in-read-to-contig-fn": "2-columns: read# ctg-name",
           "block-prefix": "Block files are (prefix).(block_id).reads (prepared previously)",
           "shard-prefix": "The output. Shard files are (prefix).(shard_id).block_ids",
           "out-ids-fn": "If given, this lists the shard_ids, 0 thru N-1, corresponding to the shard-prefix.block_id files.",
+          "in-fai-fns": "Indexed fasta filenames to polish",
             }
+        ],
+        [ipa2_polish.prepare, cmdName = "ipa2-polish-prepare", # TODO: remove
+            help = {
+             "max-nshards": "Maximum number of distributed jobs",
+             "block-prefix": "Block files are (prefix).(block_id).reads (prepared previously)",
+             "shard-prefix": "The output. Shard files are (prefix).(shard_id).block_ids",
+             "out-ids-fn": "If given, this lists the shard_ids, 0 thru N-1, corresponding to the shard-prefix.block_id files.",
+                }
         ],
     )
