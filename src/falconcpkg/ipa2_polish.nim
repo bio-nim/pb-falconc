@@ -67,7 +67,7 @@ proc shardBlocks(prefix: string, block_counts: BlockCounts, nShards: int): seq[i
             count -= 1
     return shards
 
-proc split*(max_nshards: int, shard_prefix="shard_id", block_prefix="block_id", out_ids_fn="") =
+proc split*(max_nshards: int, shard_prefix = "shard_id", block_prefix = "block_id", out_ids_fn = "") =
     log("prepare {max_nshards} shard:{shard_prefix} block:{block_prefix}".fmt)
     let shards = shardBlocks(shard_prefix, countBlocks(block_prefix), max_nshards)
     if out_ids_fn != "":
