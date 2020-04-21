@@ -3,7 +3,7 @@ from algorithm import nil
 import streams
 import strformat
 from json import `%*`
-import overlapParser
+from overlapParser import nil
 import std/stats
 import system
 import os

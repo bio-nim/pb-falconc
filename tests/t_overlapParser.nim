@@ -1,7 +1,7 @@
 import unittest
 import falconcpkg/overlapParser as uut
 import streams
-from strformat import fmt
+#from strformat import fmt
 
 let testDataGetNextPile1 = """
 15210 10043 -4436 99.910 0 8199 12654 16697 0 8427 12886 12886 u

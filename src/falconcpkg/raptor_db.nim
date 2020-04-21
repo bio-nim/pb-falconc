@@ -172,7 +172,7 @@ proc toString(ins: var Headroom, outs: var string, source: string = "") =
 proc load_rdb*(sin: streams.Stream): ref Db =
     new(result)
     #var tab: char # to verify that we have read the entire "header"
-    var header: string
+    #var header: string
     var buf0: Headroom
     var buf1: Headroom
 
