@@ -166,7 +166,7 @@ proc splitWeighted*(n: int, sizes: seq[int]): seq[int] =
     assert len(result) <= n
 
 
-proc combineToTarget*(target: int, weights: seq[int]): seq[seq[int]] =
+proc combineToTarget*(target: int64, weights: seq[int64]): seq[seq[int]] =
     # Given a seq of weights,
     # combine consecutive groups of them until they meet target.
     # Return a seq of seqs of those indices. For now,
