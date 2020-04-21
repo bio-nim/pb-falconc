@@ -34,3 +34,13 @@ suite "util":
         check splitWeighted(3, @[4, 3, 2, 1]) == [1, 1, 2]
         check splitWeighted(2, @[4, 3, 2, 1]) == [2, 2]
         check splitWeighted(1, @[4, 3, 2, 1]) == [4]
+    test "combineToTarget":
+        check combineToTarget(3, @[2, 2, 2, 2]) == @[@[0, 1], @[2, 3]]
+        check combineToTarget(3, @[2, 2, 2]) == @[@[0, 1], @[2]]
+        check combineToTarget(3, @[2, 2]) == @[@[0, 1]]
+        check combineToTarget(2, @[2, 2, 2, 2]) == @[@[0], @[1], @[2], @[3]]
+        check combineToTarget(1, @[2, 2, 2, 2]) == @[@[0], @[1], @[2], @[3]]
+        check combineToTarget(4, @[2, 2, 2, 2]) == @[@[0, 1], @[2, 3]]
+        check combineToTarget(3, @[1, 2, 3, 4]) == @[@[0, 1], @[2], @[3]]
+        check combineToTarget(3, @[1, 1, 2, 1]) == @[@[0, 1, 2], @[3]]
+        check combineToTarget(3, @[1, 2, 1, 1]) == @[@[0, 1], @[2, 3]]

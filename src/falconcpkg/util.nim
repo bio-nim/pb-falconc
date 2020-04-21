@@ -164,3 +164,26 @@ proc splitWeighted*(n: int, sizes: seq[int]): seq[int] =
     assert math.sum(result) == len(sizes)
     assert math.sum(sizes) == totalSize
     assert len(result) <= n
+
+
+proc combineToTarget*(target: int, weights: seq[int]): seq[seq[int]] =
+    # Given a seq of weights,
+    # combine consecutive groups of them until they meet target.
+    # Return a seq of seqs of those indices. For now,
+    # the results will always be consecutive, e.g.
+    # [ [0,1,2], [2,3], [4], [5,6] ]
+    var
+        total = target
+        n = -1
+    for i in 0 ..< len(weights):
+        let next_weight = weights[i]
+        #echo "i:{i} next:{next_weight} total:{total} n:{n}".fmt
+        if total >= target:
+            # new group
+            result.add(@[i])
+            n = len(result) - 1
+            total = next_weight
+        else:
+            # current group
+            result[n].add(i)
+            total += next_weight
