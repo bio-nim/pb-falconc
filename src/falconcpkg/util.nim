@@ -187,3 +187,28 @@ proc combineToTarget*(target: int64, weights: seq[int64]): seq[seq[int]] =
             # current group
             result[n].add(i)
             total += next_weight
+
+const
+    MAX_HEADROOM* = 1024
+type
+    Headroom* = array[MAX_HEADROOM, cchar]
+
+proc sscanf*(s: cstring, frmt: cstring): cint {.varargs, importc,
+        header: "<stdio.h>".}
+
+proc strlen(s: cstring): cint {.importc: "strlen", nodecl.}
+
+proc strlen(a: var Headroom): int =
+    let n = strlen(cast[cstring](addr a))
+    return n
+
+proc toString*(ins: var Headroom, outs: var string, source: string = "") =
+    var n = strlen(ins)
+    if n >= (MAX_HEADROOM - 1):
+        # Why is max-1 illegal? B/c this is used after sscanf, and that has no way to report
+        # a buffer-overflow. So a 0 at end-of-buffer is considered too long.
+        let msg = strformat.fmt"Too many characters in substring (>{MAX_HEADROOM - 1}) from '{source}'"
+        raise newException(util.FieldTooLongError, msg)
+    outs.setLen(n)
+    for i in 0 ..< n:
+        outs[i] = ins[i]

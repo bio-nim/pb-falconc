@@ -35,9 +35,6 @@ proc dumpIndexQuick*(m4idx: M4Index, idx_s: streams.Stream) =
         let desc = "0000 {rec.count} {rec.pos} {rec.len}\n".fmt
         streams.write(idx_s, desc)
 
-proc sscanf(s: cstring, frmt: cstring): cint {.varargs, importc,
-        header: "<stdio.h>".}
-
 proc parseM4IndexQuick*(sin: streams.Stream): M4Index =
     # Ignore the Aread field.
     let s_frmt = "%*s %lld %ld %lld"
@@ -48,7 +45,7 @@ proc parseM4IndexQuick*(sin: streams.Stream): M4Index =
         len: clonglong
         rec: M4IndexRecord
     while streams.readLine(sin, line):
-        let scanned = sscanf(line.cstring, s_frmt.cstring,
+        let scanned = util.sscanf(line.cstring, s_frmt.cstring,
             addr rec.count, addr rec.pos, addr rec.len)
         if 3 != scanned:
             let msg = "Too few fields ({scanned}) for '{line}'".fmt
