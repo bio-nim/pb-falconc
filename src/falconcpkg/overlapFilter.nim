@@ -39,7 +39,8 @@ LA4falcon Columns:
  10. startRead2
  11. endRead2
  12. length read2
- 13. tag
+ 13. tag (optional)
+ 14. extra column(s)? (optional)
 ]#
 
 #Bitfield for read classification

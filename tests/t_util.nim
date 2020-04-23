@@ -3,6 +3,8 @@
 import falconcpkg/util
 import unittest
 from sequtils import nil
+from strutils import nil
+import falconcpkg/util
 
 suite "util":
     test "thousands":
@@ -47,3 +49,19 @@ suite "util":
         check icombineToTarget(3, @[1, 2, 3, 4]) == @[@[0, 1], @[2], @[3]]
         check icombineToTarget(3, @[1, 1, 2, 1]) == @[@[0, 1, 2], @[3]]
         check icombineToTarget(3, @[1, 2, 1, 1]) == @[@[0, 1], @[2, 3]]
+
+    test "sscanf":
+        let s_frmt = strutils.format("%ld %$#[^\n]",
+            (util.MAX_HEADROOM - 1))
+        var
+            bufAname: util.Headroom
+            name: string
+            val: int32
+            line: string
+        line = "123 abc def"
+        let scanned = util.sscanf(line.cstring, s_frmt.cstring,
+            addr val, addr bufAname)
+        check val == 123
+        check scanned == 2
+        util.toString(bufAname, name, line)
+        check "abc def" == name
