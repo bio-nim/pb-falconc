@@ -102,7 +102,57 @@ proc getM4Index*(ovls_fn: string): M4Index =
         log("Writing 'quick' index '{idx_fn}', w/ phony Aread names.".fmt)
         dumpIndexQuick(result, sout)
 
-proc parseOverlap*(s: string): Overlap =
+proc parseOverlap*(line: string): Overlap =
+    var ovl: Overlap
+    var
+        bufAname: util.Headroom
+        bufBname: util.Headroom
+        buftagplus: util.Headroom
+        arev, brev: int # for bools
+    let s_frmt = strutils.format("%$#s %$#s %ld %lf %ld %ld %ld %ld %ld %ld %ld %ld",
+            (util.MAX_HEADROOM - 1),
+            (util.MAX_HEADROOM - 1),
+            (util.MAX_HEADROOM - 1),
+            (util.MAX_HEADROOM - 1))
+    let scanned = util.sscanf(line.cstring, s_frmt.cstring,
+        addr bufAname, addr bufBname,
+        addr ovl.score, addr ovl.idt,
+        addr arev, addr ovl.Astart, addr ovl.Aend, addr ovl.Alen,
+        addr brev, addr ovl.Bstart, addr ovl.Bend, addr ovl.Blen)
+    if scanned != 12:
+        let msg = "Error parsing ovl (scanned {scanned}!=12): '{line}'".fmt
+        util.raiseEx(msg)
+    ovl.Arev = (arev != 0)
+    ovl.Brev = (brev != 0)
+    util.toString(bufAname, ovl.Aname, line)
+    util.toString(bufBname, ovl.Bname, line)
+
+    # If there are > 13 cols, tag is the 13th.
+    # Here we do a bunch of work to find the tag,
+    # but still keep all cols 13+ as "tagplus".
+    # It is ugly but efficient.
+    var
+        tag: string
+        nspaces = 0
+        space = -1
+    while nspaces < 12:
+        space = strutils.find(line, ' ', start=(space+1))
+        if space >= 0:
+            nspaces += 1
+        else:
+            break
+    if nspaces == 12:
+        assert space > 0
+        ovl.tagplus = line[space+1 .. ^1]
+
+    space = strutils.find(ovl.tagplus, ' ')
+    if space != -1:
+        ovl.tag = ovl.tagplus[0 ..< space]
+    else:
+        ovl.tag = ovl.tagplus
+    return ovl
+
+proc parseOverlapOld*(s: string): Overlap =
     var ovl: Overlap
     let ld = s.splitWhitespace(maxsplit = 12)
     if ld.len() < 12:
