@@ -102,6 +102,13 @@ proc getM4Index*(ovls_fn: string): M4Index =
         log("Writing 'quick' index '{idx_fn}', w/ phony Aread names.".fmt)
         dumpIndexQuick(result, sout)
 
+let s_frmt = strutils.format("%$#s %$#s %ld %lf %ld %ld %ld %ld %ld %ld %ld %ld",
+        (util.MAX_HEADROOM - 1),
+        (util.MAX_HEADROOM - 1),
+        (util.MAX_HEADROOM - 1),
+        (util.MAX_HEADROOM - 1))
+let s_frmt_cstring = s_frmt.cstring
+
 proc parseOverlap*(line: string): Overlap =
     var ovl: Overlap
     var
@@ -109,12 +116,7 @@ proc parseOverlap*(line: string): Overlap =
         bufBname: util.Headroom
         buftagplus: util.Headroom
         arev, brev: int # for bools
-    let s_frmt = strutils.format("%$#s %$#s %ld %lf %ld %ld %ld %ld %ld %ld %ld %ld",
-            (util.MAX_HEADROOM - 1),
-            (util.MAX_HEADROOM - 1),
-            (util.MAX_HEADROOM - 1),
-            (util.MAX_HEADROOM - 1))
-    let scanned = util.sscanf(line.cstring, s_frmt.cstring,
+    let scanned = util.sscanf(line.cstring, s_frmt_cstring,
         addr bufAname, addr bufBname,
         addr ovl.score, addr ovl.idt,
         addr arev, addr ovl.Astart, addr ovl.Aend, addr ovl.Alen,
