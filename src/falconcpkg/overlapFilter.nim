@@ -350,9 +350,60 @@ proc comp(x, y: ScoredOverlap): int =
             return -1
         return 1
 
+proc CheckOverhangLen*(ovl: Overlap, minOverhang: int): bool =
+    ## This function should filter only dovetail overlaps which
+    ## do not extend beyond minOverhang bases over left or
+    ## right ends.
+    ## Any non-dovetail overlap should return true, because this function
+    ## doesn't filter those.
+
+    let a_left = ovl.Astart
+    let a_right = ovl.Alen - ovl.Aend
+    var b_left = ovl.Bstart
+    var b_right = ovl.Blen - ovl.Bend
+    if ovl.Brev:
+        swap(b_left, b_right)
+    let a_hang = a_left - b_left
+    let b_hang = b_right - a_right
+
+    let allowedDovetailDist: int = 0
+
+    # Unknown.
+    var ovlType: string = "u"
+
+    if a_left <= allowedDovetailDist and a_right <= allowedDovetailDist:
+        # A is contained in B.
+        ovlType = "c"
+    elif b_left <= allowedDovetailDist and b_right <= allowedDovetailDist:
+        # B is contained in A.
+        ovlType = "C"
+    elif a_left <= allowedDovetailDist and b_right <= allowedDovetailDist:
+        # 5' overlap.
+        ovlType = "5"
+    elif a_right <= allowedDovetailDist and b_left <= allowedDovetailDist:
+        # 3' overlap.
+        ovlType = "3"
+
+    if ovlType != "3" and ovlType != "5":
+        return true
+
+    # Legend:
+    # http://wgs-assembler.sourceforge.net/wiki/index.php/Overlaps
+    #   - 3' overlap: a_hang >= 0 && b_hang >= 0
+    #   - 5' overlap: a_hang <= 0 && b_hang <= 0
+    #   - B contained in A: a_hang >= 0 && b_hang <= 0
+    #   - A contained in B: a_hang <= 0 && b_hang >= 0
+    if a_hang >= 0 and b_hang >= 0 and a_hang < minOverhang and b_hang < minOverhang:
+        return false
+    elif a_hang <= 0 and b_hang <= 0 and a_hang > (-minOverhang) and b_hang > (-minOverhang):
+        return false
+
+    return true
+
 proc stage2Filter(overlaps: seq[Overlap],
  minIdt: float,
  bestN: int,
+ minOverhang: int,
  readsToFilter: var tables.Table[string, int]): seq[string] =
 
     var left, right: seq[ScoredOverlap]
@@ -371,6 +422,9 @@ proc stage2Filter(overlaps: seq[Overlap],
             continue
         if i.tag == "u":
             continue
+        if minOverhang > 0 and CheckOverhangLen(i, minOverhang) == false:
+            continue
+
         if i.Astart == 0:
             left.add((i.score, i.Blen - (i.Bend - i.Bstart), i))
         elif i.Aend == i.Alen:
@@ -431,6 +485,7 @@ type
     Stage2 = ref object
         minIdt: float
         bestN: int
+        minOverhang: int
         blacklistIn: string
         filteredOutput: string
         # Used only san M4Index:
@@ -470,7 +525,7 @@ proc doStage2(args: Stage2) =
     defer: output.close()
 
     for i in op.getNextPile(args.sin):
-        let lines = stage2Filter(i, args.minIdt, args.bestN, readsToFilter2)
+        let lines = stage2Filter(i, args.minIdt, args.bestN, args.minOverhang, readsToFilter2)
         for l in lines:
             output.writeLine(l)
 proc doStage2Indexed(args: Stage2) =
@@ -486,7 +541,7 @@ proc doStage2Indexed(args: Stage2) =
     var sin = streams.newFileStream(args.m4Fn, fmRead)
     defer: sin.close()
     for i in getNextPile(sin, args.index):
-        let lines = stage2Filter(i, args.minIdt, args.bestN, readsToFilter2)
+        let lines = stage2Filter(i, args.minIdt, args.bestN, args.minOverhang, readsToFilter2)
         for l in lines:
             output.writeLine(l)
 proc startStage1(args: Stage1) =
@@ -548,12 +603,14 @@ proc runStage1*(
 proc runStage2*(
  minIdt: float = 90.0,
  bestN: int = 10,
+ minOverhang: int = 0,
  blacklistIn: string,
  filteredOutput: string
     ) =
     var args = Stage2(
         minIdt: minIdt,
         bestN: bestN,
+        minOverhang: minOverhang,
         filteredOutput: filteredOutput,
         blacklistIn: blacklistIn)
     args.sin = newFileStream(stdin)
@@ -585,6 +642,7 @@ type
         maxCov: int
         maxDiff: int
         bestN: int
+        minOverhang: int
         minDepth: int
         gapFilt: bool
         keepIntermediates: bool
@@ -654,6 +712,7 @@ proc m4filtSingleton(m4Fn: string,
             #icmd: icmd,
             minIdt: opts.idtStage2,
             bestN: opts.bestN,
+            minOverhang: opts.minOverhang,
             filteredOutput: ovlFn,
             blacklistIn: merged_blacklist_msgpack_fn)
         stage2.add(args2)
@@ -889,6 +948,7 @@ proc m4filtRunner*(
  maxCov: int = 200,
  maxDiff: int = 100,
  bestN: int = 10,
+ minOverhang: int = 0,
  minDepth: int = 2,
  gapFilt: bool = false,
  keepIntermediates: bool = false,
@@ -912,6 +972,7 @@ proc m4filtRunner*(
         maxCov: maxCov,
         maxDiff: maxDiff,
         bestN: bestN,
+        minOverhang: minOverhang,
         minDepth: minDepth,
         gapFilt: gapFilt,
         keepIntermediates: keepIntermediates,
@@ -930,6 +991,7 @@ proc falconRunner*(db: string,
  maxDiff: int = 100,
  bestN: int = 10,
  minDepth: int = 2,
+ minOverhang: int = 0,
  gapFilt: bool = false,
  keepIntermediates: bool = false,
  nProc: int = 24,
@@ -960,6 +1022,7 @@ proc falconRunner*(db: string,
         maxCov: maxCov,
         maxDiff: maxDiff,
         bestN: bestN,
+        minOverhang: minOverhang,
         minDepth: minDepth,
         gapFilt: gapFilt,
         keepIntermediates: keepIntermediates,
@@ -978,6 +1041,7 @@ proc ipaRunner*(ovlsFofnFn: string,
  maxCov: int = 200,
  maxDiff: int = 100,
  bestN: int = 10,
+ minOverhang: int = 0,
  minDepth: int = 2,
  gapFilt: bool = false,
  keepIntermediates: bool = false,
@@ -1011,6 +1075,7 @@ proc ipaRunner*(ovlsFofnFn: string,
         maxCov: maxCov,
         maxDiff: maxDiff,
         bestN: bestN,
+        minOverhang: minOverhang,
         minDepth: minDepth,
         gapFilt: gapFilt,
         keepIntermediates: keepIntermediates,
