@@ -90,9 +90,11 @@ proc index*(ovls_s: streams.Stream): M4Index =
 proc getM4Index*(ovls_fn: string): M4Index =
     let idx_fn = ovls_fn & ".idx"
     if os.fileExists(idx_fn):
-        #log("Not yet ready to read M4 index '{idx_fn}'. Skipping.".fmt)
-        log("Using existing index '{idx_fn}'.".fmt)
-        return parseM4IndexQuick(streams.openFilestream(idx_fn, fmRead))
+        if util.isOlderFile(ovls_fn, idx_fn):
+            #log("Not yet ready to read M4 index '{idx_fn}'. Skipping.".fmt)
+            log("Using existing index '{idx_fn}'.".fmt)
+            return parseM4IndexQuick(streams.openFilestream(idx_fn, fmRead))
+        log("Over-writing existing index '{idx_fn}', older than its '.m4'.".fmt)
     var ovls_s = streams.openFilestream(ovls_fn)
     let sout = streams.openFilestream(idx_fn, fmWrite)
     if sout.isNil:
@@ -215,13 +217,14 @@ iterator getNextPile*(sin: streams.Stream, index: M4Index): seq[Overlap] =
     assert not sin.isNil
     streams.setPosition(sin, index[0].pos.int)
     for rec in index:
-        #echo "  rec:", rec
+        #echo "  rec:", rec, " pos:", streams.getPosition(sin)
         assert streams.getPosition(sin) == rec.pos
         #let pile = streams.readStr(sin, rec.len)
         #var ssin = streams.newStringStream(pile)
         for i in 0 ..< rec.count:
             let ok = streams.readLine(sin, buff)
             assert ok, "Failed to read at M4Index {index[i]}".fmt
+            # echo "   line:'{buff}'".fmt
             ov = parseOverlap(buff)
             ovls.add(ov)
         #if true:
