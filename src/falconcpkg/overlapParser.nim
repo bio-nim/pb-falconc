@@ -140,7 +140,7 @@ proc parseOverlap*(line: string): Overlap =
         nspaces = 0
         space = -1
     while nspaces < 12:
-        space = strutils.find(line, ' ', start=(space+1))
+        space = strutils.find(line, ' ', start = (space+1))
         if space >= 0:
             nspaces += 1
         else:

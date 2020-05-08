@@ -22,9 +22,16 @@ proc isEmptyFile*(fn: string): bool =
         return true
     return false
 
+#from strformat import fmt
 proc isOlderFile*(afn, bfn: string): bool =
     ## Return true iff afn is older than bnf.
-    return os.getLastModificationTime(afn) < os.getLastModificationTime(bfn)
+    let
+        at = os.getLastModificationTime(afn)
+        bt = os.getLastModificationTime(bfn)
+        #af = at.format("yyyy-MM-dd'T'HH:mm:ss,ffffffzzz")
+        #bf = bt.format("yyyy-MM-dd'T'HH:mm:ss,ffffffzzz")
+    #echo "glmt {afn}: {af}, {bfn}: {bf}".fmt
+    return at < bt
 
 template withcd*(newdir: string, statements: untyped) =
     let olddir = os.getCurrentDir()
