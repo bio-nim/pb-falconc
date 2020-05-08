@@ -65,3 +65,22 @@ suite "util":
         check scanned == 2
         util.toString(bufAname, name, line)
         check "abc def" == name
+
+    test "isEmptyFile":
+        let fn = "empty.txt"
+        check os.execShellCmd("rm -f {fn}".fmt) == 0
+        check os.execShellCmd("touch {fn}".fmt) == 0
+        check isEmptyFile(fn)
+        check os.execShellCmd("echo fuller >> {fn}".fmt) == 0
+        check not isEmptyFile(fn)
+        check os.execShellCmd("rm -f {fn}".fmt) == 0
+
+    test "isOlderFile":
+        let afn = "a.txt"
+        let bfn = "b.txt"
+        check os.execShellCmd("touch {afn}".fmt) == 0
+        check os.execShellCmd("touch {bfn}".fmt) == 0
+        check isOlderFile(afn, bfn)
+        check os.execShellCmd("touch {afn}".fmt) == 0
+        check not isOlderFile(afn, bfn)
+        check os.execShellCmd("rm -f {afn} {bfn}".fmt) == 0

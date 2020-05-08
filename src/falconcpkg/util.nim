@@ -22,6 +22,10 @@ proc isEmptyFile*(fn: string): bool =
         return true
     return false
 
+proc isOlderFile*(afn, bfn: string): bool =
+    ## Return true iff afn is older than bnf.
+    return os.getLastModificationTime(afn) < os.getLastModificationTime(bfn)
+
 template withcd*(newdir: string, statements: untyped) =
     let olddir = os.getCurrentDir()
     os.setCurrentDir(newdir)
