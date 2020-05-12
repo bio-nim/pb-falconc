@@ -28,7 +28,9 @@ proc get_version(): auto =
     cToolVersion & "+git." & cGitSha1
 
 proc version() =
-    echo cToolVersion & "+git." & cGitSha1
+    stdout.writeLine("falconc version=", get_version(), ", nim-version=",
+            system.NimVersion)
+
 proc dataset(extras: seq[string]) =
     echo "falconc dataset"
 proc kmers(int_dummy: int = 42, string_dummy: string = "hello") =
@@ -41,10 +43,6 @@ proc utils(extras: seq[string], float_req: float) =
 #    echo "finished"
 
 when isMainModule:
-    # Show version at start-up, for now.
-    stderr.writeLine("  version=", get_version(), ", nim-version=",
-            system.NimVersion)
-
     dispatchMulti(
         [version],
         [dataset, short = {}, help = {}],
