@@ -23,7 +23,6 @@ config_autocomp_max_cov = 1
 config_ovl_filter_opt = --max-diff 80 --max-cov 100 --min-cov 1 --bestn 10 --min-len 4000 --gapFilt --minDepth 4
 config_use_seq_ids = 0
 config_phasing_opt =
-config_phasing_piles = 10000
 config_phasing_split_opt = --split-type noverlaps --limit 3000000
 config_max_polish_block_mb = 100
 """
@@ -45,7 +44,6 @@ type
     #    ovl_filter_opt,
     #    use_seq_ids,
     #    phase_opt,
-    #    phasing_piles: string
 
 proc formatter_json(config_dict: ConfigTable): string =
     return json.pretty( % config_dict, 4)
