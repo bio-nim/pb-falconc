@@ -72,16 +72,21 @@ proc combineBlocks(prefix: string, blockWeights: BlockWeights, nShards: int): se
 type
     Contig2Reads = tables.TableRef[string, seq[string]]
 
-proc get_Contig2Reads(sin: streams.Stream, in_r2c_fn: string): Contig2Reads =
+proc get_Contig2Reads(sin: streams.Stream, in_r2c_fn: string, contig2len: tables.TableRef[string, int]): Contig2Reads =
     result = tables.newTable[string, seq[string]]()
     var parser: parsecsv.CsvParser
     parsecsv.open(parser, sin, filename = in_r2c_fn, separator = ' ', skipInitialSpace = true)
     while parsecsv.readRow(parser, 2):
+        if not contig2len.haskey(parser.row[1]):
+#            echo "Skipping key: ", parser.row[1]
+            continue
         tables.mgetOrPut(result, parser.row[1], @[]).add(parser.row[0])
 
 proc combineContigs(target_mb: int, contigs: seq[string], contig2len: tables.TableRef[string, int]): seq[seq[string]] =
     # Combine contigs into subsets, where each has at least mb MegaBases
     # of contigs.
+    if len(contigs) != tables.len(contig2len):
+        echo "len(contigs) = ", len(contigs), ", len(contig2len) = ", len(contig2len)
     assert len(contigs) == tables.len(contig2len)
     var weights: seq[int64]
     for contig_idx in 0 ..< len(contigs):
@@ -142,7 +147,7 @@ proc writeBlocksLikeAwk(contig2reads: Contig2Reads, prefix: string) =
             fout.writeLine(read)
         system.close(fout)
 
-proc updateChromLens(chrom2len: tables.TableRef[string, int], fai_fn: string) =
+proc updateChromLens(chrom2len: tables.TableRef[string, int], fai_fn: string, min_len: int) =
     # Raise if a new chrom already exists in this table.
     var fin: hts.Fai
     let fn = fai_fn[0 ..< ^4]
@@ -152,28 +157,58 @@ proc updateChromLens(chrom2len: tables.TableRef[string, int], fai_fn: string) =
     echo "{nchroms} reads in '{fn}'".fmt
     for i in 0 ..< nchroms:
         let chrom: string = fin[i]
-        echo " chrom:", chrom
+        # echo " chrom:", chrom
         if chrom in chrom2len:
             let
                 n: int = chrom2len[chrom]
                 msg = "Error: chrom '{chrom}' was already seen {n}. Read names in fasta input files must be unique!".fmt
             util.raiseEx(msg)
         let n = hts.chrom_len(fin, chrom)
+        if n < min_len:
+            echo "Too short: chrom = {chrom}, len = {n}".fmt
+            continue
         chrom2len[chrom] = n
     #hts.destroy_fai(fin) # We may need to activate destructors to do this properly. Oh, well.
 
 proc split*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
         in_read_to_contig_fn = "sorted.read_to_contig.csv", out_ids_fn = "all_shard_ids",
         mb_per_block: int,
+        min_len: string = "",
         in_fai_fns: seq[string]) =
     ## The trailing list of fasta.fai filenames are FASTA index files.
     ## They will be used to split the shards somewhat evenly.
+
+    # Parse the minimum length filters.
+    let min_len_split = strutils.split(min_len, ',')
+    var min_len_array: seq[int]
+    if len(min_len) == 0:
+        # If no min-len filters were specified, initialize all to 0.
+        for val in in_fai_fns:
+            min_len_array.add(0)
+    else:
+        # Otherwise, parse them.
+        for val in min_len_split:
+            if len(val) == 0:
+                continue
+            min_len_array.add(strutils.parseInt(val))
+    # Sanity check.
+    if len(min_len_array) != len(in_fai_fns):
+        let
+            n_min_len: int = len(min_len_array)
+            n_files: int = len(in_fai_fns)
+            msg = "Error: wrong number of minimum length values specified. Specified values for min len: {n_min_len}, specified input files: {n_files}".fmt
+        util.raiseEx(msg)
+
     log("split {max_nshards} shard:{shard_prefix} block:{block_prefix} in:'{in_read_to_contig_fn}' out:'{out_ids_fn}'".fmt)
     var chrom2len = tables.newTable[string, int]()
-    for fn in in_fai_fns:
-        chrom2len.updateChromLens(fn)
+    for i in 0..<len(in_fai_fns):
+        let fn = in_fai_fns[i]
+        let curr_min_len = min_len_array[i]
+#    for fn in in_fai_fns:
+        log("Loading contig lens from '{fn}' with min_len = {curr_min_len}".fmt)
+        chrom2len.updateChromLens(fn, curr_min_len)
     var sin = streams.openFileStream(in_read_to_contig_fn)
-    let contig2reads = get_Contig2Reads(sin, in_read_to_contig_fn)
+    let contig2reads = get_Contig2Reads(sin, in_read_to_contig_fn, chrom2len)
     streams.close(sin)
     writeBlocksMulti(chrom2len, contig2reads, block_prefix, mb_per_block)
     let shards = combineBlocks(shard_prefix, countBlocks(block_prefix), max_nshards)
