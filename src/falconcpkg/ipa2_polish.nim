@@ -188,7 +188,7 @@ proc split*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
         echo "Loading the blacklist."
         var sin = streams.openFileStream(blacklist_fn)
         blacklist = loadSet(sin)
-        echo "Blacklist contains ", len(blacklist), " elements."
+    echo "Blacklist contains ", len(blacklist), " elements."
 
     log("split {max_nshards} shard:{shard_prefix} block:{block_prefix} in:'{in_read_to_contig_fn}' out:'{out_ids_fn}'".fmt)
     var chrom2len = tables.newTable[string, int]()
