@@ -21,6 +21,7 @@ config_phasing_split_opt='--split-type noverlaps --limit 3000000'
 config_polish_run=1
 config_seeddb_opt='-k 32 -w 80 --space 2'
 config_seqdb_opt='--compression 0'
+config_use_hpc=0
 config_use_seq_ids=0
 """
 
@@ -42,6 +43,7 @@ let expected_default_json = """
     "config_polish_run": "1",
     "config_seeddb_opt": "-k 32 -w 80 --space 2",
     "config_seqdb_opt": "--compression 0",
+    "config_use_hpc": "0",
     "config_use_seq_ids": "0"
 }
 """

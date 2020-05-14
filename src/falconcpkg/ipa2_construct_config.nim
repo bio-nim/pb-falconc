@@ -25,6 +25,7 @@ config_use_seq_ids = 0
 config_phasing_opt =
 config_phasing_split_opt = --split-type noverlaps --limit 3000000
 config_max_polish_block_mb = 100
+config_use_hpc = 0
 """
 
 type
