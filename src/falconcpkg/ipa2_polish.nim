@@ -86,8 +86,8 @@ proc combineContigs(target_mb: int, contigs: seq[string], contig2len: tables.Tab
     # Combine contigs into subsets, where each has at least mb MegaBases
     # of contigs.
     if len(contigs) != tables.len(contig2len):
-        echo "len(contigs) = ", len(contigs), ", len(contig2len) = ", len(contig2len)
-    assert len(contigs) == tables.len(contig2len)
+        let msg = "len(contigs)={len(contigs)} != len(contig2len)={len(contig2len)}".fmt
+        util.raiseEx(msg)
     var weights: seq[int64]
     for contig_idx in 0 ..< len(contigs):
         weights.add(contig2len[contigs[contig_idx]])
@@ -154,7 +154,7 @@ proc updateChromLens(chrom2len: tables.TableRef[string, int], fai_fn: string, bl
     if not open(fin, fn):
         util.raiseEx("Could not open '{fai_fn}' ({fn})".fmt)
     let nchroms = hts.len(fin)
-    echo "{nchroms} reads in '{fn}'".fmt
+    log("{nchroms} reads in '{fn}'".fmt)
     for i in 0 ..< nchroms:
         let chrom: string = fin[i]
         # echo " chrom:", chrom
@@ -165,7 +165,7 @@ proc updateChromLens(chrom2len: tables.TableRef[string, int], fai_fn: string, bl
             util.raiseEx(msg)
         let n = hts.chrom_len(fin, chrom)
         if blacklist.contains(chrom):
-            echo "Skipping blacklisted sequence: chrom = {chrom}, len = {n}".fmt
+            log("Skipping blacklisted sequence: chrom = {chrom}, len = {n}".fmt)
             continue
         chrom2len[chrom] = n
     #hts.destroy_fai(fin) # We may need to activate destructors to do this properly. Oh, well.
@@ -185,10 +185,11 @@ proc split*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
 
     var blacklist = initSet[string]()
     if len(blacklist_fn) != 0:
-        echo "Loading the blacklist."
+        log("Loading the blacklist from '{blacklist_fn}'.".fmt)
         var sin = streams.openFileStream(blacklist_fn)
         blacklist = loadSet(sin)
-    echo "Blacklist contains ", len(blacklist), " elements."
+        streams.close(sin)
+    log("Blacklist contains {len(blacklist)} elements.".fmt)
 
     log("split {max_nshards} shard:{shard_prefix} block:{block_prefix} in:'{in_read_to_contig_fn}' out:'{out_ids_fn}'".fmt)
     var chrom2len = tables.newTable[string, int]()
