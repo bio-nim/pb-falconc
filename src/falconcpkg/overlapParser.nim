@@ -72,7 +72,7 @@ iterator determineNextPile(f: streams.Stream): tuple[count, len: int32] =
         if 0 == count:
             assert 0 == lenPile
             let iSpace = strutils.find(line, ' ')
-            assert iSpace != -1, line
+            assert iSpace != -1, "Bad input line '{line}'.\n(Be sure to delete the .idx file if written!)".fmt
             curr = line[0 .. iSpace]
         lenPile += int32(len(line) + 1) # Note: bug if "\r\l"
         count += 1

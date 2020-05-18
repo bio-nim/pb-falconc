@@ -749,7 +749,7 @@ proc m4filtSingleton(m4Fn: string,
         defer: ov.close()
         for line in ov.lines:
             outFile.writeLine(line)
-    outFile.writeLine("---")
+    #outFile.writeLine("---")
     outFile.close()
 
     if not opts.keepIntermediates:
@@ -840,7 +840,7 @@ proc m4filtPiped(icmds: seq[string],
         defer: ov.close()
         for line in ov.lines:
             outFile.writeLine(line)
-    outFile.writeLine("---")
+    #outFile.writeLine("---")
     outFile.close()
 
     if not opts.keepIntermediates:
@@ -895,6 +895,7 @@ proc m4filtContainedStreams*(
 proc m4filtContained*(
  in_fn: string,
  out_fn: string,
+ nProc: int = 24,
  lfc = false, # IGNORED
  disable_chimer_bridge_removal = false, # IGNORED
  ctg_prefix = "", # IGNORED
@@ -908,19 +909,14 @@ proc m4filtContained*(
 
     # Also, write a single letter for 5/3/C/O instead of "contained/contains/overlap".
 
+    let m4idx = getM4Index(in_fn)
+    log(" len(m4idx)={len(m4idx)}".fmt)
     let sin = streams.newFileStream(in_fn, fmRead)
     defer: sin.close()
     let sout = streams.newFileStream(out_fn, fmWrite)
     defer: sout.close()
 
     let n = m4filtContainedStreams(sin, sout, min_len, min_idt_pct)
-
-    # Write the number of lines into a separate file (to aid parsing, someday).
-    let
-        nout_fn = out_fn & ".n"
-        fh = open(nout_fn, fmWrite)
-    fh.write($n)
-    fh.close()
 
 proc split(index: M4Index, nProc: int): seq[int] =
     # Split index into at most nProc subsets, weighted by the
