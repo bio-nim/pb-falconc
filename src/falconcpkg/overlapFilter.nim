@@ -341,14 +341,14 @@ proc stage1Filter*(overlaps: seq[Overlap],
 
 proc comp(x, y: ScoredOverlap): int =
     ## custom sort for bestN
+    if x.ovlpLen < y.ovlpLen:
+        return -1
     if x.ovlpLen == y.ovlpLen:
         if x.mRange < y.mRange:
             return -1
         else:
             return 1
-        if x.ovlpLen < y.ovlpLen:
-            return -1
-        return 1
+    return 1
 
 proc CheckOverhangLen*(ovl: Overlap, minOverhang: int): bool =
     ## This function should filter only dovetail overlaps which
