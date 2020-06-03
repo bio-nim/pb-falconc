@@ -4,7 +4,7 @@ from math import nil
 from os import nil
 #from threadpool import nil
 from streams import nil
-from strformat import nil
+from strformat import fmt
 import osproc
 import times
 

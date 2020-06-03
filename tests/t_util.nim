@@ -2,9 +2,11 @@
 
 import falconcpkg/util
 import unittest
+from strformat import fmt
+
+from os import nil
 from sequtils import nil
 from strutils import nil
-import falconcpkg/util
 
 suite "util":
     test "thousands":
@@ -37,6 +39,7 @@ suite "util":
         check splitWeighted(3, @[4, 3, 2, 1]) == [1, 1, 2]
         check splitWeighted(2, @[4, 3, 2, 1]) == [2, 2]
         check splitWeighted(1, @[4, 3, 2, 1]) == [4]
+        check splitWeighted(4, @[4191650, 4009608, 4154778, 4096102]) == [1,1,1,1]
     test "combineToTarget":
         proc icombineToTarget(t: int, weights: seq[int]): seq[seq[int]] =
             return combineToTarget(t, sequtils.mapIt(weights, int64(it)))
