@@ -208,6 +208,21 @@ proc split*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
             fout.writeLine(shard_id)
         fout.close()
 
+proc shard_blocks_m4*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
+        out_ids_fn = "all_shard_ids") =
+    ## Given several {block_prefix}.(block_id).m4 files,
+    ## create up to {max_nshards} files that each contain a list
+    ## of block_ids (one per line).
+    ## For now, they are balanced by the number of reads in each .m4 file.
+    ## (Later, the contents of each shard will be processed linearly, one block at a time,
+    ## on a given compute node.)
+    let shards = combineBlocks(shard_prefix, countLines(block_prefix&".", ".m4"), max_nshards)
+    if out_ids_fn != "":
+        var fout = open(out_ids_fn, fmWrite)
+        for shard_id in 0 ..< len(shards):
+            fout.writeLine(shard_id)
+        fout.close()
+
 proc prepare*(max_nshards: int, shard_prefix = "shard_id", block_prefix = "block_id", out_ids_fn = "") =
     log("prepare {max_nshards} shard:{shard_prefix} block:{block_prefix}".fmt)
     let shards = combineBlocks(shard_prefix, countLines(block_prefix&".", ".reads"), max_nshards)
