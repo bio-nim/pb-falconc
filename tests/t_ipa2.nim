@@ -92,12 +92,12 @@ suite "ipa2_construct_config":
             let cfg = parse("foo=bar")
 
 suite "ipa_polish_prepare":
-    test "countReadsInBlock":
+    test "countLines":
         let sample = """
 0001
 0002
 """
-        let count = countReadsInBlock(streams.newStringStream(sample))
+        let count = countLines(streams.newStringStream(sample))
         check count == 2
     test "getBlockIdFromFilename":
         check 0 == getBlockIdFromFilename("foo/bar.0.reads")
