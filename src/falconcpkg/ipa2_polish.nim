@@ -72,6 +72,27 @@ proc combineBlocks(prefix: string, blockWeights: BlockWeights, nShards: int): se
         fout.close()
     return shards
 
+proc partitionBlocks(prefix: string, blockWeights: BlockWeights, nShards: int): seq[seq[int]] =
+    # Combine blocks into at most nShards subsets, weighted by the
+    # number of reads for each block (which map to one or more contigs).
+    # Assume block_ids are 0 .. len(blockWeights)-1.
+    # This version allows non-consecutive block_ids for each shard.
+    # len(result) will be <= nShards
+
+    let shards: seq[seq[int]] = util.partitionWeighted(nShards, blockWeights)
+    var shard_sizes: seq[int]
+    for s in shards:
+        shard_sizes.add(s.len())
+    log("shard sizes:{shard_sizes}".fmt)
+    for shard_id in 0 ..< shards.len():
+        let fn = prefix & "." & $shard_id & ".block_ids"
+        log("shard:{fn}".fmt)
+        var fout = open(fn, fmWrite)
+        for block_id in shards[shard_id]:
+            fout.writeLine(block_id)
+        fout.close()
+    return shards
+
 type
     Contig2Reads = tables.TableRef[string, seq[string]]
 
@@ -216,7 +237,7 @@ proc shard_blocks_m4*(max_nshards: int, shard_prefix = "shard", block_prefix = "
     ## For now, they are balanced by the number of reads in each .m4 file.
     ## (Later, the contents of each shard will be processed linearly, one block at a time,
     ## on a given compute node.)
-    let shards = combineBlocks(shard_prefix, countLines(block_prefix&".", ".m4"), max_nshards)
+    let shards = partitionBlocks(shard_prefix, countLines(block_prefix&".", ".m4"), max_nshards)
     if out_ids_fn != "":
         var fout = open(out_ids_fn, fmWrite)
         for shard_id in 0 ..< len(shards):
