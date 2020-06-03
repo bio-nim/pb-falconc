@@ -273,6 +273,14 @@ when isMainModule:
           "in-fai-fns": "Indexed fasta filenames to polish",
             }
         ],
+        [ipa2_polish.shard_blocks_m4, cmdName = "ipa-shard-blocks-m4",
+         help = {
+          "max-nshards": "Maximum number of distributed jobs",
+          "block-prefix": "Block files are (prefix).(block_id).m4 (prepared previously)",
+          "shard-prefix": "The output. Shard files are (prefix).(shard_id).block_ids",
+          "out-ids-fn": "If given, this lists the shard_ids, 0 thru N-1, corresponding to the shard-prefix.block_id files.",
+            }
+        ],
         [ipa2_polish.prepare, cmdName = "ipa2-polish-prepare", # TODO: remove
             help = {
              "max-nshards": "Maximum number of distributed jobs",

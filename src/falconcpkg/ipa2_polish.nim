@@ -14,38 +14,39 @@ import sets
 type
     BlockWeights = seq[int]
 
-proc countReadsInBlock*(sin: streams.Stream): int =
+proc countLines*(sin: streams.Stream): int =
     # Simply count the number of lines in this file.
     # (Each line is a read.)
     var line: string
     while streams.readLine(sin, line):
         result += 1
 
-proc getBlockIdFromFilename*(fn: string): int =
+proc getBlockIdFromFilename*(fn: string, ext=".reads"): int =
     # foo.99.reads => 99
     # This could use re, but to avoid requiring pcre we
     # simply search for ".reads".
-    let lastDot = len(fn) - 6
+    let lastDot = len(fn) - len(ext)
     let next2LastDot = strutils.rfind(fn, '.', 0, lastDot-1)
     assert next2LastDot != -1, fn
     #echo "next:", next2LastDot, " ", lastDot, " '", fn[next2LastDot+1 ..< lastDot], "'"
     return strutils.parseInt(fn[next2LastDot+1 ..< lastDot])
 
-proc countBlocks(prefix: string): BlockWeights =
-    # Find all files called prefix.*.reads in the filesystem,
+proc countLines(prefix, ext: string): BlockWeights =
+    # Find all files called {prefix}(.*){suffix} in the filesystem,
     # and count the number of reads in each.
+    # E.g. "blocks.*.m4"
     # In the result, the index is the block-id.
     #let counts = tables.toCountTable(sequtils.toSeq(tables.values(r2c)))
     #var
     #    contigs = sequtils.toSeq(tables.keys(counts))
     #    sizes: seq[int]
     #algorithm.sort(contigs)
-    let pattern = prefix & ".*.reads"
+    let pattern = prefix & "*" & ext
     var counts = tables.initCountTable[int]()
     for fn in os.walkFiles(pattern):
-        let count = countReadsInBlock(streams.openFileStream(fn))
-        log("Found {count} reads in {fn}.".fmt)
-        let block_id = getBlockIdFromFilename(fn)
+        let count = countLines(streams.openFileStream(fn))
+        log("Found {count} lines in '{fn}'.".fmt)
+        let block_id = getBlockIdFromFilename(fn, ext)
         tables.inc(counts, block_id, count)
     for block_id in 0 ..< len(counts):
         result.add(counts[block_id])
@@ -68,6 +69,28 @@ proc combineBlocks(prefix: string, blockWeights: BlockWeights, nShards: int): se
             fout.writeLine(block_id)
             block_id += 1
             count -= 1
+        fout.close()
+    return shards
+
+proc partitionBlocks(prefix: string, blockWeights: BlockWeights, nShards: int): seq[seq[int]] =
+    # Combine blocks into at most nShards subsets, weighted by the
+    # number of reads for each block (which map to one or more contigs).
+    # Assume block_ids are 0 .. len(blockWeights)-1.
+    # This version allows non-consecutive block_ids for each shard.
+    # len(result) will be <= nShards
+
+    let shards: seq[seq[int]] = util.partitionWeighted(nShards, blockWeights)
+    var shard_sizes: seq[int]
+    for s in shards:
+        shard_sizes.add(s.len())
+    log("shard sizes:{shard_sizes}".fmt)
+    for shard_id in 0 ..< shards.len():
+        let fn = prefix & "." & $shard_id & ".block_ids"
+        log("shard:{fn}".fmt)
+        var fout = open(fn, fmWrite)
+        for block_id in shards[shard_id]:
+            fout.writeLine(block_id)
+        fout.close()
     return shards
 
 type
@@ -199,7 +222,22 @@ proc split*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
     let contig2reads = get_Contig2Reads(sin, in_read_to_contig_fn, chrom2len)
     streams.close(sin)
     writeBlocksMulti(chrom2len, contig2reads, block_prefix, mb_per_block)
-    let shards = combineBlocks(shard_prefix, countBlocks(block_prefix), max_nshards)
+    let shards = combineBlocks(shard_prefix, countLines(block_prefix&".", ".reads"), max_nshards)
+    if out_ids_fn != "":
+        var fout = open(out_ids_fn, fmWrite)
+        for shard_id in 0 ..< len(shards):
+            fout.writeLine(shard_id)
+        fout.close()
+
+proc shard_blocks_m4*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
+        out_ids_fn = "all_shard_ids") =
+    ## Given several {block_prefix}.(block_id).m4 files,
+    ## create up to {max_nshards} files that each contain a list
+    ## of block_ids (one per line).
+    ## For now, they are balanced by the number of reads in each .m4 file.
+    ## (Later, the contents of each shard will be processed linearly, one block at a time,
+    ## on a given compute node.)
+    let shards = partitionBlocks(shard_prefix, countLines(block_prefix&".", ".m4"), max_nshards)
     if out_ids_fn != "":
         var fout = open(out_ids_fn, fmWrite)
         for shard_id in 0 ..< len(shards):
@@ -208,7 +246,7 @@ proc split*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
 
 proc prepare*(max_nshards: int, shard_prefix = "shard_id", block_prefix = "block_id", out_ids_fn = "") =
     log("prepare {max_nshards} shard:{shard_prefix} block:{block_prefix}".fmt)
-    let shards = combineBlocks(shard_prefix, countBlocks(block_prefix), max_nshards)
+    let shards = combineBlocks(shard_prefix, countLines(block_prefix&".", ".reads"), max_nshards)
     if out_ids_fn != "":
         var fout = open(out_ids_fn, fmWrite)
         for shard_id in 0 ..< len(shards):

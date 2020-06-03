@@ -4,7 +4,8 @@ from math import nil
 from os import nil
 #from threadpool import nil
 from streams import nil
-from strformat import nil
+from strformat import fmt
+import heapqueue
 import osproc
 import times
 
@@ -176,6 +177,42 @@ proc splitWeighted*(n: int, sizes: seq[int]): seq[int] =
     assert math.sum(sizes) == totalSize
     assert len(result) <= n
 
+type
+    BinSum = object
+        indices: seq[int]
+        sum: int64
+        order: int
+    WeightedIndex = tuple[index: int, size: int]
+
+proc `<`(a, b: BinSum): bool =
+    return a.sum < b.sum or (a.sum == b.sum and a.indices.len() < b.indices.len()) or
+        (a.sum == b.sum and a.indices.len() == b.indices.len() and a.order < b.order)
+proc `<`(a, b: WeightedIndex): bool =
+    return a.size > b.size or (a.size == b.size and a > b)
+
+proc partitionWeighted*(n: int, sizes: seq[int]): seq[seq[int]] =
+    ## {sizes} is an index; other seqs refer to its indices.
+    ## The splits for this version are not required to be contiguous.
+    ## The result has at most n index-seqs, none of which are empty.
+    var biggest = initHeapQueue[WeightedIndex]()
+    for i in 0 ..< len(sizes):
+        let wi: WeightedIndex = (index:i, size:sizes[i])
+        biggest.push(wi)
+    var smallest_bin = initHeapQueue[BinSum]()
+    for x in 0 ..< n:
+        var bin: BinSum = BinSum(sum:0, order:x)
+        smallest_bin.push(bin)
+    while biggest.len() > 0:
+        let wi = biggest.pop()
+        var bin = smallest_bin.pop()
+        bin.indices.add(wi.index)
+        bin.sum += wi.size
+        smallest_bin.push(bin)
+    while smallest_bin.len() > 0:
+        let bin = smallest_bin.pop()
+        if bin.indices.len() > 0:
+            result.add(bin.indices)
+    return result
 
 proc combineToTarget*(target: int64, weights: seq[int64]): seq[seq[int]] =
     # Given a seq of weights,
