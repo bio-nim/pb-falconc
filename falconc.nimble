@@ -1,6 +1,6 @@
 # Package
 
-version       = "1.3.0"
+version       = "1.4.0"
 author        = "Zev Kronenberg"
 author        = "Christopher Dunn"
 description   = "C Utilities for bioinformatics"
@@ -12,7 +12,7 @@ bin           = @["falconc"]
 
 # Dependencies
 
-requires "nim >= 1.0.0", "cligen", "hts", "networkx", "bitvector >= 0.4.10", "msgpack4nim", "threadpools"
+requires "nim >= 1.2.0", "cligen", "hts", "networkx", "bitvector >= 0.4.10", "msgpack4nim", "threadpools"
 
 task integ, "Runs integration tests":
   var cmd = ""
