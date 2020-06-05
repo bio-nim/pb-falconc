@@ -29,6 +29,12 @@ type
         len*: int32
     M4Index* = seq[M4IndexRecord]
 
+proc isTagContained*(tag: string): bool =
+    return (tag == "contained" or tag == "c")
+
+proc isTagContains*(tag: string): bool =
+    return (tag == "contains" or tag == "C")
+
 proc dumpIndexQuick*(m4idx: M4Index, idx_s: streams.Stream) =
     # Dummy field for Aread.
     for rec in m4idx:
