@@ -45,6 +45,7 @@ suite "util":
         check partitionWeighted(4, @[4191650, 4009608, 4154778, 4096102, 99]) == @[@[1, 4], @[3], @[2], @[0]]
         check partitionWeighted(4, @[4_191_650, 4_009_608, 4_154_778, 4_096_102, 500_000]) == @[@[3], @[2], @[0], @[1, 4]]
         check partitionWeighted(2, @[1, 3, 5, 2, 4, 6]) == @[@[2, 4, 0], @[5, 1, 3]]
+        check partitionWeighted(3, @[1, 2, 2]) == @[@[0], @[2], @[1]]
     test "combineToTarget":
         proc icombineToTarget(t: int, weights: seq[int]): seq[seq[int]] =
             return combineToTarget(t, sequtils.mapIt(weights, int64(it)))

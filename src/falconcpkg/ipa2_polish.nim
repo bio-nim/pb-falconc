@@ -48,7 +48,7 @@ proc countLines(prefix, ext: string): BlockWeights =
         log("Found {count} lines in '{fn}'.".fmt)
         let block_id = getBlockIdFromFilename(fn, ext)
         tables.inc(counts, block_id, count)
-    for block_id in 0 ..< len(counts):
+    for block_id in 0 ..< len(counts): # TODO: What if input chunks are not consecutive?
         result.add(counts[block_id])
 
 proc combineBlocks(prefix: string, blockWeights: BlockWeights, nShards: int): seq[int] =

@@ -188,7 +188,7 @@ proc `<`(a, b: BinSum): bool =
     return a.sum < b.sum or (a.sum == b.sum and a.indices.len() < b.indices.len()) or
         (a.sum == b.sum and a.indices.len() == b.indices.len() and a.order < b.order)
 proc `<`(a, b: WeightedIndex): bool =
-    return a.size > b.size or (a.size == b.size and a > b)
+    return a.size > b.size or (a.size == b.size and a.index > b.index)
 
 proc partitionWeighted*(n: int, sizes: seq[int]): seq[seq[int]] =
     ## {sizes} is an index; other seqs refer to its indices.
