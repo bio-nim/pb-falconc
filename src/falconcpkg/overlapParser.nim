@@ -69,6 +69,10 @@ iterator determineNextPile(f: streams.Stream): tuple[count, len: int32] =
             yield (count, lenPile)
             count = 0
             lenPile = 0
+            if strutils.startswith(line, '-'):
+                # This can be used to signify EOF, but only if
+                # we ever have more trouble with filesystem errors.
+                break
         if 0 == count:
             assert 0 == lenPile
             let iSpace = strutils.find(line, ' ')
