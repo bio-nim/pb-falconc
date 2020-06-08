@@ -749,7 +749,7 @@ proc m4filtSingleton(m4Fn: string,
         defer: ov.close()
         for line in ov.lines:
             outFile.writeLine(line)
-    #outFile.writeLine("---")
+    outFile.writeLine("---")
     outFile.close()
 
     if not opts.keepIntermediates:
@@ -840,7 +840,7 @@ proc m4filtPiped(icmds: seq[string],
         defer: ov.close()
         for line in ov.lines:
             outFile.writeLine(line)
-    #outFile.writeLine("---")
+    outFile.writeLine("---")
     outFile.close()
 
     if not opts.keepIntermediates:
