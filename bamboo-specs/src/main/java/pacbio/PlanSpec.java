@@ -74,8 +74,7 @@ public class PlanSpec {
                     .createForPullRequest()
                     .delete(new BranchCleanup()
                         .whenRemovedFromRepositoryAfterDays(7)
-                        .whenInactiveInRepositoryAfterDays(30))
-                    .notificationForCommitters())
+                        .whenInactiveInRepositoryAfterDays(30)))
             .forceStopHungBuilds();
         return plan;
     }
