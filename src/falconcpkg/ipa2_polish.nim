@@ -2,6 +2,7 @@
 from ./util import log
 from algorithm import nil
 from os import nil
+from math import nil
 from parsecsv import nil
 from sequtils import nil
 from streams import nil
@@ -90,6 +91,82 @@ proc partitionBlocks(prefix: string, blockWeights: BlockWeights, nShards: int): 
         var fout = open(fn, fmWrite)
         for block_id in shards[shard_id]:
             fout.writeLine(block_id)
+        fout.close()
+    return shards
+
+type
+    PancakeRange* = object
+        t*, qs*, qe*: int  # target, querystart, queryend
+
+proc size*(a: PancakeRange): int =
+    return a.qe - a.qs
+
+proc splitPancakeRange*(a: PancakeRange, leftSize: int): tuple[left:PancakeRange, right:PancakeRange] =
+    # Split into 2 shorter ranges covering the whole.
+    # Left is at most leftSize; right is the rest.
+    assert leftSize <= a.size()
+    let
+        left = PancakeRange(t:a.t, qs:a.qs, qe:(a.qs + leftSize))
+        right = PancakeRange(t:a.t, qs:left.qe, qe:a.qe)
+    assert left.size() == leftSize
+    assert left.size() + right.size() == a.size()
+    return (left, right)
+
+proc `$`*(a: PancakeRange): string =
+    return "{a.t} {a.qs} {a.qe}".fmt
+
+proc shardUpperTriangular*(n: int, nShards: int): seq[seq[PancakeRange]] =
+    var stack = newSeq[PancakeRange](n)
+    # Initialize stack w/ n complete rows.
+    var summed = 0
+    for i in 0 ..< n:
+        let pr = PancakeRange(t: i, qs: i, qe: n)
+        summed += pr.size()
+        stack[n - i - 1] = pr
+    # For each shard, consume total/nshards comparisons, splitting
+    # as necessary.
+    var
+        total = (n * (n+1) / 2).int
+        remaining = total
+        needed = 0
+    assert total == summed
+    for i in 0 ..< n:
+        needed = math.ceil(remaining/(nShards - result.len())).int  # rounded up
+        while needed > 0:
+            result.setLen(i + 1)
+            #log("i:{i} rem:{remaining} needed:{needed} max:{nShards}".fmt)
+            var pr = stack.pop()
+            if pr.size() > needed:
+                let (left, right) = pr.splitPancakeRange(needed)
+                stack.add(right)  # Push back what we did not yet need.
+                pr = left
+            result[i].add(pr)
+            #log(" result[i]:{result[i]}".fmt)
+            remaining -= pr.size()
+            needed -= pr.size()
+    #echo "result=" & $result
+    return result
+
+proc combineUpperTriangular(prefix: string, n: int, nShards: int): seq[seq[PancakeRange]] =
+    # Combine upper-triangular ranges of blocks into at most nShards subsets.
+    # We need 0 vs. [0..n), 1 vs. [1..n), 2 vs. [2..n), etc.
+    # Think of all those comparisons (there are C==n*(n+1)/2) in a straight line,
+    # and take roughly C/nShards for each shard. Then turn those back into
+    # contiguous rows for efficiency in Pancake.
+    # (See tests for examples.)
+    # len(result) will be <= nShards
+
+    let shards: seq[seq[PancakeRange]] = shardUpperTriangular(n, nShards)
+    var shard_sizes: seq[int]
+    for s in shards:
+        shard_sizes.add(s.len())
+    log("shard sizes:{shard_sizes}".fmt)
+    for shard_id in 0 ..< shards.len():
+        let fn = prefix & "." & $shard_id & ".pancake_ranges"
+        log("shard:{fn}".fmt)
+        var fout = open(fn, fmWrite)
+        for block_range in shards[shard_id]:
+            fout.writeLine(block_range)
         fout.close()
     return shards
 
@@ -205,6 +282,7 @@ proc split*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
         in_fai_fns: seq[string]) =
     ## The trailing list of fasta.fai filenames are FASTA index files.
     ## They will be used to split the shards somewhat evenly.
+    ## (Used to shard the polishing jobs.)
 
     var blacklist = initSet[string]()
     if len(blacklist_fn) != 0:
@@ -237,6 +315,7 @@ proc shard_blocks_m4*(max_nshards: int, shard_prefix = "shard", block_prefix = "
     ## For now, they are balanced by the number of reads in each .m4 file.
     ## (Later, the contents of each shard will be processed linearly, one block at a time,
     ## on a given compute node.)
+    ## (Used to shard the phasing jobs.)
     let shards = partitionBlocks(shard_prefix, countLines(block_prefix&".", ".m4"), max_nshards)
     if out_ids_fn != "":
         var fout = open(out_ids_fn, fmWrite)
@@ -244,7 +323,18 @@ proc shard_blocks_m4*(max_nshards: int, shard_prefix = "shard", block_prefix = "
             fout.writeLine(shard_id)
         fout.close()
 
+proc shard_ovl_asym*(max_nshards: int, shard_prefix = "shard", n: int, out_ids_fn = "") =
+    ## (Used to shard the asymmetric overlap jobs.)
+    log("shard_ovl_asym: max_nshards={max_nshards} n={n}".fmt)
+    let shards = combineUpperTriangular(prefix=shard_prefix, n=n, nShards=max_nshards)
+    if out_ids_fn != "":
+        var fout = open(out_ids_fn, fmWrite)
+        for shard_id in 0 ..< len(shards):
+            fout.writeLine(shard_id)
+        fout.close()
+
 proc prepare*(max_nshards: int, shard_prefix = "shard_id", block_prefix = "block_id", out_ids_fn = "") =
+    ## DEPRECATED
     log("prepare {max_nshards} shard:{shard_prefix} block:{block_prefix}".fmt)
     let shards = combineBlocks(shard_prefix, countLines(block_prefix&".", ".reads"), max_nshards)
     if out_ids_fn != "":
