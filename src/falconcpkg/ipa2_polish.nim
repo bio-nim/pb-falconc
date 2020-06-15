@@ -205,6 +205,7 @@ proc split*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
         in_fai_fns: seq[string]) =
     ## The trailing list of fasta.fai filenames are FASTA index files.
     ## They will be used to split the shards somewhat evenly.
+    ## (Used to shard the polishing jobs.)
 
     var blacklist = initSet[string]()
     if len(blacklist_fn) != 0:
@@ -237,6 +238,7 @@ proc shard_blocks_m4*(max_nshards: int, shard_prefix = "shard", block_prefix = "
     ## For now, they are balanced by the number of reads in each .m4 file.
     ## (Later, the contents of each shard will be processed linearly, one block at a time,
     ## on a given compute node.)
+    ## (Used to shard the phasing jobs.)
     let shards = partitionBlocks(shard_prefix, countLines(block_prefix&".", ".m4"), max_nshards)
     if out_ids_fn != "":
         var fout = open(out_ids_fn, fmWrite)
@@ -245,6 +247,7 @@ proc shard_blocks_m4*(max_nshards: int, shard_prefix = "shard", block_prefix = "
         fout.close()
 
 proc prepare*(max_nshards: int, shard_prefix = "shard_id", block_prefix = "block_id", out_ids_fn = "") =
+    ## DEPRECATED
     log("prepare {max_nshards} shard:{shard_prefix} block:{block_prefix}".fmt)
     let shards = combineBlocks(shard_prefix, countLines(block_prefix&".", ".reads"), max_nshards)
     if out_ids_fn != "":
