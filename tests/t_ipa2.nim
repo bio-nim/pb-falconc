@@ -102,3 +102,97 @@ suite "ipa_polish_prepare":
     test "getBlockIdFromFilename":
         check 0 == getBlockIdFromFilename("foo/bar.0.reads")
         check 99 == getBlockIdFromFilename("foobar.99.reads")
+
+    test "shardUpperTriangular":
+        proc sut(n, nshards: int): string =
+            let shards = shardUpperTriangular(n=n, nshards=nshards)
+            var outs = streams.newStringStream()
+            for shard in shards:
+                outs.writeLine(len(shard))
+                for pr in shard:
+                    outs.writeLine(pr)
+            outs.setPosition(0)
+            return outs.readAll()
+
+        check sut(0, 0) == """
+"""
+        check sut(1, 1) == """
+1
+0 0 1
+"""
+        check sut(2, 1) == """
+2
+0 0 2
+1 1 2
+"""
+        check sut(2, 2) == """
+1
+0 0 2
+1
+1 1 2
+"""
+        check sut(3, 1) == """
+3
+0 0 3
+1 1 3
+2 2 3
+"""
+        check sut(3, 2) == """
+1
+0 0 3
+2
+1 1 3
+2 2 3
+"""
+        check sut(4, 1) == """
+4
+0 0 4
+1 1 4
+2 2 4
+3 3 4
+"""
+        check sut(4, 2) == """
+2
+0 0 4
+1 1 2
+3
+1 2 4
+2 2 4
+3 3 4
+"""
+        check sut(7, 1) == """
+7
+0 0 7
+1 1 7
+2 2 7
+3 3 7
+4 4 7
+5 5 7
+6 6 7
+"""
+        check sut(7, 2) == """
+3
+0 0 7
+1 1 7
+2 2 3
+5
+2 3 7
+3 3 7
+4 4 7
+5 5 7
+6 6 7
+"""
+        check sut(7, 3) == """
+2
+0 0 7
+1 1 4
+3
+1 4 7
+2 2 7
+3 3 4
+4
+3 4 7
+4 4 7
+5 5 7
+6 6 7
+"""

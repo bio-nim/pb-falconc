@@ -261,6 +261,14 @@ when isMainModule:
           "out-fn": "Output file.",
             }
         ],
+        [ipa2_polish.shard_ovl_asym, cmdName = "ipa-shard-ovl-asym",
+         help = {
+          "max-nshards": "Maximum number of distributed jobs",
+          "n": "Generate comparisons for upper-triangle of nxn matrix",
+          "shard-prefix": "The output. Shard files are (prefix).(shard_id).block_ids (though they really are block_id ranges).",
+          "out-ids-fn": "If given, this lists the shard_ids, 0 thru N-1, corresponding to the shard-prefix.block_id files. Useful for Cromwell.",
+            }
+        ],
         [ipa2_polish.split, cmdName = "ipa-polish-split",
          help = {
           "max-nshards": "Maximum number of distributed jobs",
