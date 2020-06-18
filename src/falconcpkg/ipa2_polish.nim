@@ -129,8 +129,9 @@ proc shardUpperTriangular*(n: int, nShards: int): seq[seq[PancakeRange]] =
         total = (n * (n+1) / 2).int
         remaining = total
         needed = 0
+        i = 0
     assert total == summed
-    for i in 0 ..< n:
+    while remaining > 0:
         needed = math.ceil(remaining/(nShards - result.len())).int  # rounded up
         while needed > 0:
             result.setLen(i + 1)
@@ -144,6 +145,7 @@ proc shardUpperTriangular*(n: int, nShards: int): seq[seq[PancakeRange]] =
             #log(" result[i]:{result[i]}".fmt)
             remaining -= pr.size()
             needed -= pr.size()
+        i += 1
     #echo "result=" & $result
     return result
 
