@@ -4,3 +4,4 @@ module load nim  # >= 1.0.0
 module load gcc ccache
 
 module load htslib  # not really needed until runtime
+module load git  # for the revision number

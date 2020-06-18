@@ -35,7 +35,7 @@ fi
 
 make rsync
 make test
-make build
+R=$(git rev-parse HEAD) make build
 
 # Install
 
