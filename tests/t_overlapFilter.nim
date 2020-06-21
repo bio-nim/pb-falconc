@@ -9,16 +9,6 @@ from strformat import fmt
  000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained
 ]#
 
-suite "overlapFilter containedOK":
-    test "contained":
-        let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained"
-        let parsed = parseOverlap(record1)
-        check contained(parsed) == true
-    test "notcontained":
-        let record1 = "000000001 000001050 -9662 98.67 0 10 9656 9656 1 626 10288 12247 contained"
-        let parsed = parseOverlap(record1)
-        check contained(parsed) == false
-
 suite "overlapFilter idtOK":
     let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained"
     let parsed = parseOverlap(record1)
