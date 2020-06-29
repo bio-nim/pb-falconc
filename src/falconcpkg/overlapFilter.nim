@@ -87,16 +87,6 @@ proc small*(o: Overlap, l: int): bool =
     else:
         return false
 
-proc contained*(o: Overlap): bool =
-    ##Tests if A-read is contained within B
-    #This is a read filter
-    if o.Astart > 0:
-        return false
-    if o.Aend != o.Alen:
-        return false
-    else:
-        return true
-
 proc missingTerminus*(o: Overlap): bool =
     ##Test that overlap reaches the end of both reads
     #This is an overlap filter
@@ -306,7 +296,7 @@ proc stage1Filter*(overlaps: seq[Overlap],
             readsToFilter[i.Bname] = readsToFilter[i.Bname] or SREAD
         if (i.Alen < minLen) or (i.Blen < minLen):
             continue
-        if i.tag == "contains":
+        if op.isTagContains(i.tag):
             containedBreads.incl(i.Bname)
         if i.Astart == 0:
             inc(fivePrimeCount)
@@ -875,9 +865,9 @@ proc m4filtContainedStreams*(
     # Find all contained rids.
     var contained_rids = sets.initHashSet[string]()
     for ovl in good_enough_overlaps:
-        if ovl.tag == "contained" or ovl.tag == "C":
+        if op.isTagContained(ovl.tag):
             contained_rids.incl(ovl.Aname)
-        elif ovl.tag == "contains" or ovl.tag == "c":
+        elif op.isTagContains(ovl.tag):
             contained_rids.incl(ovl.Bname)
 
     # Drop all overlaps with contained reads.
