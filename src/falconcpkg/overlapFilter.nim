@@ -87,16 +87,6 @@ proc small*(o: Overlap, l: int): bool =
     else:
         return false
 
-# proc contained*(o: Overlap): bool =
-#     ##Tests if A-read is contained within B
-#     #This is a read filter
-#     if o.Astart > 0:
-#         return false
-#     if o.Aend != o.Alen:
-#         return false
-#     else:
-#         return true
-
 proc missingTerminus*(o: Overlap): bool =
     ##Test that overlap reaches the end of both reads
     #This is an overlap filter
