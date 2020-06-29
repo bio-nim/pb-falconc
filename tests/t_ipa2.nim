@@ -107,7 +107,7 @@ suite "ipa_polish_prepare":
 
     test "shardUpperTriangular":
         proc sut(n, nshards: int): string =
-            let shards = shardUpperTriangular(n=n, nshards=nshards)
+            let shards = shardUpperTriangular(n = n, nshards = nshards)
             var outs = streams.newStringStream()
             for shard in shards:
                 outs.writeLine(len(shard))
