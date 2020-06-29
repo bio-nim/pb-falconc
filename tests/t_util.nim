@@ -39,7 +39,7 @@ suite "util":
         check splitWeighted(3, @[4, 3, 2, 1]) == [1, 1, 2]
         check splitWeighted(2, @[4, 3, 2, 1]) == [2, 2]
         check splitWeighted(1, @[4, 3, 2, 1]) == [4]
-        check splitWeighted(4, @[4191650, 4009608, 4154778, 4096102]) == [1,2,1] # not very good
+        check splitWeighted(4, @[4191650, 4009608, 4154778, 4096102]) == [1, 2, 1] # not very good
     test "partitionWeighted":
         check partitionWeighted(4, @[4191650, 4009608, 4154778, 4096102]) == @[@[1], @[3], @[2], @[0]]
         check partitionWeighted(4, @[4191650, 4009608, 4154778, 4096102, 99]) == @[@[1, 4], @[3], @[2], @[0]]

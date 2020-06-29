@@ -340,7 +340,7 @@ proc comp(x, y: ScoredOverlap): int =
             return 1
     return 1
 
-proc CheckOverhangLen*(ovl: Overlap, minOverhang: int): bool =
+proc checkOverhangLen*(ovl: Overlap, minOverhang: int): bool =
     ## This function should filter only dovetail overlaps which
     ## do not extend beyond minOverhang bases over left or
     ## right ends.
@@ -412,7 +412,7 @@ proc stage2Filter(overlaps: seq[Overlap],
             continue
         if i.tag == "u":
             continue
-        if minOverhang > 0 and CheckOverhangLen(i, minOverhang) == false:
+        if minOverhang > 0 and checkOverhangLen(i, minOverhang) == false:
             continue
 
         if i.Astart == 0:

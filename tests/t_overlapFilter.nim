@@ -195,92 +195,92 @@ suite "m4filt workflow":
         # This will probably require some refactoring, because the function operates
         # on files and not streams.
 
-suite "overlapFilter CheckOverhangLen":
+suite "overlapFilter checkOverhangLen":
     test "Dovetail 3' fwd good":
-        let record1 = "000000001 000000002 -10000 100.00 0 3000 10000 10000 0 0 7000 10000 overlap"
+        let record1 = "A B -10000 100.00 0 3000 10000 10000 0 0 7000 10000 overlap"
         let minOverhang = 1000
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == true
+        check checkOverhangLen(parsed, minOverhang) == true
     test "Dovetail 3' fwd bad":
-        let record1 = "000000001 000000002 -10000 100.00 0 3000 10000 10000 0 0 7000 10000 overlap"
+        let record1 = "A B -10000 100.00 0 3000 10000 10000 0 0 7000 10000 overlap"
         let minOverhang = 5000
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == false
+        check checkOverhangLen(parsed, minOverhang) == false
     test "Dovetail 3' rev good":
-        let record1 = "000000001 000000002 -10000 100.00 0 3000 10000 10000 1 3000 10000 10000 overlap"
+        let record1 = "A B -10000 100.00 0 3000 10000 10000 1 3000 10000 10000 overlap"
         let minOverhang = 3000
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == true
+        check checkOverhangLen(parsed, minOverhang) == true
     test "Dovetail 3' rev bad":
-        let record1 = "000000001 000000002 -10000 100.00 0 3000 10000 10000 1 3000 10000 10000 overlap"
+        let record1 = "A B -10000 100.00 0 3000 10000 10000 1 3000 10000 10000 overlap"
         let minOverhang = 5000
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == false
+        check checkOverhangLen(parsed, minOverhang) == false
 
     test "Dovetail 5' fwd good":
-        let record1 = "000000001 000000002 -10000 100.00 0 0 7000 10000 0 3000 10000 10000 overlap"
+        let record1 = "A B -10000 100.00 0 0 7000 10000 0 3000 10000 10000 overlap"
         let minOverhang = 1000
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == true
+        check checkOverhangLen(parsed, minOverhang) == true
     test "Dovetail 5' fwd bad":
-        let record1 = "000000001 000000002 -10000 100.00 0 0 7000 10000 0 3000 10000 10000 overlap"
+        let record1 = "A B -10000 100.00 0 0 7000 10000 0 3000 10000 10000 overlap"
         let minOverhang = 5000
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == false
+        check checkOverhangLen(parsed, minOverhang) == false
     test "Dovetail 5' rev good":
-        let record1 = "000000001 000000002 -10000 100.00 0 0 7000 10000 1 0 7000 10000 overlap"
+        let record1 = "A B -10000 100.00 0 0 7000 10000 1 0 7000 10000 overlap"
         let minOverhang = 3000
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == true
+        check checkOverhangLen(parsed, minOverhang) == true
     test "Dovetail 5' rev bad":
-        let record1 = "000000001 000000002 -10000 100.00 0 0 7000 10000 1 0 7000 10000 overlap"
+        let record1 = "A B -10000 100.00 0 0 7000 10000 1 0 7000 10000 overlap"
         let minOverhang = 5000
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == false
+        check checkOverhangLen(parsed, minOverhang) == false
 
     test "Contained A in B, fwd, minOverhang 1000, contained should return true":
-        let record1 = "000000001 000000002 -10000 100.00 0 500 9500 10000 0 0 9000 10000 overlap"
+        let record1 = "A B -10000 100.00 0 500 9500 10000 0 0 9000 10000 overlap"
         let minOverhang = 1000
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == true
+        check checkOverhangLen(parsed, minOverhang) == true
     test "Contained A in B, fwd, minOverhang 1, contained should return true":
-        let record1 = "000000001 000000002 -10000 100.00 0 500 9500 10000 0 0 9000 10000 overlap"
+        let record1 = "A B -10000 100.00 0 500 9500 10000 0 0 9000 10000 overlap"
         let minOverhang = 1
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == true
+        check checkOverhangLen(parsed, minOverhang) == true
     test "Contained A in B, rev, minOverhang 1000, contained should return true":
-        let record1 = "000000001 000000002 -10000 100.00 0 500 9500 10000 1 0 9000 10000 overlap"
+        let record1 = "A B -10000 100.00 0 500 9500 10000 1 0 9000 10000 overlap"
         let minOverhang = 1000
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == true
+        check checkOverhangLen(parsed, minOverhang) == true
     test "Contained B in A, fwd, minOverhang 1000, contained should return true":
-        let record1 = "000000001 000000002 -10000 100.00 0 0 9000 10000 0 500 9500 10000 overlap"
+        let record1 = "A B -10000 100.00 0 0 9000 10000 0 500 9500 10000 overlap"
         let minOverhang = 1000
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == true
+        check checkOverhangLen(parsed, minOverhang) == true
     test "Contained B in A, fwd, minOverhang 1, contained should return true":
-        let record1 = "000000001 000000002 -10000 100.00 0 0 9000 10000 0 500 9500 10000 overlap"
+        let record1 = "A B -10000 100.00 0 0 9000 10000 0 500 9500 10000 overlap"
         let minOverhang = 1
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == true
+        check checkOverhangLen(parsed, minOverhang) == true
     test "Contained B in A, rev, minOverhang 1000, contained should return true":
-        let record1 = "000000001 000000002 -10000 100.00 0 0 9000 10000 1 500 9500 10000 overlap"
+        let record1 = "A B -10000 100.00 0 0 9000 10000 1 500 9500 10000 overlap"
         let minOverhang = 1000
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == true
+        check checkOverhangLen(parsed, minOverhang) == true
 
     test "Improper overlap, minOverhang 3000, true because only dovetail overlaps can return false if overhangs don't satisfy":
-        let record1 = "000000001 000000002 -10000 100.00 0 0 7000 10000 0 0 7000 10000 chimeric"
+        let record1 = "A B -10000 100.00 0 0 7000 10000 0 0 7000 10000 chimeric"
         let minOverhang = 3000
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == true
+        check checkOverhangLen(parsed, minOverhang) == true
     test "Improper overlap, minOverhang 500, true because only dovetail overlaps can return false if overhangs don't satisfy":
-        let record1 = "000000001 000000002 -10000 100.00 0 0 7000 10000 0 0 7000 10000 chimeric"
+        let record1 = "A B -10000 100.00 0 0 7000 10000 0 0 7000 10000 chimeric"
         let minOverhang = 500
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == true
+        check checkOverhangLen(parsed, minOverhang) == true
     test "Internal overlap, minOverhang 3000, true because only dovetail overlaps can return false if overhangs don't satisfy":
-        let record1 = "000000001 000000002 -10000 100.00 0 1000 9000 10000 0 1000 9000 10000 chimeric"
+        let record1 = "A B -10000 100.00 0 1000 9000 10000 0 1000 9000 10000 chimeric"
         let minOverhang = 500
         let parsed = parseOverlap(record1)
-        check CheckOverhangLen(parsed, minOverhang) == true
+        check checkOverhangLen(parsed, minOverhang) == true

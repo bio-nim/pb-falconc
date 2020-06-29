@@ -22,7 +22,7 @@ proc countLines*(sin: streams.Stream): int =
     while streams.readLine(sin, line):
         result += 1
 
-proc getBlockIdFromFilename*(fn: string, ext=".reads"): int =
+proc getBlockIdFromFilename*(fn: string, ext = ".reads"): int =
     # foo.99.reads => 99
     # This could use re, but to avoid requiring pcre we
     # simply search for ".reads".
@@ -96,18 +96,18 @@ proc partitionBlocks(prefix: string, blockWeights: BlockWeights, nShards: int): 
 
 type
     PancakeRange* = object
-        t*, qs*, qe*: int  # target, querystart, queryend
+        t*, qs*, qe*: int # target, querystart, queryend
 
 proc size*(a: PancakeRange): int =
     return a.qe - a.qs
 
-proc splitPancakeRange*(a: PancakeRange, leftSize: int): tuple[left:PancakeRange, right:PancakeRange] =
+proc splitPancakeRange*(a: PancakeRange, leftSize: int): tuple[left: PancakeRange, right: PancakeRange] =
     # Split into 2 shorter ranges covering the whole.
     # Left is at most leftSize; right is the rest.
     assert leftSize <= a.size()
     let
-        left = PancakeRange(t:a.t, qs:a.qs, qe:(a.qs + leftSize))
-        right = PancakeRange(t:a.t, qs:left.qe, qe:a.qe)
+        left = PancakeRange(t: a.t, qs: a.qs, qe: (a.qs + leftSize))
+        right = PancakeRange(t: a.t, qs: left.qe, qe: a.qe)
     assert left.size() == leftSize
     assert left.size() + right.size() == a.size()
     return (left, right)
@@ -132,14 +132,14 @@ proc shardUpperTriangular*(n: int, nShards: int): seq[seq[PancakeRange]] =
         i = 0
     assert total == summed
     while remaining > 0:
-        needed = math.ceil(remaining/(nShards - result.len())).int  # rounded up
+        needed = math.ceil(remaining/(nShards - result.len())).int # rounded up
         while needed > 0:
             result.setLen(i + 1)
             #log("i:{i} rem:{remaining} needed:{needed} max:{nShards}".fmt)
             var pr = stack.pop()
             if pr.size() > needed:
                 let (left, right) = pr.splitPancakeRange(needed)
-                stack.add(right)  # Push back what we did not yet need.
+                stack.add(right) # Push back what we did not yet need.
                 pr = left
             result[i].add(pr)
             #log(" result[i]:{result[i]}".fmt)
@@ -328,7 +328,7 @@ proc shard_blocks_m4*(max_nshards: int, shard_prefix = "shard", block_prefix = "
 proc shard_ovl_asym*(max_nshards: int, shard_prefix = "shard", n: int, out_ids_fn = "") =
     ## (Used to shard the asymmetric overlap jobs.)
     log("shard_ovl_asym: max_nshards={max_nshards} n={n}".fmt)
-    let shards = combineUpperTriangular(prefix=shard_prefix, n=n, nShards=max_nshards)
+    let shards = combineUpperTriangular(prefix = shard_prefix, n = n, nShards = max_nshards)
     if out_ids_fn != "":
         var fout = open(out_ids_fn, fmWrite)
         for shard_id in 0 ..< len(shards):

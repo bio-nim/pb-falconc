@@ -196,11 +196,11 @@ proc partitionWeighted*(n: int, sizes: seq[int]): seq[seq[int]] =
     ## The result has at most n index-seqs, none of which are empty.
     var biggest = initHeapQueue[WeightedIndex]()
     for i in 0 ..< len(sizes):
-        let wi: WeightedIndex = (index:i, size:sizes[i])
+        let wi: WeightedIndex = (index: i, size: sizes[i])
         biggest.push(wi)
     var smallest_bin = initHeapQueue[BinSum]()
     for x in 0 ..< n:
-        var bin: BinSum = BinSum(sum:0, order:x)
+        var bin: BinSum = BinSum(sum: 0, order: x)
         smallest_bin.push(bin)
     while biggest.len() > 0:
         let wi = biggest.pop()
