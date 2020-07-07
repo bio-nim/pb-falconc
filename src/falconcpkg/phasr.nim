@@ -27,7 +27,7 @@ type
 var globalOpts = opts()
 
 var inverse = newTable[int, string]() # readid -> name
-var rpos = newTable[string, int]()
+var rpos = newTable[string, int64]()
 
 proc getWithin(u: Node, g: ref Graph[int], phase: TableRef[int, int]): float =
     var
@@ -175,17 +175,17 @@ proc algo(
                     "{n}\t{phaseBlock}\t{result[n]}\t{frqRes[n]}\t{inverse[n]}\n".fmt)
     output.close()
 
-proc showRec(record: Record) =
+proc showRec(record: hts.Record) =
     echo format("$# $# ($#) [$# .. $#] $#", record.tid, record.chrom,
             record.qname, record.start, record.stop,
         ($record.cigar).substr(0, 32))
 type
     ProcessedRecord = object
         # These are both refs already.
-        rec: Record
+        rec: hts.Record
         kmers: kmers.spot_t
 
-proc processRecord(record: Record, klen: int, rseq: Dna): ProcessedRecord =
+proc processRecord(record: hts.Record, klen: int, rseq: Dna): ProcessedRecord =
     var qseq: string
     discard hts.sequence(record, qseq)
     let kmers: pot_t = dna_to_kmers(qseq, klen)
@@ -193,9 +193,9 @@ proc processRecord(record: Record, klen: int, rseq: Dna): ProcessedRecord =
     # Note that record.stop is 1 past the last index.
 
     # complement to remove kmers that are in the reference where the read maps.
-    var rsubseq = rseq.substr(record.start - klen + 1,
-            record.stop-1 + klen - 1) # TODO(CD): Use a slice?
-                                      #var rsubseq = rseq.substr(record.start, record.stop-1)  # TODO(CD): Use a slice?
+    var rsubseq = rseq.substr((record.start - (klen - 1)).int,
+            (record.stop - 1 + (klen - 1)).int) # TODO(CD): Use a slice?
+    #var rsubseq = rseq.substr(record.start, record.stop-1)  # TODO(CD): Use a slice?
     var refkmers = dna_to_kmers(rsubseq, klen)
     #echo "refkmers.len=", refkmers.seeds.len(), "(", rsubseq.len(), "), kmers.len=", kmers.seeds.len(), "(", qseq.len(), ")", (record.stop-record.start)
     var refspot = initSpot(refkmers)
@@ -213,7 +213,7 @@ type
         precs: seq[ProcessedRecord]
         current: ProcessedRecord
         # All other recs overlap this one.
-        min_start, max_stop: int
+        min_start, max_stop: int64
 
 proc filterPileup(queue: Deque[ProcessedRecord], cqi: int): Pileup =
     # We know nothing is completely to the left of current because all those
@@ -224,8 +224,8 @@ proc filterPileup(queue: Deque[ProcessedRecord], cqi: int): Pileup =
     result.precs = newSeqOfCap[ProcessedRecord](queue.len())
     result.current = current
     var
-        min_start = current.rec.stop
-        max_stop = current.rec.start
+        min_start: int64 = current.rec.stop
+        max_stop: int64 = current.rec.start
     for pr in queue.items():
         if pr == current or pr.rec.start >= current_stop:
             continue # must overlap on the right
