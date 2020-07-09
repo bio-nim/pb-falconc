@@ -16,6 +16,8 @@ import streams
 import json
 import osproc
 import algorithm
+import math
+import hashes
 
 
 #[
@@ -381,23 +383,43 @@ proc stage1Filter*(overlaps: seq[Overlap],
         if i.Aend == i.Alen:
             inc(threePrimeCount)
 
-    if abs(fivePrimeCount - threePrimeCount) > maxDiff:
-        discard readsToFilter.hasKeyOrPut(ridA, 0)
-        readsToFilter[ridA] = readsToFilter[ridA] or BREAD
-        aReadPass = false
-    if fivePrimeCount > maxOvlp:
-        discard readsToFilter.hasKeyOrPut(ridA, 0)
-        readsToFilter[ridA] = readsToFilter[ridA] or HREAD
-        aReadPass = false
-    if threePrimeCount > maxOvlp:
-        discard readsToFilter.hasKeyOrPut(ridA, 0)
-        readsToFilter[ridA] = readsToFilter[ridA] or HREAD
-        aReadPass = false
-    if fivePrimeCount < minOvlp:
-        discard readsToFilter.hasKeyOrPut(ridA, 0)
-        readsToFilter[ridA] = readsToFilter[ridA] or LREAD
-        aReadPass = false
-    if threePrimeCount < minOvlp:
+    # Calculate the average coverage across the A read
+    var covWeightA: int = 0
+    var prevPos: int = 0
+    var prevCov: int = 0
+    for pos,info in posInfo:
+        covWeightA += (pos-prevPos) * prevCov
+        prevPos = pos
+        prevCov = info.cov
+    var avgCovA: float = covWeightA / overlaps[0].Alen
+
+    var lowerCount, higherCount: int
+    if fivePrimeCount < threePrimeCount:
+        lowerCount = fivePrimeCount
+        higherCount = threePrimeCount
+    else:
+        lowerCount = threePrimeCount
+        higherCount = fivePrimeCount
+
+    if higherCount > maxOvlp or (higherCount - lowerCount) > maxDiff: # (putative) end in repeat
+        var discardAread = true
+        # Retain some reads from high-copy elements like organelles that have "uniformly" high coverage,
+        # i.e. where the edge overlap count is similar to the average coverage of the read.
+        # A potential improvement here is to define uniform coverage more stringently, perhaps that
+        # all coverage levels in the profile are +/-50% of the average coverage.
+        if float(higherCount) < 1.5*avgCovA:
+            # Retain with probability ~ highCopySampleRate*maxOvlp/avgCovA; use a hash of read name so decision is deterministic
+            var ridARand = hash(ridA)
+            if highCopySampleRate > 0.0 and ridARand mod int(ceil(avgCovA/highCopySampleRate)) < maxOvlp:
+                discardAread = false
+        if discardAread:
+            discard readsToFilter.hasKeyOrPut(ridA, 0)
+            if higherCount > maxOvlp:
+                readsToFilter[ridA] = readsToFilter[ridA] or HREAD
+            if (higherCount - lowerCount) > maxDiff:
+                readsToFilter[ridA] = readsToFilter[ridA] or BREAD
+            aReadPass = false
+    if lowerCount < minOvlp:
         discard readsToFilter.hasKeyOrPut(ridA, 0)
         readsToFilter[ridA] = readsToFilter[ridA] or LREAD
         aReadPass = false
