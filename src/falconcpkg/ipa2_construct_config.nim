@@ -11,6 +11,7 @@ config_genome_size = 0
 config_coverage = 0
 config_polish_run = 1
 config_phase_run = 1
+config_purge_dups_run = 0
 config_cleanup = 0
 
 config_existing_db_prefix =
