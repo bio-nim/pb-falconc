@@ -21,6 +21,7 @@ config_phasing_opt=''
 config_phasing_split_opt='--split-type noverlaps --limit 3000000'
 config_polish_min_len=50000
 config_polish_run=1
+config_purge_dups_calcuts=''
 config_purge_dups_run=0
 config_seeddb_opt='-k 32 -w 80 --space 2'
 config_seqdb_opt='--compression 0'
@@ -46,6 +47,7 @@ let expected_default_json = """
     "config_phasing_split_opt": "--split-type noverlaps --limit 3000000",
     "config_polish_min_len": "50000",
     "config_polish_run": "1",
+    "config_purge_dups_calcuts": "",
     "config_purge_dups_run": "0",
     "config_seeddb_opt": "-k 32 -w 80 --space 2",
     "config_seqdb_opt": "--compression 0",
