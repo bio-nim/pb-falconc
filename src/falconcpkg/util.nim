@@ -115,7 +115,7 @@ iterator readProcInMemory(cmd: string): string =
             yield line
 
 proc removeFile*(fn: string, failIfMissing = false) =
-    if failIfMissing and not os.existsFile(fn):
+    if failIfMissing and not os.fileExists(fn):
         raiseEx("Cannot remove non-existent file '" & fn & "'")
     log("rm -f ", fn)
     os.removeFile(fn)
