@@ -233,8 +233,17 @@ proc get_length_cutoff*(rdb_stream: streams.Stream, genome_size: int64,
         coverage: float, fail_low_cov: bool = false,
         alarms_file: string = ""): int64 =
     # The defaults here are only to help with tests.
-    assert coverage > 0, fmt"Coverage needs to be > 0. Provided value: coverage = {coverage}"
-    assert genome_size > 0, fmt"Genome size needs to be > 0. Provided value: genome_size = {genome_size}"
+    let tmsg = fmt"Coverage needs to be > 0. Provided value: coverage = {coverage}"
+    echo "tmsg:'{tmsg}'".fmt
+    if coverage <= 0.0:
+        let msg = fmt"Coverage needs to be > 0. Provided value: coverage = {coverage}"
+        echo "raise msg:'{msg}'".fmt
+        raise newException(AssertionError, msg)
+    else:
+        echo "WTF?"
+    if genome_size <= 0:
+        let msg = fmt"Genome size needs to be > 0. Provided value: genome_size = {genome_size}"
+        raise newException(AssertionError, msg)
 
     let db = load_rdb(rdb_stream)
     let seqs = algorithm.sorted(db.seqs) do (a, b: SequenceRecord) -> int:
