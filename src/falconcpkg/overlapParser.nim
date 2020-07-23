@@ -51,6 +51,7 @@ proc parseM4IndexQuick*(sin: streams.Stream): M4Index =
         len: clong #int32
         rec: M4IndexRecord
     while streams.readLine(sin, line):
+        let cline: cstring = line.string
         let scanned = util.sscanf(line.cstring, s_frmt.cstring,
             addr rec.count, addr rec.pos, addr rec.len)
         if 3 != scanned:
@@ -128,6 +129,7 @@ proc parseOverlap*(line: string): Overlap =
         bufBname: util.Headroom
         buftagplus: util.Headroom
         arev, brev: int # for bools
+    let cline: cstring = line.string
     let scanned = util.sscanf(line.cstring, s_frmt_cstring,
         addr bufAname, addr bufBname,
         addr ovl.score, addr ovl.idt,
