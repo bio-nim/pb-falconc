@@ -1,5 +1,5 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
-#import falconcpkg/zev
+{.localpassc: "-O0".}
 from falconcpkg/align import nil
 from falconcpkg/falcon/augmentPolishCtgs import nil
 from falconcpkg/raptor_db import nil
