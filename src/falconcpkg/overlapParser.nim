@@ -43,12 +43,12 @@ proc dumpIndexQuick*(m4idx: M4Index, idx_s: streams.Stream) =
 
 proc parseM4IndexQuick*(sin: streams.Stream): M4Index =
     # Ignore the Aread field.
-    let s_frmt = "%*s %lld %ld %lld"
+    let s_frmt = "%*s %ld %lld %ld"
     var
         line: string
-        count: clonglong
-        pos: clong
-        len: clonglong
+        count: clong #int32
+        pos: clonglong #int64
+        len: clong #int32
         rec: M4IndexRecord
     while streams.readLine(sin, line):
         let scanned = util.sscanf(line.cstring, s_frmt.cstring,
