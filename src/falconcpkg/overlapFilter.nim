@@ -348,6 +348,7 @@ proc stage1Filter*(overlaps: seq[Overlap],
  gapFilt: bool,
  minIdt: float,
  readsToFilter: var tables.Table[string, int]) =
+    assert highCopySampleRate >= 0.0
     if 0 == len(overlaps):
         return
     var fivePrimeCount, threePrimeCount: int = 0
