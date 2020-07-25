@@ -272,6 +272,76 @@ proc stage1Filter*(overlaps: seq[Overlap],
  minOvlp: int,
  minLen: int,
  minDepth: int,
+ gapFilt: bool,
+ minIdt: float,
+ readsToFilter: var tables.Table[string, int]) =
+    if 0 == len(overlaps):
+        return
+    var fivePrimeCount, threePrimeCount: int = 0
+    var ridA = overlaps[0].Aname
+    var containedBreads = initHashSet[string]()
+    var aReadPass = true
+
+    var posInfo = coverageProfile(overlaps)
+
+    if gapFilt:
+        if gapInCoverage(overlaps, posInfo, minDepth, minIdt):
+            discard readsToFilter.hasKeyOrPut(ridA, 0)
+            readsToFilter[ridA] = readsToFilter[ridA] or GREAD
+            #stderr.writeLine("YES {ridA}".fmt)
+
+    for i in overlaps:
+        if i.tag == "u":
+            continue
+        if i.idt < minIdt:
+            continue
+        if(i.Alen < minLen):
+            discard readsToFilter.hasKeyOrPut(i.Aname, 0)
+            readsToFilter[i.Aname] = readsToFilter[i.Aname] or SREAD
+        if(i.Blen < minLen):
+            discard readsToFilter.hasKeyOrPut(i.Bname, 0)
+            readsToFilter[i.Bname] = readsToFilter[i.Bname] or SREAD
+        if (i.Alen < minLen) or (i.Blen < minLen):
+            continue
+        if op.isTagContains(i.tag):
+            containedBreads.incl(i.Bname)
+        if i.Astart == 0:
+            inc(fivePrimeCount)
+        if i.Aend == i.Alen:
+            inc(threePrimeCount)
+
+    if abs(fivePrimeCount - threePrimeCount) > maxDiff:
+        discard readsToFilter.hasKeyOrPut(ridA, 0)
+        readsToFilter[ridA] = readsToFilter[ridA] or BREAD
+        aReadPass = false
+    if fivePrimeCount > maxOvlp:
+        discard readsToFilter.hasKeyOrPut(ridA, 0)
+        readsToFilter[ridA] = readsToFilter[ridA] or HREAD
+        aReadPass = false
+    if threePrimeCount > maxOvlp:
+        discard readsToFilter.hasKeyOrPut(ridA, 0)
+        readsToFilter[ridA] = readsToFilter[ridA] or HREAD
+        aReadPass = false
+    if fivePrimeCount < minOvlp:
+        discard readsToFilter.hasKeyOrPut(ridA, 0)
+        readsToFilter[ridA] = readsToFilter[ridA] or LREAD
+        aReadPass = false
+    if threePrimeCount < minOvlp:
+        discard readsToFilter.hasKeyOrPut(ridA, 0)
+        readsToFilter[ridA] = readsToFilter[ridA] or LREAD
+        aReadPass = false
+
+    if aReadPass:
+        for i in containedBreads:
+            discard readsToFilter.hasKeyOrPut(i, 0)
+            readsToFilter[i] = readsToFilter[i] or CREAD
+
+proc stage1Filter*(overlaps: seq[Overlap],
+ maxDiff: int,
+ maxOvlp: int,
+ minOvlp: int,
+ minLen: int,
+ minDepth: int,
  highCopySampleRate: float,
  gapFilt: bool,
  minIdt: float,
@@ -496,7 +566,14 @@ type
 proc doStage1(args: Stage1) =
     var readsToFilter1 = tables.initTable[string, int]()
     for i in op.getNextPile(args.sin):
-        stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+        if args.highCopySampleRate < 0.0:
+            # old way
+            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+                args.minDepth, args.gapFilt,
+                args.minIdt, readsToFilter1)
+        else:
+            # new way
+            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
                 args.minDepth, args.highCopySampleRate, args.gapFilt,
                 args.minIdt, readsToFilter1)
     var fstream = newFileStream(args.blacklist, fmWrite)
@@ -508,7 +585,12 @@ proc doStage1Indexed(args: Stage1) =
     var sin = streams.newFileStream(args.m4Fn, fmRead)
     defer: sin.close()
     for i in getNextPile(sin, args.index):
-        stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+        if args.highCopySampleRate < 0.0:
+            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+                args.minDepth, args.gapFilt,
+                args.minIdt, readsToFilter1)
+        else:
+            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
                 args.minDepth, args.highCopySampleRate, args.gapFilt,
                 args.minIdt, readsToFilter1)
     var fstream = newFileStream(args.blacklist, fmWrite)
@@ -944,7 +1026,7 @@ proc m4filtRunner*(
  minCov: int = 2,
  maxCov: int = 200,
  maxDiff: int = 100,
- highCopySampleRate: float = 1.0,
+ highCopySampleRate: float = -1.0,
  bestN: int = 10,
  minOverhang: int = 0,
  minDepth: int = 2,
