@@ -159,22 +159,19 @@ proc summarize(filterLog: string, fn: string) =
     fstream.unpack(readsToFilterSum)
     summarize(filterLog, readsToFilterSum)
 
-proc gapInCoverage*(ovls: seq[Overlap], minDepth: int, minIdt: float): bool =
-    ##Calculates the coverage in a linear pass. If the start or end < minDepth there
-    ##is a gap. The first and last position are skipped
+type PositionInfo = tuple
+    cov: int #coverage
+    cco: int #clean cov
+    cli: int #clip
+
+proc coverageProfile*(ovls: seq[Overlap]): OrderedTable[int, PositionInfo] =
+    ##Calculates the coverage profile of an A read in a linear pass.
+
     type PosAndTag = tuple
         pos: int #read a position
         tag: bool #starts are true ends are false
         cli: bool #if start == 0 or end == len; is it a clipped read
         loc: bool #is this a local align
-    type Info = tuple
-        cov: int #coverage
-        cco: int #clean cov
-        cli: int #clip
-
-
-    var ep = ovls[0].Alen
-    var an = ovls[0].Aname
 
     var positions = newSeq[PosAndTag]()
     # load start/end into a tuple for linear depth caculation
@@ -189,7 +186,7 @@ proc gapInCoverage*(ovls: seq[Overlap], minDepth: int, minIdt: float): bool =
     positions.sort()
 
     var runningClip, runningCov, runningClean = 0
-    var posInfo = tables.initOrderedTable[int, Info]()
+    var posInfo = tables.initOrderedTable[int, PositionInfo]()
     # turn running start/end into a depth at each start/end
     for i in 0 .. (positions.len() - 1):
         if positions[i].tag:
@@ -206,6 +203,13 @@ proc gapInCoverage*(ovls: seq[Overlap], minDepth: int, minIdt: float): bool =
         posInfo[positions[i].pos] = (runningCov, runningClean, max(0,
                 runningClip))
 
+    return posInfo
+
+proc gapInCoverage*(ovls: seq[Overlap], posInfo: OrderedTable[int, PositionInfo], minDepth: int, minIdt: float): bool =
+    ##Calculates the coverage in a linear pass. If the start or end < minDepth there
+    ##is a gap. The first and last position are skipped
+    var ep = ovls[0].Alen
+    var an = ovls[0].Aname
 
     var hasCovDip = false
     var hasZeroCovInDip = false
@@ -277,8 +281,10 @@ proc stage1Filter*(overlaps: seq[Overlap],
     var containedBreads = initHashSet[string]()
     var aReadPass = true
 
+    var posInfo = coverageProfile(overlaps)
+
     if gapFilt:
-        if gapInCoverage(overlaps, minDepth, minIdt):
+        if gapInCoverage(overlaps, posInfo, minDepth, minIdt):
             discard readsToFilter.hasKeyOrPut(ridA, 0)
             readsToFilter[ridA] = readsToFilter[ridA] or GREAD
             #stderr.writeLine("YES {ridA}".fmt)
