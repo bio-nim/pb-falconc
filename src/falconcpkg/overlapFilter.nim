@@ -206,8 +206,9 @@ proc coverageProfile*(ovls: seq[Overlap]): OrderedTable[int, PositionInfo] =
     return posInfo
 
 proc gapInCoverage*(ovls: seq[Overlap], posInfo: OrderedTable[int, PositionInfo], minDepth: int, minIdt: float): bool =
-    ##Calculates the coverage in a linear pass. If the start or end < minDepth there
-    ##is a gap. The first and last position are skipped
+    ##Identify gaps in coverage of a read (positions covered < minDepth).
+    ##Do not consider every position in a read, only endpoints of overlaps.
+    ##The first and last position are skipped
     var ep = ovls[0].Alen
     var an = ovls[0].Aname
 
@@ -271,6 +272,7 @@ proc stage1Filter*(overlaps: seq[Overlap],
  minOvlp: int,
  minLen: int,
  minDepth: int,
+ highCopySampleRate: float,
  gapFilt: bool,
  minIdt: float,
  readsToFilter: var tables.Table[string, int]) =
@@ -471,6 +473,7 @@ type
         minIdt: float
         gapFilt: bool
         minDepth: int
+        highCopySampleRate: float
         blacklist: string
         # Used only san M4Index:
         icmd: string
@@ -494,7 +497,7 @@ proc doStage1(args: Stage1) =
     var readsToFilter1 = tables.initTable[string, int]()
     for i in op.getNextPile(args.sin):
         stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
-                args.minDepth, args.gapFilt,
+                args.minDepth, args.highCopySampleRate, args.gapFilt,
                 args.minIdt, readsToFilter1)
     var fstream = newFileStream(args.blacklist, fmWrite)
     defer: fstream.close()
@@ -506,7 +509,7 @@ proc doStage1Indexed(args: Stage1) =
     defer: sin.close()
     for i in getNextPile(sin, args.index):
         stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
-                args.minDepth, args.gapFilt,
+                args.minDepth, args.highCopySampleRate, args.gapFilt,
                 args.minIdt, readsToFilter1)
     var fstream = newFileStream(args.blacklist, fmWrite)
     defer: fstream.close()
@@ -637,6 +640,7 @@ type
         minCov: int
         maxCov: int
         maxDiff: int
+        highCopySampleRate: float
         bestN: int
         minOverhang: int
         minDepth: int
@@ -697,6 +701,7 @@ proc m4filtSingleton(m4Fn: string,
             minIdt: opts.idtStage1,
             gapFilt: opts.gapFilt,
             minDepth: minDepthGapFilt,
+            highCopySampleRate: opts.highCopySampleRate,
             blacklist: blacklist_fn)
         stage1.add(args1)
 
@@ -939,6 +944,7 @@ proc m4filtRunner*(
  minCov: int = 2,
  maxCov: int = 200,
  maxDiff: int = 100,
+ highCopySampleRate: float = 1.0,
  bestN: int = 10,
  minOverhang: int = 0,
  minDepth: int = 2,
@@ -963,6 +969,7 @@ proc m4filtRunner*(
         minCov: minCov,
         maxCov: maxCov,
         maxDiff: maxDiff,
+        highCopySampleRate: highCopySampleRate,
         bestN: bestN,
         minOverhang: minOverhang,
         minDepth: minDepth,
