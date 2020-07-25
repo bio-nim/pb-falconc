@@ -30,6 +30,7 @@ config_polish_min_len = 50000
 config_max_polish_block_mb = 100
 config_use_hpc = 0
 config_purge_dups_calcuts =
+config_m4filt_high_copy_sample_rate = 1.0
 """
 
 type
