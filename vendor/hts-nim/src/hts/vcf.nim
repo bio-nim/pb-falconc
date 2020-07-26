@@ -34,7 +34,7 @@ type
   INFO* = ref object
     ## INFO of a variant
     v: Variant
-    i: int
+    i: int32
 
   FORMAT* = ref object
     ## FORMAT exposes access to the sample format fields in the VCF
@@ -175,7 +175,7 @@ proc remove_format*(h:Header, ID:string): Status =
   bcf_hdr_remove(h.hdr, BCF_HEADER_TYPE.BCF_HL_FMT.cint, ID.cstring)
   return Status(bcf_hdr_sync(h.hdr))
 
-proc info*(v:Variant): INFO {.inline.} =
+proc info*(v:Variant): INFO {.inline, noInit.} =
   discard bcf_unpack(v.c, BCF_UN_STR or BCF_UN_FLT or BCF_UN_INFO)
   result = INFO(i:0, v:v)
 
@@ -183,10 +183,11 @@ proc destroy_format(f:Format) =
   if f != nil and f.p != nil:
     free(f.p)
 
-proc format*(v:Variant): FORMAT {.inline.} =
+proc format*(v:Variant): FORMAT {.inline, noInit.} =
   discard bcf_unpack(v.c, BCF_UN_ALL)
   new(result, destroy_format)
   result.v = v
+  result.p = nil
 
 proc n_samples*(v:Variant): int {.inline.} =
   return v.c.n_sample.int
@@ -403,18 +404,20 @@ proc destroy_variant(v:Variant) =
     free(v.p)
 
 proc from_string*(v: var Variant, h: Header, s:var string) =
-  var str = kstring_t(s:s.cstring, l:s.len.csize, m:s.len.csize)
+  var str = kstring_t(s:s.cstring, l:s.len, m:s.len)
   if v == nil:
     new(v, destroy_variant)
+    v.own = true
   if v.c == nil:
     v.c = bcf_init()
   if vcf_parse(str.addr, h.hdr, v.c) != 0:
    raise newException(ValueError, "hts-nim/Variant/from_string: error parsing variant:" & s)
 
-proc newVariant*(): Variant =
+proc newVariant*(): Variant {.noInit.} =
   ## make an empty variant.
   new(result, destroy_variant)
   result.c = bcf_init()
+  result.own = true
 
 proc destroy_vcf(v:VCF) =
   bcf_hdr_destroy(v.header.hdr)
@@ -424,9 +427,12 @@ proc destroy_vcf(v:VCF) =
     hts_idx_destroy(v.bidx)
   if v.c != nil:
     bcf_destroy(v.c)
-  if v.fname != "-" and v.fname != "/dev/stdin" and v.hts != nil:
-    discard hts_close(v.hts)
-    v.hts = nil
+  if v.fname != "-" and v.fname != "/dev/stdin":
+    if v.hts != nil:
+      discard hts_close(v.hts)
+      v.hts = nil
+  else:
+    flushFile(stdout)
 
 proc close*(v:VCF) =
   if v.fname != "-" and v.fname != "/dev/stdin" and v.hts != nil:
@@ -601,14 +607,23 @@ proc load_index*(v: VCF, path: string, force:bool=false) =
   if v.bidx == nil and v.tidx == nil:
     raise newException(OSError, "unable to load index at:" & path)
 
+template get_info(p:ptr bcf_idpair_t, i:int32, j:int): int64 =
+  var d = cast[CPtr[bcf_idpair_t]](p)
+  if(d[i].val == nil):
+    -1'i64
+  else:
+    d[i].val.info[j].int64
+
 proc contigs*(v:VCF): seq[Contig] =
   var n:cint
-  var cnames = bcf_hdr_seqnames(v.header.hdr, n.addr)
+  let h:ptr bcf_hdr_t = v.header.hdr
+  var cnames = bcf_hdr_seqnames(h, n.addr)
+
   if n > 0:
     result.setLen(n.int)
-    for i in 0..<n:
+    for i in 0..<h.n[BCF_DT_CTG]:
       result[i].name = $cnames[i]
-      result[i].length = -1
+      result[i].length = get_info(h.id[BCF_DT_CTG], i, 0) #.val.info[0]
   else:
     try:
        v.load_index("")
@@ -636,12 +651,12 @@ iterator vquery(v:VCF, region:string): Variant =
     quit(2)
 
   var
-    read_func:hts_readrec_func = tbx_readrec
+    read_func:ptr hts_readrec_func = cast[ptr hts_readrec_func](tbx_readrec)
     ret = 0
     slen = 0
     s = kstring_t()
-    start: cint
-    stop: cint
+    start: int64
+    stop: int64
     tid:cint = 0
 
   discard hts_parse_reg(region.cstring, start.addr, stop.addr)
@@ -651,7 +666,7 @@ iterator vquery(v:VCF, region:string): Variant =
   else:
     tid = tbx_name2id(v.tidx,region[0..<cidx])
 
-  var itr = hts_itr_query(v.tidx.idx, tid.cint, start, stop, read_func)
+  var itr = hts_itr_query(v.tidx.idx, tid.cint, start.int64, stop.int64, read_func)
     #itr = tbx_itr_querys(v.tidx, region)
   var variant: Variant
   new(variant, destroy_variant)
@@ -672,50 +687,55 @@ iterator vquery(v:VCF, region:string): Variant =
 
 
 iterator query*(v:VCF, region: string): Variant =
-  ## iterate over variants in a VCF/BCF for the given region.
-  ## Each returned Variant has a pointer in the underlying iterator
-  ## that is updated each iteration; use .copy to keep it in memory
-  if v.hts.format.format == htsExactFormat.vcf:
-    for v in v.vquery(region):
-      yield v
+  if region in ["-3", "*"]:
+    for variant in v:
+      yield variant
   else:
-    if v.bidx == nil:
-      v.bidx = hts_idx_load(v.fname, HTS_FMT_CSI)
 
-    if v.bidx == nil:
-      stderr.write_line("hts-nim/vcf no index found for " & v.fname)
-      quit(2)
-    var
-      start: cint
-      stop: cint
-      tid:cint = 0
-      read_fn:hts_readrec_func = bcf_readrec
+    ## iterate over variants in a VCF/BCF for the given region.
+    ## Each returned Variant has a pointer in the underlying iterator
+    ## that is updated each iteration; use .copy to keep it in memory
+    if v.hts.format.format == htsExactFormat.vcf:
+      for v in v.vquery(region):
+        yield v
+    else:
+      if v.bidx == nil:
+        v.bidx = hts_idx_load(v.fname, HTS_FMT_CSI)
 
-    discard hts_parse_reg(region.cstring, start.addr, stop.addr)
-    tid = bcf_hdr_name2id(v.header.hdr, region.split({':'}, maxsplit=1)[0].cstring)
-    var itr = hts_itr_query(v.bidx, tid, start, stop, read_fn)
-    var ret = 0
-    var variant: Variant
-    new(variant, destroy_variant)
-    while true:
-        #ret = bcf_itr_next(v.hts, itr, v.c)
-        ret = hts_itr_next(v.hts.fp.bgzf, itr, v.c, nil)
-        if ret < 0: break
-        discard bcf_unpack(v.c, 1 or 2)
-        if bcf_subset_format(v.header.hdr, v.c) != 0:
-            stderr.write_line "[hts-nim/vcf] error with bcf subset format"
-            break
-        variant.c = v.c
-        variant.vcf = v
-        yield variant
+      if v.bidx == nil:
+        stderr.write_line("hts-nim/vcf no index found for " & v.fname)
+        quit(2)
+      var
+        start: int64
+        stop: int64
+        tid:cint = 0
+        read_fn:ptr hts_readrec_func = cast[ptr hts_readrec_func](bcf_readrec)
 
-    hts_itr_destroy(itr)
-    if ret > 0:
-      stderr.write_line "hts-nim/vcf: error parsing "
-      quit(2)
+      discard hts_parse_reg(region.cstring, start.addr, stop.addr)
+      tid = bcf_hdr_name2id(v.header.hdr, region.split({':'}, maxsplit=1)[0].cstring)
+      var itr = hts_itr_query(v.bidx, tid, start, stop, read_fn)
+      var ret = 0
+      var variant: Variant
+      new(variant, destroy_variant)
+      while true:
+          #ret = bcf_itr_next(v.hts, itr, v.c)
+          ret = hts_itr_next(v.hts.fp.bgzf, itr, v.c, nil)
+          if ret < 0: break
+          discard bcf_unpack(v.c, 1 or 2)
+          if bcf_subset_format(v.header.hdr, v.c) != 0:
+              stderr.write_line "[hts-nim/vcf] error with bcf subset format"
+              break
+          variant.c = v.c
+          variant.vcf = v
+          yield variant
 
-  if v.c.errcode != 0:
-    stderr.write_line "hts-nim/vcf bcf_read error:" & $v.c.errcode
+      hts_itr_destroy(itr)
+      if ret > 0:
+        stderr.write_line "hts-nim/vcf: error parsing "
+        quit(2)
+
+    if v.c.errcode != 0:
+      stderr.write_line "hts-nim/vcf bcf_read error:" & $v.c.errcode
 
 proc copy*(v:Variant): Variant =
   ## make a copy of the variant and the underlying pointer.
@@ -728,15 +748,15 @@ proc copy*(v:Variant): Variant =
   v2.p = nil
   return v2
 
-proc POS*(v:Variant): int {.inline.} =
+proc POS*(v:Variant): int64 {.inline.} =
   ## return the 1-based position of the start of the variant
   return v.c.pos + 1
 
-proc start*(v:Variant): int {.inline.} =
+proc start*(v:Variant): int64 {.inline.} =
   ## return the 0-based position of the start of the variant
   return v.c.pos
 
-proc stop*(v:Variant): int {.inline.} =
+proc stop*(v:Variant): int64 {.inline.} =
   ## return the 0-based position of the end of the variant
   return v.c.pos + v.c.rlen
 
@@ -867,34 +887,34 @@ proc alts*(g:Genotype): int8 {.inline.} =
   ## ./. -> -1
   ## 1/1 -> 2
   if likely(g.len == 2):
-    var g0 = g[0].value
-    var g1 = g[1].value
+    let g0 = g[0].value
+    let g1 = g[1].value
     if likely(g0 >= 0 and g1 >= 0):
       return int8(g0 + g1)
     # only unknown if both are unknown
     if (g0 == -1 and g1 == -1) or g1 < -1:
       return -1
 
-    if g0 == -1:
+    if g0 <= -1:
       return int8(g1)
-    if g1 == -1:
+    if g1 <= -1:
       return int8(g0)
 
-  var has_unknown = false
-  for a in g:
-    if a.value == -1:
-      has_unknown = true
-      break
-
-  if not has_unknown:
-    var nalts = 0
-    for a in g:
-      nalts += a.value
-    return int8(nalts)
-
-  if g.len == 1 and g[0].value == -1:
+  if g.len == 1 and g[0].value <= -1:
     return -1
-  raise newException(OSError, "not implemented for:" & $g)
+
+  # ploidy > 2. return sum of alleles as long as there's at least 1 known
+  # genotype
+  var n_found = 0
+  for i in 0..<g.len:
+    if g[i].value >= 0:
+      result += g[i].value.int8
+      n_found.inc
+
+  if n_found == 0:
+    result = -1'i8
+
+  #raise newException(OSError, "not implemented for:" & $g & " should be:" & $result)
 
 proc genotypes*(f:FORMAT, gts: var seq[int32]): Genotypes {.inline.} =
   ## give sequence of genotypes (using the underlying array given in gts)

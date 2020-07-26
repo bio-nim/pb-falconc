@@ -1,10 +1,10 @@
-#FROM alpine:3.10
-FROM alpine:20190925
+FROM alpine:3.11.5
+#FROM alpine:20190925
 
 ENV CFLAGS="-fPIC -O3"
 
 RUN apk add wget git xz bzip2-static musl m4 autoconf tar xz-dev bzip2-dev build-base libpthread-stubs libzip-dev gfortran \
-	    openssl-libs-static openblas-static
+	    openssl-libs-static openblas-static pcre-dev
 
 RUN mkdir -p /usr/local/include && \
     git clone --depth 1 https://github.com/ebiggers/libdeflate.git && \
@@ -15,22 +15,38 @@ RUN mkdir -p /usr/local/include && \
     cd .. && \
     rm -rf cloudflare-zlib
 
+
 RUN cd / && \
-    git clone -b v1.0.2 git://github.com/nim-lang/nim nim && \
+    git clone -b v1.2.0 git://github.com/nim-lang/nim nim && \
     cd nim && sh ./build_all.sh && \
     rm -rf csources && \
     echo 'PATH=/nim/bin:$PATH' >> ~/.bashrc && \
     echo 'PATH=/nim/bin:$PATH' >> ~/.bash_profile && \
     echo 'PATH=/nim/bin:$PATH' >> /etc/environment 
 
+RUN apk add cmake openssl-dev && \
+	wget https://libzip.org/download/libzip-1.6.1.tar.gz && \
+	tar xzvf libzip-1.6.1.tar.gz && \
+	cd libzip-1.6.1 && \
+	mkdir build && cd build && \
+	cmake -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/usr/local/ ../ && \
+	make -j4 CFLAGS="-fPIC -O3" install && \
+	cd ../../ && rm -rf libzip-1.6.1*
+
+
 ENV PATH=:/root/.nimble/bin:/nim/bin/:$PATH	
 
 RUN \
     git clone https://github.com/samtools/htslib && \
-    cd htslib && git checkout 1.9 && autoheader && autoconf && \
+    cd htslib && git checkout 1.10.2 && autoheader && autoconf && \
     ./configure --disable-s3 --disable-libcurl --with-libdeflate && \
     make -j4 CFLAGS="-fPIC -O3" install && \
-    cd ../ && rm -rf htslib
+    cd ../ && \
+    git clone https://github.com/samtools/bcftools && \
+    cd bcftools && git checkout 1.10.2 && autoheader && autoconf && \
+    ./configure --disable-s3 --disable-libcurl --with-libdeflate && \
+    make -j4 CFLAGS="-fPIC -O3" install && \
+    cd ../ && rm -rf htslib bcftools
 
 ADD . /src/
 RUN cat /src/docker/docker.nim.cfg >> /nim/config/nim.cfg && \

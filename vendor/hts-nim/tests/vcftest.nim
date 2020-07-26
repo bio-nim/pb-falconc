@@ -342,6 +342,8 @@ suite "genotypes suite":
     var ctgs = v.contigs
     for i, ctg in ctgs:
       if i > 21: break
+      if i == 0:
+        check ctg.length == 249250621'i64
       check ctg.name == $(i + 1)
 
 suite "header record":
@@ -416,7 +418,7 @@ suite "speed tests":
     var t = cpuTime()
     var v:VCF
     var n:int
-    for i in 0..2:
+    for i in 0..<2:
       check open(v, "tests/test.vcf.gz")
 
       var ints:seq[int32]

@@ -1,5 +1,6 @@
 import unittest, hts/bam as hts
 import strutils
+import os
 
 
 var header_string = """@HD	VN:1.0	SO:coordinate
@@ -10,6 +11,16 @@ SRR741409.41474140	163	6	32771457	37	101M	=	32771663	241	AGTACTATGTTGAATAGGAGTAA
 
 
 suite "bam-suite":
+  test "xam_index":
+    discard tryRemoveFile("tests/HG02002.bam.bai")
+    discard tryRemoveFile("tests/HG02002.bam.csi")
+    check not fileExists("tests/HG02002.bam.bai")
+    check not fileExists("tests/HG02002.bam.csi")
+    xam_index("tests/HG02002.bam")
+    check fileExists("tests/HG02002.bam.bai")
+    xam_index("tests/HG02002.bam", min_shift=12)
+    check fileExists("tests/HG02002.bam.csi")
+
   test "test sa sam":
     var b: Bam
     open(b, "tests/sa.sam")
@@ -26,6 +37,17 @@ suite "bam-suite":
     for rec in b:
       n += 1
     check n == 308
+
+  test "cram writing":
+    var c:Bam
+    doAssert open(c, "_xxx.cram", mode="w")
+    var b: Bam
+    open(b, "tests/sa.bam")
+    doAssert c.hts[].is_cram == 1'u32
+    c.close
+    b.close
+    removeFile("_xxx.cram")
+
 
   test "set aux":
 
