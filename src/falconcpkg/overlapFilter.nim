@@ -1049,7 +1049,7 @@ proc m4filtRunner*(
  minCov: int = 2,
  maxCov: int = 200,
  maxDiff: int = 100,
- highCopySampleRate: float = -1.0,
+ highCopySampleRate: float = 1.0,
  bestN: int = 10,
  minOverhang: int = 0,
  minDepth: int = 2,
