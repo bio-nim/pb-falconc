@@ -16,6 +16,8 @@ import streams
 import json
 import osproc
 import algorithm
+import math
+import hashes
 
 
 #[
@@ -159,22 +161,19 @@ proc summarize(filterLog: string, fn: string) =
     fstream.unpack(readsToFilterSum)
     summarize(filterLog, readsToFilterSum)
 
-proc gapInCoverage*(ovls: seq[Overlap], minDepth: int, minIdt: float): bool =
-    ##Calculates the coverage in a linear pass. If the start or end < minDepth there
-    ##is a gap. The first and last position are skipped
+type PositionInfo = tuple
+    cov: int #coverage
+    cco: int #clean cov
+    cli: int #clip
+
+proc coverageProfile*(ovls: seq[Overlap]): OrderedTable[int, PositionInfo] =
+    ##Calculates the coverage profile of an A read in a linear pass.
+
     type PosAndTag = tuple
         pos: int #read a position
         tag: bool #starts are true ends are false
         cli: bool #if start == 0 or end == len; is it a clipped read
         loc: bool #is this a local align
-    type Info = tuple
-        cov: int #coverage
-        cco: int #clean cov
-        cli: int #clip
-
-
-    var ep = ovls[0].Alen
-    var an = ovls[0].Aname
 
     var positions = newSeq[PosAndTag]()
     # load start/end into a tuple for linear depth caculation
@@ -189,7 +188,7 @@ proc gapInCoverage*(ovls: seq[Overlap], minDepth: int, minIdt: float): bool =
     positions.sort()
 
     var runningClip, runningCov, runningClean = 0
-    var posInfo = tables.initOrderedTable[int, Info]()
+    var posInfo = tables.initOrderedTable[int, PositionInfo]()
     # turn running start/end into a depth at each start/end
     for i in 0 .. (positions.len() - 1):
         if positions[i].tag:
@@ -206,6 +205,14 @@ proc gapInCoverage*(ovls: seq[Overlap], minDepth: int, minIdt: float): bool =
         posInfo[positions[i].pos] = (runningCov, runningClean, max(0,
                 runningClip))
 
+    return posInfo
+
+proc gapInCoverage*(ovls: seq[Overlap], posInfo: OrderedTable[int, PositionInfo], minDepth: int, minIdt: float): bool =
+    ##Identify gaps in coverage of a read (positions covered < minDepth).
+    ##Do not consider every position in a read, only endpoints of overlaps.
+    ##The first and last position are skipped
+    var ep = ovls[0].Alen
+    var an = ovls[0].Aname
 
     var hasCovDip = false
     var hasZeroCovInDip = false
@@ -277,8 +284,10 @@ proc stage1Filter*(overlaps: seq[Overlap],
     var containedBreads = initHashSet[string]()
     var aReadPass = true
 
+    var posInfo = coverageProfile(overlaps)
+
     if gapFilt:
-        if gapInCoverage(overlaps, minDepth, minIdt):
+        if gapInCoverage(overlaps, posInfo, minDepth, minIdt):
             discard readsToFilter.hasKeyOrPut(ridA, 0)
             readsToFilter[ridA] = readsToFilter[ridA] or GREAD
             #stderr.writeLine("YES {ridA}".fmt)
@@ -320,6 +329,98 @@ proc stage1Filter*(overlaps: seq[Overlap],
         readsToFilter[ridA] = readsToFilter[ridA] or LREAD
         aReadPass = false
     if threePrimeCount < minOvlp:
+        discard readsToFilter.hasKeyOrPut(ridA, 0)
+        readsToFilter[ridA] = readsToFilter[ridA] or LREAD
+        aReadPass = false
+
+    if aReadPass:
+        for i in containedBreads:
+            discard readsToFilter.hasKeyOrPut(i, 0)
+            readsToFilter[i] = readsToFilter[i] or CREAD
+
+proc stage1Filter*(overlaps: seq[Overlap],
+ maxDiff: int,
+ maxOvlp: int,
+ minOvlp: int,
+ minLen: int,
+ minDepth: int,
+ highCopySampleRate: float,
+ gapFilt: bool,
+ minIdt: float,
+ readsToFilter: var tables.Table[string, int]) =
+    assert highCopySampleRate >= 0.0
+    if 0 == len(overlaps):
+        return
+    var fivePrimeCount, threePrimeCount: int = 0
+    var ridA = overlaps[0].Aname
+    var containedBreads = initHashSet[string]()
+    var aReadPass = true
+
+    var posInfo = coverageProfile(overlaps)
+
+    if gapFilt:
+        if gapInCoverage(overlaps, posInfo, minDepth, minIdt):
+            discard readsToFilter.hasKeyOrPut(ridA, 0)
+            readsToFilter[ridA] = readsToFilter[ridA] or GREAD
+            #stderr.writeLine("YES {ridA}".fmt)
+
+    for i in overlaps:
+        if i.tag == "u":
+            continue
+        if i.idt < minIdt:
+            continue
+        if(i.Alen < minLen):
+            discard readsToFilter.hasKeyOrPut(i.Aname, 0)
+            readsToFilter[i.Aname] = readsToFilter[i.Aname] or SREAD
+        if(i.Blen < minLen):
+            discard readsToFilter.hasKeyOrPut(i.Bname, 0)
+            readsToFilter[i.Bname] = readsToFilter[i.Bname] or SREAD
+        if (i.Alen < minLen) or (i.Blen < minLen):
+            continue
+        if op.isTagContains(i.tag):
+            containedBreads.incl(i.Bname)
+        if i.Astart == 0:
+            inc(fivePrimeCount)
+        if i.Aend == i.Alen:
+            inc(threePrimeCount)
+
+    # Calculate the average coverage across the A read
+    var covWeightA: int = 0
+    var prevPos: int = 0
+    var prevCov: int = 0
+    for pos,info in posInfo:
+        covWeightA += (pos-prevPos) * prevCov
+        prevPos = pos
+        prevCov = info.cov
+    var avgCovA: float = covWeightA / overlaps[0].Alen
+
+    var lowerCount, higherCount: int
+    if fivePrimeCount < threePrimeCount:
+        lowerCount = fivePrimeCount
+        higherCount = threePrimeCount
+    else:
+        lowerCount = threePrimeCount
+        higherCount = fivePrimeCount
+
+    if higherCount > maxOvlp or (higherCount - lowerCount) > maxDiff: # (putative) end in repeat
+        var discardAread = true
+        # Retain some reads from high-copy elements like organelles that have "uniformly" high coverage,
+        # i.e. where the edge overlap count is similar to the average coverage of the read.
+        # A potential improvement here is to define uniform coverage more stringently, perhaps that
+        # all coverage levels in the profile are +/-50% of the average coverage.
+        if float(higherCount) < 1.5*avgCovA:
+            # Retain with probability ~ highCopySampleRate*maxOvlp/avgCovA; use a hash of read name so decision is deterministic
+            var ridARand = hash(ridA)
+            if highCopySampleRate > 0.0 and ridARand mod int(ceil(avgCovA/highCopySampleRate)) < maxOvlp:
+                discardAread = false
+        if discardAread:
+            discard readsToFilter.hasKeyOrPut(ridA, 0)
+            if higherCount > maxOvlp:
+                readsToFilter[ridA] = readsToFilter[ridA] or HREAD
+            if (higherCount - lowerCount) > maxDiff:
+                readsToFilter[ridA] = readsToFilter[ridA] or BREAD
+            aReadPass = false
+    if lowerCount < minOvlp:
         discard readsToFilter.hasKeyOrPut(ridA, 0)
         readsToFilter[ridA] = readsToFilter[ridA] or LREAD
         aReadPass = false
@@ -465,6 +566,7 @@ type
         minIdt: float
         gapFilt: bool
         minDepth: int
+        highCopySampleRate: float
         blacklist: string
         # Used only san M4Index:
         icmd: string
@@ -487,8 +589,15 @@ type
 proc doStage1(args: Stage1) =
     var readsToFilter1 = tables.initTable[string, int]()
     for i in op.getNextPile(args.sin):
-        stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+        if args.highCopySampleRate < 0.0:
+            # old way
+            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
                 args.minDepth, args.gapFilt,
+                args.minIdt, readsToFilter1)
+        else:
+            # new way
+            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+                args.minDepth, args.highCopySampleRate, args.gapFilt,
                 args.minIdt, readsToFilter1)
     var fstream = newFileStream(args.blacklist, fmWrite)
     defer: fstream.close()
@@ -499,8 +608,13 @@ proc doStage1Indexed(args: Stage1) =
     var sin = streams.newFileStream(args.m4Fn, fmRead)
     defer: sin.close()
     for i in getNextPile(sin, args.index):
-        stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+        if args.highCopySampleRate < 0.0:
+            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
                 args.minDepth, args.gapFilt,
+                args.minIdt, readsToFilter1)
+        else:
+            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+                args.minDepth, args.highCopySampleRate, args.gapFilt,
                 args.minIdt, readsToFilter1)
     var fstream = newFileStream(args.blacklist, fmWrite)
     defer: fstream.close()
@@ -631,6 +745,7 @@ type
         minCov: int
         maxCov: int
         maxDiff: int
+        highCopySampleRate: float
         bestN: int
         minOverhang: int
         minDepth: int
@@ -691,6 +806,7 @@ proc m4filtSingleton(m4Fn: string,
             minIdt: opts.idtStage1,
             gapFilt: opts.gapFilt,
             minDepth: minDepthGapFilt,
+            highCopySampleRate: opts.highCopySampleRate,
             blacklist: blacklist_fn)
         stage1.add(args1)
 
@@ -933,6 +1049,7 @@ proc m4filtRunner*(
  minCov: int = 2,
  maxCov: int = 200,
  maxDiff: int = 100,
+ highCopySampleRate: float = 1.0,
  bestN: int = 10,
  minOverhang: int = 0,
  minDepth: int = 2,
@@ -957,6 +1074,7 @@ proc m4filtRunner*(
         minCov: minCov,
         maxCov: maxCov,
         maxDiff: maxDiff,
+        highCopySampleRate: highCopySampleRate,
         bestN: bestN,
         minOverhang: minOverhang,
         minDepth: minDepth,

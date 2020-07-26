@@ -137,6 +137,7 @@ when isMainModule:
           "min-cov": "Minimum number of overlaps on either side of a read",
           "max-cov": "Maximum number of overlaps on either side of a read",
           "max-diff": "Reads are skipped is abs(5p-3p) overlap counts > maxDiff",
+          "high-copy-sample-rate": "Downsample reads from high copy elements to expected coverage maxCov*rate [0=discard reads]",
           "bestn": "Keep N best overlaps at 5prime AND 3prime of a read",
           "min-overhang": "Minimum amount of overhang bases in an overlap to keep the overlap",
           "min-depth": "Depths lower than minDepth are considered gaps",
