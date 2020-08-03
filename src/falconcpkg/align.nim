@@ -461,18 +461,24 @@ proc writePaf(out_paf: streams.Stream, record: hts.Record, targets: seq[Target])
     streams.write(out_paf, $p)
     streams.write(out_paf, '\n')
 
-proc bam2paf*(in_bam_fn, out_paf_fn: string) =
+proc bam2paf*(in_bam_fn, out_p_paf_fn: string, out_a_paf_fn: string) =
     ## https://bioconvert.readthedocs.io/en/master/formats.html#paf-pairwise-mapping-format
     var b: Bam
     open(b, in_bam_fn, index = true)
     defer:
         b.close()
-    var out_paf = streams.openFileStream(out_paf_fn, fmWrite)
+    var out_p_paf = streams.openFileStream(out_p_paf_fn, fmWrite)
+    var out_a_paf = streams.openFileStream(out_a_paf_fn, fmWrite)
     defer:
-        streams.close(out_paf)
+        streams.close(out_p_paf)
+        streams.close(out_a_paf)
     let targets = hts.targets(b.hdr) # in case there are more than 1
-    for rec in b:
-        writePaf(out_paf, rec, targets)
+    for record in b:
+        let rname = record.chrom
+        if strutils.find(rname, '-') >= 0:
+            writePaf(out_a_paf, record, targets)
+        else:
+            writePaf(out_p_paf, record, targets)
     # This is fine, but canonical PAF would add these tags also:
     # var extra = ["mm:i:"+(NM-I[1]-D[1]), "io:i:"+I[0], "in:i:"+I[1], "do:i:"+D[0], "dn:i:"+D[1]];
     # https://github.com/lh3/miniasm/blob/master/misc/sam2paf.js
