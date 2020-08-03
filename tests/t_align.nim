@@ -74,6 +74,18 @@ suite "align":
         check bam_count(output_fn) == 0
         os.removeFile(output_fn)
 
+    test "bam2paf":
+        let
+            output_fn = "foo.paf"
+        #discard os.tryRemoveFile(output_fn)
+        bam2paf(input_fn, output_fn)
+        let expected_paf = """
+alnA	7	0	7	-	myseq	7	0	7	7	7	60
+alnA	17	5	12	-	myseq	7	0	7	7	7	60
+alnA	18	5	13	-	myseq	7	0	7	7	7	60
+alnA	18	6	12	-	myseq	7	0	7	7	7	60
+"""
+        check open(output_fn).readAll() == expected_paf
     os.removeFile(input_fn)
 
 suite "align-utils":

@@ -195,6 +195,7 @@ proc processRecord(record: hts.Record, klen: int, rseq: Dna): ProcessedRecord =
     # complement to remove kmers that are in the reference where the read maps.
     var rsubseq = rseq.substr((record.start - (klen - 1)).int,
             (record.stop - 1 + (klen - 1)).int) # TODO(CD): Use a slice?
+
     #var rsubseq = rseq.substr(record.start, record.stop-1)  # TODO(CD): Use a slice?
     var refkmers = dna_to_kmers(rsubseq, klen)
     #echo "refkmers.len=", refkmers.seeds.len(), "(", rsubseq.len(), "), kmers.len=", kmers.seeds.len(), "(", qseq.len(), ")", (record.stop-record.start)

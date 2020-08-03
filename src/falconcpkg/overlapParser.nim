@@ -46,9 +46,9 @@ proc parseM4IndexQuick*(sin: streams.Stream): M4Index =
     let s_frmt = "%*s %ld %lld %ld"
     var
         line: string
-        count: clong #int32
+        count: clong   #int32
         pos: clonglong #int64
-        len: clong #int32
+        len: clong     #int32
         rec: M4IndexRecord
     while streams.readLine(sin, line):
         let cline: cstring = line.string

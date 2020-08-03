@@ -256,6 +256,12 @@ when isMainModule:
         "flag": "filter reads with flag"
             },
         ],
+        [align.bam2paf, cmdName = "bam2paf",
+            help = {
+                "in-bam-fn": "input bam filename",
+                "out-paf-fn": "output paf filename",
+            },
+        ],
         [ipa2_construct_config.main, cmdName = "ipa2-construct-config",
          help = {
           "out-fmt": "Output format of the config file. (json or bash)",

@@ -388,7 +388,7 @@ proc stage1Filter*(overlaps: seq[Overlap],
     var covWeightA: int = 0
     var prevPos: int = 0
     var prevCov: int = 0
-    for pos,info in posInfo:
+    for pos, info in posInfo:
         covWeightA += (pos-prevPos) * prevCov
         prevPos = pos
         prevCov = info.cov

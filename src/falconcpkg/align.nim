@@ -7,6 +7,8 @@ from sequtils import nil
 from strutils import format
 from tables import contains, `[]`, `[]=`
 from sets import items
+from streams import nil
+from strformat import fmt
 from ./util import log, raiseEx
 
 proc logRec(record: Record) =
@@ -82,7 +84,7 @@ proc calc_query_pos*(record: hts.Record): tuple[qstart: int, qend: int,
 proc target_to_query*(cigar: hts.Cigar, t_pos, t_start, t_end: int64): tuple[
         q_start, q_end: int64] =
     #given a region in target space return the coordinates of the query for the same region.
-#for more info see page seven of the bible :  https://samtools.github.io/hts-specs/SAMv1.pdf
+    #for more info see page seven of the bible :  https://samtools.github.io/hts-specs/SAMv1.pdf
 
     var t_off, q_off: int64 = 0
     t_off += t_pos
@@ -407,3 +409,70 @@ proc bam_filter_ipa*(bams_fofn: string, all_subread_names_fn = "",
     for key in sorted_exclusions:
         #log("Count of '", key, "': ", everything[key])
         echo key
+
+type
+    PafLine = object
+        qname: string
+        qlen, qstart, qend: int
+        relStrand: char
+        tname: string
+        tlen, tstart, tend: int
+        numResidueMatches: int
+        alnBlockLen: int
+        mappingQuality: int
+
+# https://bioconvert.readthedocs.io/en/master/formats.html#paf-pairwise-mapping-format
+proc `$`(p: PafLine): string =
+    return "{p.qname}\t{p.qlen}\t{p.qstart}\t{p.qend}\t{p.relStrand}\t{p.tname}\t{p.tlen}\t{p.tstart}\t{p.tend}\t{p.numResidueMatches}\t{p.alnBlockLen}\t{p.mappingQuality}".fmt
+
+proc writePaf(out_paf: streams.Stream, record: hts.Record, targets: seq[Target]) =
+    var p: PafLine
+
+    let qpos = calc_query_pos(record)
+    p.qname = record.qname
+    p.qstart = qpos.qstart
+    p.qend = qpos.qend
+    p.qlen = qpos.qlen # same as bam_cigar2qlen()
+    p.relStrand = '+'
+
+    if record.flag.reverse: # reversed
+        let clipleft = p.qstart
+        let clipright = p.qlen - p.qend
+        p.qstart = clipright
+        p.qend = p.qlen - p.qstart
+        p.relStrand = '-'
+
+    p.tname = record.chrom
+    p.tstart = hts.start(record).int
+    p.tend = hts.stop(record).int
+    #p.tlen = p.tend - p.tstart  # not what PAF wants
+    let reference_length = get_reference_length(record, targets).int
+    p.tlen = reference_length
+
+    p.alnBlockLen = p.tend - p.tstart # same as bam_cigar2rlen()
+
+    var mismatches = 0
+    if not hts.isNone(hts.tag[int](record, "NM")):
+        mismatches = hts.tag[int](record, "NM").get.int
+    else:
+        mismatches = 0 # not correct, but also not important
+    p.numResidueMatches = p.alnBlockLen - mismatches
+    p.mappingQuality = record.mapping_quality.int
+    streams.write(out_paf, $p)
+    streams.write(out_paf, '\n')
+
+proc bam2paf*(in_bam_fn, out_paf_fn: string) =
+    ## https://bioconvert.readthedocs.io/en/master/formats.html#paf-pairwise-mapping-format
+    var b: Bam
+    open(b, in_bam_fn, index = true)
+    defer:
+        b.close()
+    var out_paf = streams.openFileStream(out_paf_fn, fmWrite)
+    defer:
+        streams.close(out_paf)
+    let targets = hts.targets(b.hdr) # in case there are more than 1
+    for rec in b:
+        writePaf(out_paf, rec, targets)
+    # This is fine, but canonical PAF would add these tags also:
+    # var extra = ["mm:i:"+(NM-I[1]-D[1]), "io:i:"+I[0], "in:i:"+I[1], "do:i:"+D[0], "dn:i:"+D[1]];
+    # https://github.com/lh3/miniasm/blob/master/misc/sam2paf.js
