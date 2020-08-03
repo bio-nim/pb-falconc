@@ -415,15 +415,15 @@ type
         qname: string
         qlen, qstart, qend: int
         relStrand: char
-        rname: string
-        rlen, rstart, rend: int
+        tname: string
+        tlen, tstart, tend: int
         numResidueMatches: int
         alnBlockLen: int
         mappingQuality: int
 
 # https://bioconvert.readthedocs.io/en/master/formats.html#paf-pairwise-mapping-format
 proc `$`(p: PafLine): string =
-    return "{p.qname}\t{p.qlen}\t{p.qstart}\t{p.qend}\t{p.relStrand}\t{p.rname}\t{p.rlen}\t{p.rstart}\t{p.rend}\t{p.numResidueMatches}\t{p.alnBlockLen}\t{p.mappingQuality}".fmt
+    return "{p.qname}\t{p.qlen}\t{p.qstart}\t{p.qend}\t{p.relStrand}\t{p.tname}\t{p.tlen}\t{p.tstart}\t{p.tend}\t{p.numResidueMatches}\t{p.alnBlockLen}\t{p.mappingQuality}".fmt
 
 proc writePaf(out_paf: streams.Stream, record: hts.Record, targets: seq[Target]) =
     var p: PafLine
@@ -442,14 +442,14 @@ proc writePaf(out_paf: streams.Stream, record: hts.Record, targets: seq[Target])
         p.qend = p.qlen - p.qstart
         p.relStrand = '-'
 
-    p.rname = record.chrom
-    p.rstart = hts.start(record).int
-    p.rend = hts.stop(record).int
-    #p.rlen = p.rend - p.rstart  # not what PAF wants
+    p.tname = record.chrom
+    p.tstart = hts.start(record).int
+    p.tend = hts.stop(record).int
+    #p.tlen = p.tend - p.tstart  # not what PAF wants
     let reference_length = get_reference_length(record, targets).int
-    p.rlen = reference_length
+    p.tlen = reference_length
 
-    p.alnBlockLen = p.rend - p.rstart # same as bam_cigar2rlen()
+    p.alnBlockLen = p.tend - p.tstart # same as bam_cigar2rlen()
 
     var mismatches = 0
     if not hts.isNone(hts.tag[int](record, "NM")):
