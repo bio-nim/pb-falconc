@@ -259,7 +259,8 @@ when isMainModule:
         [align.bam2paf, cmdName = "bam2paf",
             help = {
                 "in-bam-fn": "input bam filename",
-                "out-paf-fn": "output paf filename",
+                "out-p-paf-fn": "output paf filename for p-contigs",
+                "out-a-paf-fn": "output paf filename for a-contigs (those with - in their name)",
             },
         ],
         [ipa2_construct_config.main, cmdName = "ipa2-construct-config",
