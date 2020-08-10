@@ -439,7 +439,7 @@ proc writePaf(out_paf: streams.Stream, record: hts.Record, targets: seq[Target])
         let clipleft = p.qstart
         let clipright = p.qlen - p.qend
         p.qstart = clipright
-        p.qend = p.qlen - p.qstart
+        p.qend = p.qlen - clipleft
         p.relStrand = '-'
 
     p.tname = record.chrom
