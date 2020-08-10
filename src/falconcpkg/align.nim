@@ -464,7 +464,7 @@ proc writePaf(out_paf: streams.Stream, record: hts.Record, targets: seq[Target])
 proc bam2paf*(in_bam_fn, out_p_paf_fn: string, out_a_paf_fn: string) =
     ## https://bioconvert.readthedocs.io/en/master/formats.html#paf-pairwise-mapping-format
     var b: Bam
-    open(b, in_bam_fn, index = true)
+    open(b, in_bam_fn, index = false)
     defer:
         b.close()
     var out_p_paf = streams.openFileStream(out_p_paf_fn, fmWrite)
