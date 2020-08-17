@@ -482,3 +482,41 @@ proc bam2paf*(in_bam_fn, out_p_paf_fn: string, out_a_paf_fn: string) =
     # This is fine, but canonical PAF would add these tags also:
     # var extra = ["mm:i:"+(NM-I[1]-D[1]), "io:i:"+I[0], "in:i:"+I[1], "do:i:"+D[0], "dn:i:"+D[1]];
     # https://github.com/lh3/miniasm/blob/master/misc/sam2paf.js
+
+proc getTargetFromPafLine(line: string): auto =
+    return util.getNthWord(line, 5, delim='\t')
+
+proc paf_filter*(fai_fn: string, in_paf_fn="-", out_paf_fn="-") =
+    ## Drop the lines of PAF that involve contigs not in FASTA index.
+    ## Write the rest to out_paf_fn.
+    ## ("-" means stdin/stdout for PAF.)
+    ## https://bioconvert.readthedocs.io/en/master/formats.html#paf-pairwise-mapping-format
+    var fin: hts.Fai
+    let fn = fai_fn[0 ..< ^4]
+    if not open(fin, fn):
+        util.raiseEx("Could not open '{fai_fn}' ({fn})".fmt)
+    let nchroms = hts.len(fin)
+    log("{nchroms} reads in '{fn}'".fmt)
+    var chromset = sets.initHashSet[string]()
+    for i in 0 ..< nchroms:
+        let chrom: string = fin[i]
+        #echo "chrom:{chrom}".fmt
+        sets.incl(chromset, chrom)
+    assert nchroms == sets.len(chromset)
+
+    var
+        pin, pout: streams.Stream
+        line, ctg: string
+    if in_paf_fn == "-":
+        pin = streams.newFileStream(stdin)
+    else:
+        pin = streams.openFileStream(in_paf_fn)
+    if out_paf_fn == "-":
+        pout = streams.newFileStream(stdout)
+    else:
+        pout = streams.openFileStream(out_paf_fn, mode=fmWrite)
+
+    while streams.readLine(pin, line):
+        ctg = getTargetFromPafLine(line)
+        if sets.contains(chromset, ctg):
+            streams.writeLine(pout, line)

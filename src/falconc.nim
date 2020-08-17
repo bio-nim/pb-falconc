@@ -263,6 +263,13 @@ when isMainModule:
                 "out-a-paf-fn": "output paf filename for a-contigs (those with - in their name)",
             },
         ],
+        [align.paf_filter, cmdName = "paf-filter",
+            help = {
+                "fai-fn": "input fasta-index filename (as in foo.fasta.fai, but assume foo.fasta is next to it; foo.fasta must then exist, but it can be empty since it is ignored)",
+                "in-paf-fn": "paf filename ('-' => stdin)",
+                "out-paf-fn": "output paf filename, with only the contigs inside the fasta ('-' => stdout)",
+            },
+        ],
         [ipa2_construct_config.main, cmdName = "ipa2-construct-config",
          help = {
           "out-fmt": "Output format of the config file. (json or bash)",
