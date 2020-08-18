@@ -5,6 +5,7 @@ from os import nil
 #from threadpool import nil
 from streams import nil
 from strformat import fmt
+from strutils import nil
 import heapqueue
 import osproc
 import times
@@ -260,3 +261,21 @@ proc toString*(ins: var Headroom, outs: var string, source: string = "") =
     outs.setLen(n)
     for i in 0 ..< n:
         outs[i] = ins[i]
+
+proc getNthWord*(line: string, n: Natural, delim: char): string =
+    ## n is 0-based
+    var
+        start = 0
+        count = 0
+        found = -1
+    while count < n:
+        found = strutils.find(line, delim, start)
+        if found == -1:
+            let msg = "Found only {count} < {n} instances of '{delim}' in '{line}'".fmt
+            raiseEx(msg)
+        start = found + 1
+        count += 1
+    var wordEnd = strutils.find(line, delim, start)
+    if wordEnd == -1:
+        wordEnd = line.len()
+    return line[start..(wordEnd-1)]
