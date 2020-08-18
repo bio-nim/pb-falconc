@@ -95,3 +95,14 @@ suite "util":
         check os.execShellCmd("touch {afn}".fmt) == 0
         check not isOlderFile(afn, bfn)
         check os.execShellCmd("rm -f {afn} {bfn}".fmt) == 0
+
+    test "getNthWord":
+        check getNthWord("a", 0, ' ') == "a"
+        check getNthWord("a b", 0, ' ') == "a"
+        check getNthWord("a b", 1, ' ') == "b"
+        check getNthWord("a b ", 1, ' ') == "b"
+        check getNthWord("ax bx cx", 0, ' ') == "ax"
+        check getNthWord("ax bx cx", 1, ' ') == "bx"
+        check getNthWord("ax bx cx", 2, ' ') == "cx"
+        expect PbError:
+            discard getNthWord("ax bx cx", 3, ' ')
