@@ -166,17 +166,20 @@ proc shardMatrix*(nrows, ncols, nShards: int): seq[seq[PancakeRange]] =
 
 proc shardMatrixColumns*(nrows, ncols, nShards: int): seq[seq[PancakeRange]] =
     ## Note order of arguments.
-    # Initialize stack w/ n complete rows.
-    var stack = newSeq[PancakeRange](nrows)
-    var summed = 0
-    for i in 0 ..< nrows:
-        let pr = PancakeRange(t: i, qs: 0, qe: ncols)
-        summed += pr.size()
-        stack[nrows - i - 1] = pr
+    if nrows == 0 or ncols == 0:
+        return
+    # Initialize stack w/ a single, complete row.
+    # (This lets us re-use some logic.)
+    # (We will duplicate rows later.)
+    let
+        pr = PancakeRange(t: 0, qs: 0, qe: ncols)
+        summed = pr.size()
+    var stack = @[pr]
+
     # For each shard, consume total/nshards comparisons, splitting
     # as necessary.
     var
-        total = nrows*ncols
+        total = 1*ncols
         remaining = total
         needed = 0
         i = 0
@@ -188,18 +191,15 @@ proc shardMatrixColumns*(nrows, ncols, nShards: int): seq[seq[PancakeRange]] =
             #log("i:{i} rem:{remaining} needed:{needed} max:{nShards}".fmt)
             var pr = stack.pop()
             if pr.size() > needed:
-                # Snake back and forth for better data-locality.
-                if (pr.t and 1) == 0:
-                    # even row
-                    let (left, right) = pr.splitPancakeRange(needed)
-                    stack.add(right) # Push back what we did not yet need.
-                    pr = left
-                else:
-                    let (left, right) = pr.splitPancakeRangeRight(needed)
-                    stack.add(left) # Push back what we did not yet need.
-                    pr = right
-                    # odd row
-            result[i].add(pr)
+                let (left, right) = pr.splitPancakeRange(needed)
+                stack.add(right) # Push back what we did not yet need.
+                pr = left
+            let
+                qs = pr.qs
+                qe = pr.qe
+            for r in 0 ..< nrows:
+                let row = PancakeRange(t: r, qs: qs, qe: qe)
+                result[i].add(row)
             #log(" result[i]:{result[i]}".fmt)
             remaining -= pr.size()
             needed -= pr.size()
