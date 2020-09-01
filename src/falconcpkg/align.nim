@@ -492,6 +492,7 @@ proc paf_filter*(fai_fn: string, in_paf_fn="-", out_paf_fn="-") =
     ## ("-" means stdin/stdout for PAF.)
     ## https://bioconvert.readthedocs.io/en/master/formats.html#paf-pairwise-mapping-format
     var fin: hts.Fai
+    assert strutils.endswith(fai_fn, ".fai"), "'{fai_fn}' does not end with '.fai'".fmt
     let fn = fai_fn[0 ..< ^4]
     if not open(fin, fn):
         util.raiseEx("Could not open '{fai_fn}' ({fn})".fmt)
