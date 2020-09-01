@@ -112,8 +112,56 @@ proc splitPancakeRange*(a: PancakeRange, leftSize: int): tuple[left: PancakeRang
     assert left.size() + right.size() == a.size()
     return (left, right)
 
+proc splitPancakeRangeRight*(a: PancakeRange, rightSize: int): tuple[left: PancakeRange, right: PancakeRange] =
+    # Split into 2 shorter ranges covering the whole.
+    # Right is at most rightSize; left is the rest.
+    return splitPancakeRange(a, a.size - rightSize)
+
 proc `$`*(a: PancakeRange): string =
     return "{a.t} {a.qs} {a.qe}".fmt
+
+proc shardMatrix*(nt, nq, nShards: int): seq[seq[PancakeRange]] =
+    ## Note order of arguments.
+    # Initialize stack w/ n complete rows.
+    var stack = newSeq[PancakeRange](nt)
+    var summed = 0
+    for i in 0 ..< nt:
+        let pr = PancakeRange(t: i, qs: 0, qe: nq)
+        summed += pr.size()
+        stack[nt - i - 1] = pr
+    # For each shard, consume total/nshards comparisons, splitting
+    # as necessary.
+    var
+        total = nt*nq
+        remaining = total
+        needed = 0
+        i = 0
+    assert total == summed
+    while remaining > 0:
+        needed = math.ceil(remaining/(nShards - result.len())).int # rounded up
+        while needed > 0:
+            result.setLen(i + 1)
+            #log("i:{i} rem:{remaining} needed:{needed} max:{nShards}".fmt)
+            var pr = stack.pop()
+            if pr.size() > needed:
+                # Snake back and forth for better data-locality.
+                if (pr.t and 1) == 0:
+                    # even row
+                    let (left, right) = pr.splitPancakeRange(needed)
+                    stack.add(right) # Push back what we did not yet need.
+                    pr = left
+                else:
+                    let (left, right) = pr.splitPancakeRangeRight(needed)
+                    stack.add(left) # Push back what we did not yet need.
+                    pr = right
+                    # odd row
+            result[i].add(pr)
+            #log(" result[i]:{result[i]}".fmt)
+            remaining -= pr.size()
+            needed -= pr.size()
+        i += 1
+    #echo "result=" & $result
+    return result
 
 proc shardUpperTriangular*(n: int, nShards: int): seq[seq[PancakeRange]] =
     var stack = newSeq[PancakeRange](n)
@@ -329,6 +377,18 @@ proc shard_ovl_asym*(max_nshards: int, shard_prefix = "shard", n: int, out_ids_f
     ## (Used to shard the asymmetric overlap jobs.)
     log("shard_ovl_asym: max_nshards={max_nshards} n={n}".fmt)
     let shards = combineUpperTriangular(prefix = shard_prefix, n = n, nShards = max_nshards)
+    if out_ids_fn != "":
+        var fout = open(out_ids_fn, fmWrite)
+        for shard_id in 0 ..< len(shards):
+            fout.writeLine(shard_id)
+        fout.close()
+
+proc shard_mapping*(max_nshards: int, shard_prefix = "shard", n_query_blocks, n_target_blocks: int, out_ids_fn = "") =
+    ## Generate comparisons for nq-by-nt matrix.
+    ## (Used to shard the purge_dups overlap jobs, contigs vs. reads.)
+    log("shard_mapping: max_nshards={max_nshards} n_query={n_query_blocks} n_target={n_target_blocks}".fmt)
+    #let shards = combineUpperTriangular(prefix = shard_prefix, n = n, nShards = max_nshards)
+    var shards: seq[seq[PancakeRange]]
     if out_ids_fn != "":
         var fout = open(out_ids_fn, fmWrite)
         for shard_id in 0 ..< len(shards):
