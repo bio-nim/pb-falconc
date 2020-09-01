@@ -1,6 +1,6 @@
 # Package
 
-version       = "1.10.0"
+version       = "1.10.1"
 author        = "Zev Kronenberg"
 author        = "Christopher Dunn"
 description   = "C Utilities for bioinformatics"

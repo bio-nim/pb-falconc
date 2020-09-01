@@ -24,6 +24,7 @@ config_polish_min_len=50000
 config_polish_run=1
 config_purge_dups_calcuts=''
 config_purge_dups_run=0
+config_purge_map_opt='--min-map-len 1000 --min-idt 98.0 --bestn 5'
 config_seeddb_opt='-k 32 -w 80 --space 2'
 config_seqdb_opt='--compression 0'
 config_use_hpc=0
@@ -51,6 +52,7 @@ let expected_default_json = """
     "config_polish_run": "1",
     "config_purge_dups_calcuts": "",
     "config_purge_dups_run": "0",
+    "config_purge_map_opt": "--min-map-len 1000 --min-idt 98.0 --bestn 5",
     "config_seeddb_opt": "-k 32 -w 80 --space 2",
     "config_seqdb_opt": "--compression 0",
     "config_use_hpc": "0",
@@ -216,8 +218,8 @@ suite "ipa_polish_prepare":
 """
 
     test "shardMatrix":
-        proc shardm(nt, nq, nshards: int): string =
-            let shards = shardMatrix(nt = nt, nq = nq, nshards = nshards)
+        proc shardm(nrows, ncols, nshards: int): string =
+            let shards = shardMatrix(nrows = nrows, ncols = ncols, nshards = nshards)
             var outs = streams.newStringStream()
             for shard in shards:
                 outs.writeLine(len(shard))
@@ -256,4 +258,48 @@ suite "ipa_polish_prepare":
 1 2 3
 1
 1 0 2
+"""
+
+    test "shardMatrixColumns":
+        proc shardmc(nrows, ncols, nshards: int): string =
+            let shards = shardMatrixColumns(nrows = nrows, ncols = ncols, nshards = nshards)
+            var outs = streams.newStringStream()
+            for shard in shards:
+                outs.writeLine(len(shard))
+                for pr in shard:
+                    outs.writeLine(pr)
+            outs.setPosition(0)
+            return outs.readAll()
+
+        check shardmc(0, 0, 0) == """
+"""
+        check shardmc(1, 1, 1) == """
+1
+0 0 1
+"""
+        check shardmc(2, 1, 1) == """
+2
+0 0 1
+1 0 1
+"""
+        check shardmc(2, 1, 2) == """
+2
+0 0 1
+1 0 1
+"""
+        check shardmc(1, 2, 1) == """
+1
+0 0 2
+"""
+        # With 3 shards, we snake back and forth.
+        check shardmc(2, 3, 3) == """
+2
+0 0 1
+1 0 1
+2
+0 1 2
+1 1 2
+2
+0 2 3
+1 2 3
 """

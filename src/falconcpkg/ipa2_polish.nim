@@ -120,19 +120,19 @@ proc splitPancakeRangeRight*(a: PancakeRange, rightSize: int): tuple[left: Panca
 proc `$`*(a: PancakeRange): string =
     return "{a.t} {a.qs} {a.qe}".fmt
 
-proc shardMatrix*(nt, nq, nShards: int): seq[seq[PancakeRange]] =
+proc shardMatrix*(nrows, ncols, nShards: int): seq[seq[PancakeRange]] =
     ## Note order of arguments.
     # Initialize stack w/ n complete rows.
-    var stack = newSeq[PancakeRange](nt)
+    var stack = newSeq[PancakeRange](nrows)
     var summed = 0
-    for i in 0 ..< nt:
-        let pr = PancakeRange(t: i, qs: 0, qe: nq)
+    for i in 0 ..< nrows:
+        let pr = PancakeRange(t: i, qs: 0, qe: ncols)
         summed += pr.size()
-        stack[nt - i - 1] = pr
+        stack[nrows - i - 1] = pr
     # For each shard, consume total/nshards comparisons, splitting
     # as necessary.
     var
-        total = nt*nq
+        total = nrows*ncols
         remaining = total
         needed = 0
         i = 0
@@ -156,6 +156,50 @@ proc shardMatrix*(nt, nq, nShards: int): seq[seq[PancakeRange]] =
                     pr = right
                     # odd row
             result[i].add(pr)
+            #log(" result[i]:{result[i]}".fmt)
+            remaining -= pr.size()
+            needed -= pr.size()
+        i += 1
+    #echo "result=" & $result
+    assert len(result) <= nShards
+    return result
+
+proc shardMatrixColumns*(nrows, ncols, nShards: int): seq[seq[PancakeRange]] =
+    ## Note order of arguments.
+    if nrows == 0 or ncols == 0:
+        return
+    # Initialize stack w/ a single, complete row.
+    # (This lets us re-use some logic.)
+    # (We will duplicate rows later.)
+    let
+        pr = PancakeRange(t: 0, qs: 0, qe: ncols)
+        summed = pr.size()
+    var stack = @[pr]
+
+    # For each shard, consume total/nshards comparisons, splitting
+    # as necessary.
+    var
+        total = 1*ncols
+        remaining = total
+        needed = 0
+        i = 0
+    assert total == summed
+    while remaining > 0:
+        needed = math.ceil(remaining/(nShards - result.len())).int # rounded up
+        while needed > 0:
+            result.setLen(i + 1)
+            #log("i:{i} rem:{remaining} needed:{needed} max:{nShards}".fmt)
+            var pr = stack.pop()
+            if pr.size() > needed:
+                let (left, right) = pr.splitPancakeRange(needed)
+                stack.add(right) # Push back what we did not yet need.
+                pr = left
+            let
+                qs = pr.qs
+                qe = pr.qe
+            for r in 0 ..< nrows:
+                let row = PancakeRange(t: r, qs: qs, qe: qe)
+                result[i].add(row)
             #log(" result[i]:{result[i]}".fmt)
             remaining -= pr.size()
             needed -= pr.size()
@@ -388,7 +432,7 @@ proc shard_mapping*(max_nshards: int, shard_prefix = "shard", n_query_blocks, n_
     ## Generate comparisons for nq-by-nt matrix.
     ## (Used to shard the purge_dups overlap jobs, contigs vs. reads.)
     log("shard_mapping: max_nshards={max_nshards} n_query={n_query_blocks} n_target={n_target_blocks}".fmt)
-    let shards = shardMatrix(nt = n_target_blocks, nq = n_query_blocks, nShards = max_nshards)
+    let shards = shardMatrixColumns(nrows = n_target_blocks, ncols = n_query_blocks, nShards = max_nshards)
     combineShards(prefix = shard_prefix, shards)
     if out_ids_fn != "":
         var fout = open(out_ids_fn, fmWrite)
