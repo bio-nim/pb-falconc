@@ -283,9 +283,8 @@ suite "ipa_polish_prepare":
 1 0 1
 """
         check shardmc(2, 1, 2) == """
-1
+2
 0 0 1
-1
 1 0 1
 """
         check shardmc(1, 2, 1) == """
@@ -294,11 +293,13 @@ suite "ipa_polish_prepare":
 """
         # With 3 shards, we snake back and forth.
         check shardmc(2, 3, 3) == """
-1
-0 0 2
+2
+0 0 1
+1 0 1
+2
+0 1 2
+1 1 2
 2
 0 2 3
 1 2 3
-1
-1 0 2
 """
