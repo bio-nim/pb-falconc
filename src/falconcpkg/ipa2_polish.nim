@@ -161,9 +161,18 @@ proc shardMatrix*(nt, nq, nShards: int): seq[seq[PancakeRange]] =
             needed -= pr.size()
         i += 1
     #echo "result=" & $result
+    assert len(result) <= nShards
     return result
 
 proc shardUpperTriangular*(n: int, nShards: int): seq[seq[PancakeRange]] =
+    # Combine upper-triangular ranges of blocks into at most nShards subsets.
+    # We need 0 vs. [0..n), 1 vs. [1..n), 2 vs. [2..n), etc.
+    # Think of all those comparisons (there are C==n*(n+1)/2) in a straight line,
+    # and take roughly C/nShards for each shard. Then turn those back into
+    # contiguous rows for efficiency in Pancake.
+    # (See tests for examples.)
+    # len(result) will be <= nShards
+
     var stack = newSeq[PancakeRange](n)
     # Initialize stack w/ n complete rows.
     var summed = 0
@@ -195,18 +204,10 @@ proc shardUpperTriangular*(n: int, nShards: int): seq[seq[PancakeRange]] =
             needed -= pr.size()
         i += 1
     #echo "result=" & $result
+    assert len(result) <= nShards
     return result
 
-proc combineUpperTriangular(prefix: string, n: int, nShards: int): seq[seq[PancakeRange]] =
-    # Combine upper-triangular ranges of blocks into at most nShards subsets.
-    # We need 0 vs. [0..n), 1 vs. [1..n), 2 vs. [2..n), etc.
-    # Think of all those comparisons (there are C==n*(n+1)/2) in a straight line,
-    # and take roughly C/nShards for each shard. Then turn those back into
-    # contiguous rows for efficiency in Pancake.
-    # (See tests for examples.)
-    # len(result) will be <= nShards
-
-    let shards: seq[seq[PancakeRange]] = shardUpperTriangular(n, nShards)
+proc combineShards(prefix: string, shards: seq[seq[PancakeRange]]) =
     var shard_sizes: seq[int]
     for s in shards:
         shard_sizes.add(s.len())
@@ -218,7 +219,6 @@ proc combineUpperTriangular(prefix: string, n: int, nShards: int): seq[seq[Panca
         for block_range in shards[shard_id]:
             fout.writeLine(block_range)
         fout.close()
-    return shards
 
 type
     Contig2Reads = tables.TableRef[string, seq[string]]
@@ -376,7 +376,8 @@ proc shard_blocks_m4*(max_nshards: int, shard_prefix = "shard", block_prefix = "
 proc shard_ovl_asym*(max_nshards: int, shard_prefix = "shard", n: int, out_ids_fn = "") =
     ## (Used to shard the asymmetric overlap jobs.)
     log("shard_ovl_asym: max_nshards={max_nshards} n={n}".fmt)
-    let shards = combineUpperTriangular(prefix = shard_prefix, n = n, nShards = max_nshards)
+    let shards: seq[seq[PancakeRange]] = shardUpperTriangular(n = n, nShards = max_nshards)
+    combineShards(prefix = shard_prefix, shards)
     if out_ids_fn != "":
         var fout = open(out_ids_fn, fmWrite)
         for shard_id in 0 ..< len(shards):
@@ -387,8 +388,8 @@ proc shard_mapping*(max_nshards: int, shard_prefix = "shard", n_query_blocks, n_
     ## Generate comparisons for nq-by-nt matrix.
     ## (Used to shard the purge_dups overlap jobs, contigs vs. reads.)
     log("shard_mapping: max_nshards={max_nshards} n_query={n_query_blocks} n_target={n_target_blocks}".fmt)
-    #let shards = combineUpperTriangular(prefix = shard_prefix, n = n, nShards = max_nshards)
-    var shards: seq[seq[PancakeRange]]
+    let shards = shardMatrix(nt = n_target_blocks, nq = n_query_blocks, nShards = max_nshards)
+    combineShards(prefix = shard_prefix, shards)
     if out_ids_fn != "":
         var fout = open(out_ids_fn, fmWrite)
         for shard_id in 0 ..< len(shards):
