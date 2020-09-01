@@ -164,6 +164,50 @@ proc shardMatrix*(nrows, ncols, nShards: int): seq[seq[PancakeRange]] =
     assert len(result) <= nShards
     return result
 
+proc shardMatrixColumns*(nrows, ncols, nShards: int): seq[seq[PancakeRange]] =
+    ## Note order of arguments.
+    # Initialize stack w/ n complete rows.
+    var stack = newSeq[PancakeRange](nrows)
+    var summed = 0
+    for i in 0 ..< nrows:
+        let pr = PancakeRange(t: i, qs: 0, qe: ncols)
+        summed += pr.size()
+        stack[nrows - i - 1] = pr
+    # For each shard, consume total/nshards comparisons, splitting
+    # as necessary.
+    var
+        total = nrows*ncols
+        remaining = total
+        needed = 0
+        i = 0
+    assert total == summed
+    while remaining > 0:
+        needed = math.ceil(remaining/(nShards - result.len())).int # rounded up
+        while needed > 0:
+            result.setLen(i + 1)
+            #log("i:{i} rem:{remaining} needed:{needed} max:{nShards}".fmt)
+            var pr = stack.pop()
+            if pr.size() > needed:
+                # Snake back and forth for better data-locality.
+                if (pr.t and 1) == 0:
+                    # even row
+                    let (left, right) = pr.splitPancakeRange(needed)
+                    stack.add(right) # Push back what we did not yet need.
+                    pr = left
+                else:
+                    let (left, right) = pr.splitPancakeRangeRight(needed)
+                    stack.add(left) # Push back what we did not yet need.
+                    pr = right
+                    # odd row
+            result[i].add(pr)
+            #log(" result[i]:{result[i]}".fmt)
+            remaining -= pr.size()
+            needed -= pr.size()
+        i += 1
+    #echo "result=" & $result
+    assert len(result) <= nShards
+    return result
+
 proc shardUpperTriangular*(n: int, nShards: int): seq[seq[PancakeRange]] =
     # Combine upper-triangular ranges of blocks into at most nShards subsets.
     # We need 0 vs. [0..n), 1 vs. [1..n), 2 vs. [2..n), etc.

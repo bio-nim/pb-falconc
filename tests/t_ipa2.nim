@@ -259,3 +259,46 @@ suite "ipa_polish_prepare":
 1
 1 0 2
 """
+
+    test "shardMatrixColumns":
+        proc shardmc(nrows, ncols, nshards: int): string =
+            let shards = shardMatrixColumns(nrows = nrows, ncols = ncols, nshards = nshards)
+            var outs = streams.newStringStream()
+            for shard in shards:
+                outs.writeLine(len(shard))
+                for pr in shard:
+                    outs.writeLine(pr)
+            outs.setPosition(0)
+            return outs.readAll()
+
+        check shardmc(0, 0, 0) == """
+"""
+        check shardmc(1, 1, 1) == """
+1
+0 0 1
+"""
+        check shardmc(2, 1, 1) == """
+2
+0 0 1
+1 0 1
+"""
+        check shardmc(2, 1, 2) == """
+1
+0 0 1
+1
+1 0 1
+"""
+        check shardmc(1, 2, 1) == """
+1
+0 0 2
+"""
+        # With 3 shards, we snake back and forth.
+        check shardmc(2, 3, 3) == """
+1
+0 0 2
+2
+0 2 3
+1 2 3
+1
+1 0 2
+"""
