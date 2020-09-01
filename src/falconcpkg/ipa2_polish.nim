@@ -432,7 +432,7 @@ proc shard_mapping*(max_nshards: int, shard_prefix = "shard", n_query_blocks, n_
     ## Generate comparisons for nq-by-nt matrix.
     ## (Used to shard the purge_dups overlap jobs, contigs vs. reads.)
     log("shard_mapping: max_nshards={max_nshards} n_query={n_query_blocks} n_target={n_target_blocks}".fmt)
-    let shards = shardMatrix(nrows = n_target_blocks, ncols = n_query_blocks, nShards = max_nshards)
+    let shards = shardMatrixColumns(nrows = n_target_blocks, ncols = n_query_blocks, nShards = max_nshards)
     combineShards(prefix = shard_prefix, shards)
     if out_ids_fn != "":
         var fout = open(out_ids_fn, fmWrite)
