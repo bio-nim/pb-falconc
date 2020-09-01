@@ -218,8 +218,8 @@ suite "ipa_polish_prepare":
 """
 
     test "shardMatrix":
-        proc shardm(nt, nq, nshards: int): string =
-            let shards = shardMatrix(nt = nt, nq = nq, nshards = nshards)
+        proc shardm(nrows, ncols, nshards: int): string =
+            let shards = shardMatrix(nrows = nrows, ncols = ncols, nshards = nshards)
             var outs = streams.newStringStream()
             for shard in shards:
                 outs.writeLine(len(shard))
