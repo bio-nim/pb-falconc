@@ -27,7 +27,7 @@ rsync:
 	rsync -av vendor/comprehension/ ${NIMBLE_DIR}/pkgs/comprehension-0.1.0/
 	rsync -av vendor/c_alikes/ ${NIMBLE_DIR}/pkgs/c_alikes-0.2.0/
 	rsync -av vendor/BitVector/ ${NIMBLE_DIR}/pkgs/BitVector-0.4.10/
-	if [[ "$$(pkg-config --modversion htslib)" != "1.9" ]]; then rm -rf ${NIMBLE_DIR}/pkgs/hts-0.2.20/; else rm -rf ${NIMBLE_DIR}/pkgs/hts-0.3.10/; fi
+	if [ "$$(pkg-config --modversion htslib)" != "1.9" ]; then rm -rf ${NIMBLE_DIR}/pkgs/hts-0.2.20/; else rm -rf ${NIMBLE_DIR}/pkgs/hts-0.3.10/; fi
 
 # These 3 rules are for mobs/bamboo:
 # Someday maybe --nimcache:${CURDIR}/.cache-nim

@@ -2,6 +2,7 @@
 type module >& /dev/null || . /mnt/software/Modules/current/init/bash
 set -e
 source bash/module.sh
+module list
 
 set -vex
 
