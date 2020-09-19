@@ -484,9 +484,9 @@ proc bam2paf*(in_bam_fn, out_p_paf_fn: string, out_a_paf_fn: string) =
     # https://github.com/lh3/miniasm/blob/master/misc/sam2paf.js
 
 proc getTargetFromPafLine(line: string): auto =
-    return util.getNthWord(line, 5, delim='\t')
+    return util.getNthWord(line, 5, delim = '\t')
 
-proc paf_filter*(fai_fn: string, in_paf_fn="-", out_paf_fn="-") =
+proc paf_filter*(fai_fn: string, in_paf_fn = "-", out_paf_fn = "-") =
     ## Drop the lines of PAF that involve contigs not in FASTA index.
     ## Write the rest to out_paf_fn.
     ## ("-" means stdin/stdout for PAF.)
@@ -515,7 +515,7 @@ proc paf_filter*(fai_fn: string, in_paf_fn="-", out_paf_fn="-") =
     if out_paf_fn == "-":
         pout = streams.newFileStream(stdout)
     else:
-        pout = streams.openFileStream(out_paf_fn, mode=fmWrite)
+        pout = streams.openFileStream(out_paf_fn, mode = fmWrite)
 
     while streams.readLine(pin, line):
         ctg = getTargetFromPafLine(line)
