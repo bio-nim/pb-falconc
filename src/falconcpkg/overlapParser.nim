@@ -53,10 +53,13 @@ proc parseM4IndexQuick*(sin: streams.Stream): M4Index =
     while streams.readLine(sin, line):
         let cline: cstring = line.string
         let scanned = util.sscanf(line.cstring, s_frmt.cstring,
-            addr rec.count, addr rec.pos, addr rec.len)
+            addr count, addr pos, addr len)
         if 3 != scanned:
             let msg = "Too few fields ({scanned}) for '{line}'".fmt
             raise newException(util.TooFewFieldsError, msg)
+        rec.count = count.int32
+        rec.pos = pos.int64
+        rec.len = len.int32
         result.add(rec)
 
 iterator determineNextPile(f: streams.Stream): tuple[count, len: int32] =
