@@ -1,6 +1,5 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
 import json
-from math import nil
 import streams
 import strformat
 import gff_parser

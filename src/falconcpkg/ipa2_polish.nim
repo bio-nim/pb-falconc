@@ -378,7 +378,7 @@ proc split*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
     ## They will be used to split the shards somewhat evenly.
     ## (Used to shard the polishing jobs.)
 
-    var blacklist = initSet[string]()
+    var blacklist = initHashSet[string]()
     if len(blacklist_fn) != 0:
         log("Loading the blacklist from '{blacklist_fn}'.".fmt)
         var sin = streams.openFileStream(blacklist_fn)
