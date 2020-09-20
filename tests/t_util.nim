@@ -88,10 +88,9 @@ suite "util":
         let afn = "a.txt"
         let bfn = "b.txt"
         check os.execShellCmd("touch {afn}".fmt) == 0
-        os.sleep(10) # millisecond
         check os.execShellCmd("touch {bfn}".fmt) == 0
-        check isOlderFile(afn, bfn)
-        os.sleep(10) # millisecond
+        # We cannot reliably test for strictly older because of fsys probs.
+        check not isOlderFile(bfn, afn)
         check os.execShellCmd("touch {afn}".fmt) == 0
         check not isOlderFile(afn, bfn)
         check os.execShellCmd("rm -f {afn} {bfn}".fmt) == 0
