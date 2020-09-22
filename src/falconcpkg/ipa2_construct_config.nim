@@ -29,6 +29,7 @@ config_phasing_split_opt = --split-type noverlaps --limit 3000000
 config_polish_min_len = 50000
 config_max_polish_block_mb = 100
 config_use_hpc = 0
+config_purge_dups_get_seqs = -e
 config_purge_dups_calcuts =
 config_m4filt_high_copy_sample_rate = 1.0
 config_purge_map_opt=--min-map-len 1000 --min-idt 98.0 --bestn 5
