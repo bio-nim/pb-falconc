@@ -144,45 +144,20 @@ proc filter*(blacklist_fn: string = "") =
             sets.incl(blacklist, zmw)
     stream_seqs(stdin, stdout, blacklist)
 
-const
-    MAX_HEADROOM = 1024
-type
-    Headroom = array[MAX_HEADROOM, cchar]
-
-proc sscanf(s: cstring, frmt: cstring): cint {.varargs, importc,
-        header: "<stdio.h>".}
-
-proc strlen(s: cstring): cint {.importc: "strlen", nodecl.}
-
-proc strlen(a: var Headroom): int =
-    let n = strlen(cast[cstring](addr a))
-    return n
-
-proc toString(ins: var Headroom, outs: var string, source: string = "") =
-    var n = strlen(ins)
-    if n >= (MAX_HEADROOM - 1):
-        # Why is max-1 illegal? B/c this is used after sscanf, and that has no way to report
-        # a buffer-overflow. So a 0 at end-of-buffer is considered too long.
-        let msg = fmt"Too many characters in file_path (>{MAX_HEADROOM - 1}) for '{source}'"
-        raise newException(util.FieldTooLongError, msg)
-    outs.setLen(n)
-    for i in 0 ..< n:
-        outs[i] = ins[i]
-
 proc load_rdb*(sin: streams.Stream): ref Db =
     new(result)
     #var tab: char # to verify that we have read the entire "header"
-    var header: string
-    var buf0: Headroom
-    var buf1: Headroom
+    #var header: string
+    var buf0: util.Headroom
+    var buf1: util.Headroom
 
     # Delimiters should be single tabs, but we accept more in some cases.
     let v_frmt = "V %d.%d"
     let b_frmt = "B %lld %lld %lld %lld"
     let s_frmt = strutils.format("S %lld %$#s %lld %lld %lld %lld",
-            (MAX_HEADROOM - 1))
+            (util.MAX_HEADROOM - 1))
     let f_frmt = strutils.format("F %lld %$#s %$#s",
-            (MAX_HEADROOM - 1), (MAX_HEADROOM - 1))
+            (util.MAX_HEADROOM - 1), (util.MAX_HEADROOM - 1))
 
     for line in streams.lines(sin):
         # We skip stripping, to be more strict. But we still skip totally blank lines.
@@ -190,17 +165,17 @@ proc load_rdb*(sin: streams.Stream): ref Db =
             continue
         elif line[0] == 'S':
             var sr: SequenceRecord
-            let scanned = sscanf(line.cstring, s_frmt.cstring,
+            let scanned = util.sscanf(line.cstring, s_frmt.cstring,
                 addr sr.seq_id, addr buf0, addr sr.seq_len, addr sr.file_id,
                 addr sr.start_offset_in_file, addr sr.data_len)
             if 6 != scanned:
                 let msg = "Too few fields for '" & line & "'"
                 raise newException(util.TooFewFieldsError, msg)
-            toString(buf0, sr.header, line)
+            util.toString(buf0, sr.header, line)
             result.seqs.add(sr)
         elif line[0] == 'B':
             var br: BlockRecord
-            let scanned = sscanf(line.cstring, b_frmt.cstring,
+            let scanned = util.sscanf(line.cstring, b_frmt.cstring,
                 addr br.block_id, addr br.seq_id_start, addr br.seq_id_end,
                 addr br.num_bases_in_block)
             if 4 != scanned:
@@ -209,16 +184,16 @@ proc load_rdb*(sin: streams.Stream): ref Db =
             result.blocks.add(br)
         elif line[0] == 'F':
             var fr: FileRecord
-            let scanned = sscanf(line.cstring, f_frmt.cstring,
+            let scanned = util.sscanf(line.cstring, f_frmt.cstring,
                 addr fr.file_id, addr buf0, addr buf1)
             if 3 != scanned:
                 let msg = "Too few fields for '" & line & "'"
                 raise newException(util.TooFewFieldsError, msg)
-            toString(buf0, fr.file_path, line)
-            toString(buf1, fr.file_format, line)
+            util.toString(buf0, fr.file_path, line)
+            util.toString(buf1, fr.file_format, line)
             result.files.add(fr)
         elif line[0] == 'V':
-            let scanned = sscanf(line.cstring, v_frmt.cstring,
+            let scanned = util.sscanf(line.cstring, v_frmt.cstring,
                 addr result.version_major, addr result.version_minor)
             if 2 != scanned:
                 let msg = "Too few fields for '" & line & "'"
@@ -293,8 +268,8 @@ proc alarm(e: ref Exception, fn: string) =
     defer: fout.close()
     let uuid = nuuid.generateUUID()
     let createdAt = $times.now().utc() #datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S'),
- # this is propagated to SMRT Link UI
- # see PacBioAlarm class in pbcommand.models.common for details -- nat
+                                       # this is propagated to SMRT Link UI
+                                       # see PacBioAlarm class in pbcommand.models.common for details -- nat
     let alarms = %* [
         {
             "exception": $e.name,
@@ -377,7 +352,7 @@ proc get_subsampled_rdb*(rdb: ref Db, genome_size: int64,
     assert genome_size > 0, fmt"Genome size needs to be > 0. Provided value: genome_size = {genome_size}"
 
     # Reproducibility, if a valid seed is given.
-    if random_seed > 0:    
+    if random_seed > 0:
         random.randomize(random_seed)
 
     let min_desired_size: int64 = int64(float(genome_size) * coverage)

@@ -1,3 +1,65 @@
+v0.3.9
+======
++ add `newCigar(els: seq[CigarElement]): Cigar` (#9)
+
+v0.3.8
+======
++ flush stdout on destroy_vcf
+
+v0.3.7
+======
++ fix bai creation in `xam_index`
+
+v0.3.6
+======
++ automatically set cram or bam file-type for file opened in write mode based
+  on file extension (#64)
+
+v0.3.5
+======
++ add `xam_index` to index bam and cram files.
+
+v0.3.4
+======
++ hts/vcf Variant.alts will report sum of known alt alleles for ploidy greater than 2.
+
+v0.3.3
+======
++ report contig length if available in vcf.contigs (#51)
+
+v0.3.2
+======
++ allow specifying `"*"` or `"-3"` for the chromosome in vcf.query to iterator over   entire file.
+
+v0.3.1
+======
++ fix off-by-one error. (brentp/mosdepth#98)
+
+v0.3.0
+======
++ **breaking change** update to htslib 1.10. this is a breaking change and will
+  require htslib 1.10 or higher. if hts-nim detects a version of < 1.10, it will generate an error
++ add htslibVersion() function which returns a string of the version reported by htslib
++ bam/Target is no longer a ref object (this will affect almost noone)
+
+
+v0.2.23
+=======
++ hts/bam fix from_string for bam record and header. See quinlan-lab/STRling#10
++ hts/files add fname.file_type to get the file type given a path
+
+v0.2.22
+=======
++ changes for latest nim
++ fix several memory leaks in rarely-used functions
+
+v0.2.21
+=======
++ hts/vcf allow setting id.
++ hts/vcf flush stdout on close.
++ hts/bam correct check for EOF (#48)
++ hts/bam better error message for error in interation
+
 v0.2.20
 =======
 + hts/files (iterate over bgzipped or text files identically)

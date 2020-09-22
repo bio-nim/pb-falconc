@@ -226,14 +226,14 @@ proc get_rid_to_ctg*(fn: string): auto =
 
 #min_len, bestn, rid_to_ctg, rid_to_phase
 type
-    Settings* {.requiresInit.} = object
+    Settings*{.requiresInit.} = object
         n_core*: int                #48
         file_list*: seq[string]
         db_fn*: string              #"?/raw_reads.db"
         phased_read_file*: string   # ./3-unzip/all_phased_reads
         read_to_contig_map*: string # ./4-quiver/read_maps/read_to_contig_map
         rawread_ids*: string        # ./2-asm-falcon/read_maps/dump_rawread_ids/rawread_ids
-        output*: string # ./2-asm-falcon/read_maps/dump_rawread_ids/rawread_to_contigs
+        output*: string             # ./2-asm-falcon/read_maps/dump_rawread_ids/rawread_to_contigs
         min_len*: int               # 2500
         stream*: bool               # false
         debug*: bool                # false (also single-threaded)

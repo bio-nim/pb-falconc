@@ -138,7 +138,7 @@ let expected_run_from_streams_2 = """{
 
 # Empty inputs.
 let input_run_from_streams_3_rawreads = ""
-let input_run_from_streams_3_preads = "" 
+let input_run_from_streams_3_preads = ""
 let input_run_from_streams_3_genome_length = 52000
 let input_run_from_streams_3_cutoff_length = 0
 let expected_run_from_streams_3 = """{

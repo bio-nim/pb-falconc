@@ -67,7 +67,7 @@ proc runner*(phase_fn, bam_fn, out_fn: string) =
         if lineDat[1] != "ctg":
             if parseInt(lineDat[2]) == -1:
                 continue
-        fout.writeLine(line);
+        fout.writeLine(line)
 
     for augs in toAdd:
         fout.writeLine(augs)

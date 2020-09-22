@@ -26,9 +26,9 @@ type    # Main defns CLI authors need be aware of (besides top-level API calls)
     opChars*:     set[char]      ## ``parseopt3.initOptParser`` parameter
     hTabSuppress*: string        ## Magic val for per-param help to suppress
 
-  HelpOnly*    = object of Exception
-  VersionOnly* = object of Exception
-  ParseError*  = object of Exception
+  HelpOnly*    = object of CatchableError
+  VersionOnly* = object of CatchableError
+  ParseError*  = object of CatchableError
 
 {.push hint[GlobalVar]: off.}
 var clCfg* = ClCfg(
@@ -98,8 +98,8 @@ proc containsParam(fpars: NimNode, key: NimNode): bool =
   for declIx in 1 ..< len(fpars):       #default for result=false
     let idefs = fpars[declIx]           #Use similar logic to formalParamExpand
     for i in 0 ..< len(idefs) - 3:      #..since`suppress` is a seq we check.
-      if idefs[i] == key: return true
-    if idefs[^3] == key: return true
+      if maybeDestrop(idefs[i]) == key: return true
+    if maybeDestrop(idefs[^3]) == key: return true
 
 proc formalParamExpand(fpars: NimNode, n: auto,
                        suppress: seq[NimNode]= @[]): NimNode =
@@ -125,24 +125,35 @@ proc formalParams(n: NimNode, suppress: seq[NimNode]= @[]): NimNode =
   return nil                #not-reached
 
 proc parseHelps(helps: NimNode, proNm: auto, fpars: auto): Table[string,(string,string)]=
-  result = initTable[string, (string, string)]() #help key & text for any param
-  for ph in helps:
-    let p: string = (ph[1][0]).strVal
-    let k: string = (ph[1][0]).strVal.optionNormalize
-    let h: string = (ph[1][1]).strVal
+  template setCk(k, p, h: untyped) {.dirty.} =   #set & check result entries
     result[k] = (p, h)
     if not fpars.containsParam(ident(k)):
       error $proNm & " has no param matching `help` key \"" & p & "\""
 
+  result = initTable[string, (string, string)]() #help key & text for any param
+  if helps.kind == nnkSym:
+    for i, tup in helps.getImpl[1][1]:
+      if tup[0].intVal != 0:
+        setCk(tup[1].strVal.optionNormalize, tup[1].strVal, tup[2].strVal)
+  else:
+    for ph in helps:
+      setCk(ph[1][0].strVal.optionNormalize, ph[1][0].strVal, ph[1][1].strVal)
+
 proc parseShorts(shorts: NimNode, proNm: auto, fpars: auto): Table[string,char]=
-  result = initTable[string, char]()  #table giving user-specified short options
-  for losh in shorts:
-    let lo: string = (losh[1][0]).strVal.optionNormalize
-    let sh: char = char((losh[1][1]).intVal)
+  template setCk(lo, sh: untyped) {.dirty.} =    #set & check result entries
     result[lo] = sh
     if lo.len > 0 and not fpars.containsParam(ident(lo)) and
-         lo != "version" and lo != "help" and lo != "helpsyntax":
+        lo != "version" and lo != "help" and lo != "helpsyntax":
       error $proNm & " has no param matching `short` key \"" & lo & "\""
+
+  result = initTable[string, char]()  #table giving user-specified short options
+  if shorts.kind == nnkSym:
+    for i, tup in shorts.getImpl[1][1]:
+      if tup[0].intVal != 0:
+        setCk(tup[1].strVal.optionNormalize, tup[2].intVal.char)
+  else:
+    for losh in shorts:
+      setCk(losh[1][0].strVal.optionNormalize, losh[1][1].intVal.char)
 
 proc dupBlock(fpars: NimNode, posIx: int, userSpec: Table[string, char]):
      Table[string, char] =      # Table giving short[param] avoiding collisions
@@ -214,7 +225,7 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
   ##
   ##``help`` is a ``{(paramNm, str)}`` of per-param help, eg. ``{"quiet": "be
   ##quiet"}``.  Often, only these help strings are needed for a decent CLI.
-  ##``str==clCfg.hTabSuppress`` (default==``"SUPPRESS"``) trims help table row.
+  ##``str==clCfg.hTabSuppress`` (default== ``"SUPPRESS"``) trims help table row.
   ##
   ##``short`` is a ``{(paramNm, char)}`` of per-param single-char option keys.
   ##
@@ -267,15 +278,15 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
   let impl = pro.getImpl
   if impl == nil: error "getImpl(" & $pro & ") returned nil."
   let fpars = formalParams(impl, toIdSeq(suppress))
-  var cmtDoc: string = $doc
+  var cmtDoc = toString(doc)
   if cmtDoc.len == 0:                   # allow caller to override commentDoc
     collectComments(cmtDoc, impl)
     cmtDoc = strip(cmtDoc)
   let cf = cf #sub-scope quote-do's cannot access macro args w/o shadow locals.
   let setByParse = setByParse
   let proNm = $pro                      # Name of wrapped proc
-  let cName = if len($cmdName) == 0: proNm else: $cmdName
-  let disNm = dispatchId($dispatchName, cName, proNm) # Name of dispatch wrapper
+  let cName = if cmdName.toString.len == 0: proNm else: cmdName.toString
+  let disNm = dispatchId(dispatchName.toString, cName, proNm) # Name of wrapper
   let helps = parseHelps(help, proNm, fpars)
   let posIx = posIxGet(positional, fpars) #param slot for positional cmd args|-1
   let shOpt = dupBlock(fpars, posIx, parseShorts(short, proNm, fpars))
@@ -472,7 +483,7 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
                 let t = if msg.startsWith "Ambig": "Ambiguous" else: "Unknown"
                 raise newException(ParseError, t & " alias ref")
             else:
-              parser(sub) ))
+              parser(sub.val) ))
     for i in 1 ..< len(fpars):                # build per-param case clauses
       if i == posIx: continue                 # skip variable len positionals
       let parNm  = $fpars[i][0]
@@ -659,7 +670,7 @@ template cligenHelp*(p:untyped, hlp: untyped, use: untyped, pfx: untyped): auto=
 macro cligenQuitAux*(cmdLine:seq[string], dispatchName: string, cmdName: string,
                      pro: untyped, echoResult: bool, noAutoEcho: bool,
                      mergeNames: seq[string] = @[]): untyped =
-  let disNm = dispatchId($dispatchName, $cmdName, repr(pro))
+  let disNm = dispatchId(dispatchName.toString, cmdName.toString, repr(pro))
   let mergeNms = toStrSeq(mergeNames) & cmdName.strVal
   quote do: cligenQuit(`disNm`(mergeParams(`mergeNms`, `cmdLine`)),
                        `echoResult`, `noAutoEcho`)
@@ -805,8 +816,8 @@ macro dispatchMultiGen*(procBkts: varargs[untyped]): untyped =
                      else: newLit(false)
     let sCmdNoAuEc = if p.paramPresent("noAutoEcho"): p.paramVal("noAutoEcho")
                      else: newLit(false)
-    let sCmdUsage  = if p.paramPresent("usage"): p.paramVal("usage").strVal
-                     else: clUse
+    let sCmdUsage  = if p.paramPresent("usage"): p.paramVal("usage")
+                     else: ident("clUse")
     let mn = if p.paramPresent("mergeNames"): p.paramVal("mergeNames")
              else: quote do: @[ `cmd` ] #, `sCmdNm` ]
     cases.add(newNimNode(nnkOfBranch).
@@ -998,6 +1009,49 @@ template initFromCL*[T](default: T, cmdName: string="", doc: string="",
     initFromCLcf(default, cmdName, doc, help, short, usage, cf, positional,
                  suppress, mergeNames, alias)
   cligenDoNotCollideWithGlobalVar(clCfg)
+
+macro initDispatchGen*(dispName, obName: untyped; default: typed; positional="";
+                       suppress: seq[string] = @[]; body: untyped): untyped =
+  ##Create a proc with signature from ``default`` that calls ``initGen`` and
+  ##initializes ``var obName`` by calling to the generated initializer.  It puts
+  ##``body`` inside an appropriate ``try``/``except`` so that you can just say:
+  ##
+  ## .. code-block:: nim
+  ##initDispatchGen(cmdProc, cfg, cfgDfl):
+  ##  cfg.callAPI(); quit(min(255, cfg.nError))
+  ##dispatch(cmdProc)
+  var ti = default.getTypeImpl
+  case ti.typeKind:
+  of ntyTuple: discard            #For tuples IdentDefs are top level
+  of ntyObject: ti = ti[2]        #For objects, descend to the nnkRecList
+  of ntyRef, ntyPtr: ti = ti[0].getTypeImpl[2]
+  else: error "default value is not a tuple or object or ref|ptr to such"
+  let suppressed = toIdSeq(suppress)
+  let lastUnsuppressed = if suppress.len > 1 and suppress[1].len > 0 and
+                           ($suppress[1][0]).startsWith "ALL AFTER ":
+                             ident(($suppress[1][0])[10..^1]) else: nil
+  let posId = ident(positional.strVal)
+  let empty = newNimNode(nnkEmpty)
+  var params = @[newEmptyNode()]  #initializers
+  var call = newNimNode(nnkCall)  #call site
+  call.add(ident("initter"))
+  for kid in ti.children:         #iterate over fields
+    if kid.kind != nnkIdentDefs: warning "case objects unsupported"
+    let id = ident(kid[0].strVal)
+    if id in suppressed: continue
+    params.add(if id == posId: newIdentDefs(id, kid[1], empty)
+               else: newIdentDefs(id, empty, quote do: `default`.`id`))
+    call.add(quote do: `id`)
+    if id == lastUnsuppressed: break
+  let body = quote do:
+    initGen(`default`, type(`default`), `positional`, `suppress`, "initter")
+    try:
+      var `obName` = `call`    #a, b, ..
+      `body`
+    except HelpOnly, VersionOnly: quit(0)
+    except ParseError: quit(1)
+  result = newProc(name = dispName, params = params, body = body)
+  when defined(printIDGen): echo repr(result)  # maybe print gen code
 
 proc mergeParams*(cmdNames: seq[string],
                   cmdLine=commandLineParams()): seq[string] =

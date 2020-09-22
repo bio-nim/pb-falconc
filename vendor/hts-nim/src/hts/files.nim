@@ -1,9 +1,61 @@
 import ./private/hts_concat
+import ./utils
+
 
 type HTSFile* = object
   ## HTSFile allows iterating over regular, gzipped, or bgzipped files
   p : ptr htsFile
   kstr : kstring_t
+
+type FileType* {.pure.} = enum
+  UNKNOWN = htsExactFormat.unknown_format
+  SAM = htsExactFormat.sam
+  BAM = htsExactFormat.bam
+  BAI = htsExactFormat.bai
+  CRAM = htsExactFormat.cram
+  CRAI = htsExactFormat.crai
+  VCF = htsExactFormat.vcf
+  BCF = htsExactFormat.bcf
+  CSI = htsExactFormat.csi
+  TBI = htsExactFormat.tbi
+  BED = htsExactFormat.bed
+
+  FASTA = htsExactFormat.fasta_format
+  FAI = htsExactFormat.fai_format
+
+
+proc file_type*(fname:string): FileType =
+  var h = hopen(fname, "r")
+  if h == nil:
+    raise newException(OSError, "unable to open file:" & fname)
+
+  defer:
+    discard hclose(h)
+
+  var fmt: htsFormat
+  doAssert 0 == hts_detect_format(h, fmt.addr), "unable to detect format for:" & fname
+
+  case fmt.format:
+    of htsExactFormat.sam:
+      return FileType.SAM
+    of htsExactFormat.cram:
+      return FileType.CRAM
+    of htsExactFormat.bam:
+      return FileType.BAM
+    of htsExactFormat.bcf:
+      return FileType.BCF
+    of htsExactFormat.vcf:
+      return FileType.VCF
+    of htsExactFormat.csi:
+      return FileType.CSI
+    of htsExactFormat.tbi:
+      return FileType.TBI
+    of htsExactFormat.bai:
+      return FileType.BAI
+    of htsExactFormat.crai:
+      return FileType.CRAI
+    else:
+      return FileType.Unknown
 
 proc open*(h:var HTSFile, path: string, mode:string="r"): bool {.discardable.} =
   ## open a file.

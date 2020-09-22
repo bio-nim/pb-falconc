@@ -1,5 +1,5 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
-#import falconcpkg/zev
+{.localpassc: "-O0".}
 from falconcpkg/align import nil
 from falconcpkg/falcon/augmentPolishCtgs import nil
 from falconcpkg/raptor_db import nil
@@ -14,6 +14,8 @@ from falconcpkg/falcon/rr_hctg_track import nil
 from falconcpkg/bam2fasta import nil
 from falconcpkg/ovl_cov_stats import nil
 from falconcpkg/stats_gff import nil
+from falconcpkg/ipa2_construct_config import nil
+from falconcpkg/ipa2_polish import nil
 
 import cligen
 
@@ -26,7 +28,9 @@ proc get_version(): auto =
     cToolVersion & "+git." & cGitSha1
 
 proc version() =
-    echo cToolVersion & "+git." & cGitSha1
+    stdout.writeLine("falconc version=", get_version(), ", nim-version=",
+            system.NimVersion)
+
 proc dataset(extras: seq[string]) =
     echo "falconc dataset"
 proc kmers(int_dummy: int = 42, string_dummy: string = "hello") =
@@ -39,10 +43,6 @@ proc utils(extras: seq[string], float_req: float) =
 #    echo "finished"
 
 when isMainModule:
-    # Show version at start-up, for now.
-    stderr.writeLine("  version=", get_version(), ", nim-version=",
-            system.NimVersion)
-
     dispatchMulti(
         [version],
         [dataset, short = {}, help = {}],
@@ -137,12 +137,15 @@ when isMainModule:
           "min-cov": "Minimum number of overlaps on either side of a read",
           "max-cov": "Maximum number of overlaps on either side of a read",
           "max-diff": "Reads are skipped is abs(5p-3p) overlap counts > maxDiff",
+          "high-copy-sample-rate": "Downsample reads from high copy elements to expected coverage maxCov*rate [0=discard reads]",
           "bestn": "Keep N best overlaps at 5prime AND 3prime of a read",
+          "min-overhang": "Minimum amount of overhang bases in an overlap to keep the overlap",
           "min-depth": "Depths lower than minDepth are considered gaps",
           "gap-filt": "Run depth filter, takes a little more time",
           "n-proc": "Number of processes to run locally",
+          "in-fn": "M4 overlaps file",
           "filter-log-fn": "Write read filter stats to this file",
-          "out-fn": "Final m4 overlap file",
+          "out-fn": "Final m4 overlaps file",
             }
         ],
         [overlapFilter.falconRunner, cmdName = "m4filt-falconRunner",
@@ -189,12 +192,18 @@ when isMainModule:
             help = {
              "min-len": "Minimum read length; reads shorter than minLen will be discarded",
              "min-idt-pct": "Minimum overlap identity; worse overlaps will be discarded",
+             "n-proc": "Number of processes to run locally (ignored for now)",
              "in-fn": "Input m4 overlap file",
              "out-fn": "Output m4 overlap file",
              "lfc": "CLIGEN-NOHELP",
              "disable_chimer_bridge_removal": "CLIGEN-NOHELP",
              "ctg_prefix": "CLIGEN-NOHELP",
                 }
+        ],
+        [overlapFilter.idx, cmdName = "m4filt-idx",
+          help = {
+            "in-fn": "Path to .m4 file. Index filename will have '.idx' appended.",
+            }
         ],
         [ovl_cov_stats.run, cmdName = "ovl-cov-stats",
          help = {
@@ -246,5 +255,70 @@ when isMainModule:
         "flip-rc": "reverse complement (RC) the sequence if alignment is in RC",
         "flag": "filter reads with flag"
             },
+        ],
+        [align.bam2paf, cmdName = "bam2paf",
+            help = {
+                "in-bam-fn": "input bam filename",
+                "out-p-paf-fn": "output paf filename for p-contigs",
+                "out-a-paf-fn": "output paf filename for a-contigs (those with - in their name)",
+            },
+        ],
+        [align.paf_filter, cmdName = "paf-filter",
+            help = {
+                "fai-fn": "input fasta-index filename (as in foo.fasta.fai, but assume foo.fasta is next to it; foo.fasta must then exist, but it can be empty since it is ignored)",
+                "in-paf-fn": "paf filename ('-' => stdin)",
+                "out-paf-fn": "output paf filename, with only the contigs inside the fasta ('-' => stdout)",
+            },
+        ],
+        [ipa2_construct_config.main, cmdName = "ipa2-construct-config",
+         help = {
+          "out-fmt": "Output format of the config file. (json or bash)",
+          "out-fn": "Output file.",
+            }
+        ],
+        [ipa2_polish.shard_ovl_asym, cmdName = "ipa-shard-ovl-asym",
+         help = {
+          "max-nshards": "Maximum number of distributed jobs",
+          "n": "Generate comparisons for upper-triangle of nxn matrix",
+          "shard-prefix": "The output. Shard files are (prefix).(shard_id).block_ids (though they really are block_id ranges).",
+          "out-ids-fn": "If given, this lists the shard_ids, 0 thru N-1, corresponding to the shard-prefix.block_id files. Useful for Cromwell.",
+            }
+        ],
+        [ipa2_polish.shard_mapping, cmdName = "ipa-shard-mapping",
+         help = {
+          "max-nshards": "Maximum number of distributed jobs",
+          "n_query_blocks": "Number of blocks in query db",
+          "n_target_blocks": "Number of blocks in target db",
+          "shard-prefix": "The output. Shard files are (prefix).(shard_id).block_ids (though they really are block_id ranges).",
+          "out-ids-fn": "If given, this lists the shard_ids, 0 thru N-1, corresponding to the shard-prefix.block_id files. Useful for Cromwell.",
+            }
+        ],
+        [ipa2_polish.split, cmdName = "ipa-polish-split",
+         help = {
+          "max-nshards": "Maximum number of distributed jobs",
+          "mb-per-block": "Try to target megabases total in all contigs in any block",
+          "in-read-to-contig-fn": "2-columns: read# ctg-name",
+          "block-prefix": "Block files are (prefix).(block_id).reads (prepared previously)",
+          "shard-prefix": "The output. Shard files are (prefix).(shard_id).block_ids",
+          "blacklist-fn": "Specifies a file with a list of contigs to skip for polishing.",
+          "out-ids-fn": "If given, this lists the shard_ids, 0 thru N-1, corresponding to the shard-prefix.block_id files.",
+          "in-fai-fns": "Indexed fasta filenames to polish",
+            }
+        ],
+        [ipa2_polish.shard_blocks_m4, cmdName = "ipa-shard-blocks-m4",
+         help = {
+          "max-nshards": "Maximum number of distributed jobs",
+          "block-prefix": "Block files are (prefix).(block_id).m4 (prepared previously)",
+          "shard-prefix": "The output. Shard files are (prefix).(shard_id).block_ids",
+          "out-ids-fn": "If given, this lists the shard_ids, 0 thru N-1, corresponding to the shard-prefix.block_id files.",
+            }
+        ],
+        [ipa2_polish.prepare, cmdName = "ipa2-polish-prepare", # TODO: remove
+            help = {
+             "max-nshards": "Maximum number of distributed jobs",
+             "block-prefix": "Block files are (prefix).(block_id).reads (prepared previously)",
+             "shard-prefix": "The output. Shard files are (prefix).(shard_id).block_ids",
+             "out-ids-fn": "If given, this lists the shard_ids, 0 thru N-1, corresponding to the shard-prefix.block_id files.",
+                }
         ],
     )

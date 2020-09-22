@@ -1,7 +1,7 @@
 import unittest
 import falconcpkg/overlapParser as uut
 import streams
-from strformat import fmt
+#from strformat import fmt
 
 let testDataGetNextPile1 = """
 15210 10043 -4436 99.910 0 8199 12654 16697 0 8427 12886 12886 u
@@ -36,9 +36,32 @@ proc helperPileToString(pile: seq[uut.Overlap]): string =
         result.add(uut.toString(ov))
         result.add('\n')
 
+suite "overlapFilter parseOK":
+    let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained"
+    let parsed = uut.parseOverlap(record1)
+    test "ids":
+        check parsed.Aname == "000000001"
+        check parsed.Bname == "000001050"
+    test "score":
+        check parsed.score == -9662
+    test "idt":
+        check parsed.idt == 98.67
+    test "strands":
+        check parsed.Arev == false
+        check parsed.Brev == true
+    test "starts":
+        check parsed.Astart == 0
+        check parsed.Bstart == 626
+    test "ends":
+        check parsed.Aend == 9656
+        check parsed.Bend == 10288
+    test "lengths":
+        check parsed.Alen == 9656
+        check parsed.Blen == 12247
+
 suite "overlapParser parseOverlap":
     test "empty input":
-        let record= ""
+        let record = ""
         expect Exception:
             let parsed = uut.parseOverlap(record)
 
@@ -57,10 +80,17 @@ suite "overlapParser parseOverlap":
         expect Exception:
             let parsed = uut.parseOverlap(record)
 
-    test "wrong number of fields, more than 13":
-        let record = "000000001 000001050 -9662 98.670 0 0 9656 9656 1 626 10288 12247 contained extraField"
-        expect Exception:
-            let parsed = uut.parseOverlap(record)
+    test "line with extra fields, 14 provided here":
+        let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained foo"
+        let parsed = uut.parseOverlap(record1)
+        check parsed.tag == "contained"
+        check parsed.tagplus == "contained foo"
+
+    test "line with extra fields, 15 provided here":
+        let record1 = "000000001 000001050 -9662 98.67 0 0 9656 9656 1 626 10288 12247 contained foo bar"
+        let parsed = uut.parseOverlap(record1)
+        check parsed.tag == "contained"
+        check parsed.tagplus == "contained foo bar"
 
 suite "overlapParser getNextBlock":
     test "empty input":
@@ -91,3 +121,41 @@ suite "overlapParser parseM4":
         let inStream: Stream = newStringStream(inStr)
         let results = uut.parseM4(inStream)
         check helperPileToString(results) == inStr
+
+proc checkIndex(m4, expected: string) =
+    # Compute M4Index. Then dump. Then
+    # parse the dump. So we check both reading and writing.
+    let sin = streams.newStringStream(m4)
+    var sout = streams.newStringStream()
+    let m4idx = index(sin)
+    check sin.getPosition() == m4.len
+    uut.dumpIndexQuick(m4idx, sout)
+    streams.setPosition(sout, 0)
+    check streams.readAll(sout) == expected
+    let m4idxp = uut.parseM4IndexQuick(streams.newStringStream(expected))
+    check m4idx == m4idxp
+
+suite "m4 index":
+    test "empty":
+        checkIndex("", "")
+    test "one":
+        let
+            m4 = "foo bar 1 2 3\n"
+            expected = "0000 1 0 14\n"
+        checkIndex(m4, expected)
+    test "several":
+        let
+            m4 = """
+001 001 -1 100.000 0 0 0 0 0 0 0 0 overlap
+001 002 -1 100.000 0 0 0 0 0 0 0 0 overlap
+001 003 -1 100.000 0 0 0 0 0 0 0 0 3
+005 008 -1 100.000 0 0 0 0 0 0 0 0 overlap
+006 008 -1 100.000 0 0 0 0 0 0 0 0 overlap foo
+006 009 -1 100.000 0 0 0 0 0 0 0 0 overlap foo
+"""
+            expected = """
+0000 3 0 123
+0000 1 123 43
+0000 2 166 94
+"""
+        checkIndex(m4, expected)

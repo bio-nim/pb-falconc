@@ -73,7 +73,43 @@ suite "align":
                 Flags_exclude = "0x800", verbose = verbose, tags_enrich = true)
         check bam_count(output_fn) == 0
         os.removeFile(output_fn)
+    os.removeFile(input_fn)
 
+let sam_paf = """
+@SQ	SN:myseq	LN:7
+alnA	2064	myseq	1	60	7=	*	0	0	GATTACA	*
+alnA	2064	myseq	1	60	5S7=5S	*	0	0	AAAAAGATTACAGGGGG	*
+alnA	2064	myseq	1	60	6S7=5S	*	0	0	AAAAAAGATTACAGGGGG	*
+alnA	2064	myseq	1	60	5S7=6S	*	0	0	AAAAAGATTACAGGGGGG	*
+alnB	16	myseq	2	60	5S3=9S	*	0	0	AAAAAGATTACAGGGGG	*
+alnC	0	myseq	2	60	9S3=5S	*	0	0	AAAAAGATTACAGGGGG	*
+"""
+
+suite "paf":
+    let
+        input_fn = "input.sam"
+        ocount_fn = "outCount.txt"
+        n = 4
+        verbose = false # true for debugging
+    discard os.tryRemoveFile(input_fn)
+    writeFile(input_fn, sam_paf)
+
+    test "bam2paf":
+        let
+            output_p_fn = "foo-p.paf"
+            output_a_fn = "foo-a.paf"
+        discard os.tryRemoveFile(output_p_fn)
+        discard os.tryRemoveFile(output_a_fn)
+        bam2paf(input_fn, output_p_fn, output_a_fn)
+        let expected_paf = """
+alnA	7	0	7	-	myseq	7	0	7	7	7	60
+alnA	17	5	12	-	myseq	7	0	7	7	7	60
+alnA	18	5	12	-	myseq	7	0	7	7	7	60
+alnA	18	6	13	-	myseq	7	0	7	7	7	60
+alnB	17	9	12	-	myseq	7	1	4	3	3	60
+alnC	17	9	12	+	myseq	7	1	4	3	3	60
+"""
+        check open(output_p_fn).readAll() == expected_paf
     os.removeFile(input_fn)
 
 suite "align-utils":

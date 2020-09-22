@@ -110,7 +110,7 @@ let test_data = [
         coverage: 0,
         fail_low_cov: true,
         exp_out: 0,
-        expect: "AssertionError",
+        expect: "Assertion",
     ),
     TestData(comment: "Negative coverage. Expected failure.",
         input_data: input_data_str,
@@ -118,7 +118,7 @@ let test_data = [
         coverage: -100,
         fail_low_cov: true,
         exp_out: 0,
-        expect: "AssertionError",
+        expect: "Assertion",
     ),
     TestData(comment: "Zero genome size. Expected failure.",
         input_data: input_data_str,
@@ -126,7 +126,7 @@ let test_data = [
         coverage: 30,
         fail_low_cov: true,
         exp_out: 0,
-        expect: "AssertionError",
+        expect: "Assertion",
     ),
     TestData(comment: "Negative genome size. Expected failure.",
         input_data: input_data_str,
@@ -134,7 +134,7 @@ let test_data = [
         coverage: 30,
         fail_low_cov: true,
         exp_out: 0,
-        expect: "AssertionError",
+        expect: "Assertion",
     ),
 ]
 
@@ -226,7 +226,8 @@ suite "raptor_db":
                             d.coverage, fail_low_cov = d.fail_low_cov)
                     msg = fmt"Got cutoff={cutoff} instead of expected exception"
                 except Exception as exc:
-                    if exc.name == d.expect:
+                    let name: string = $exc.name
+                    if name.startsWith(d.expect):
                         #echo "Got right!", type(exc), " was of ", type(d.expect)
                         msg = ""
                     else:
@@ -253,8 +254,8 @@ S	8	seq/8/0_90000	90000	0	360000	90000
 S	9	seq/9/0_100000	100000	0	450000	100000
 B	0	0	10	550000
 """
-# Input RaptorDB with some ZMWs having multiple subreads.
-# Total sum of the sequences is 890kbp.
+    # Input RaptorDB with some ZMWs having multiple subreads.
+    # Total sum of the sequences is 890kbp.
 let content_subsampling_1 = """
 V	0.2
 F	0	subreads.bam	bam

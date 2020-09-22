@@ -1,15 +1,23 @@
+# vim: sw=4 ts=4 sts=4 tw=0 et:
+import times
 import threadpool_simple
 import sets
 import tables
-from strutils import split, parseInt, parseFloat, parseBool
 #from sequtils import keepIf
 from strformat import fmt
+#from os import getFileInfo
+from system/io import getFileSize
 from ./util import isEmptyFile, log
+from ./overlapParser import Overlap, parseOverlap
+import ./overlapParser as op
+#, getNextPile, parseM4, toString, index, M4Index
 import msgpack4nim
 import streams
 import json
 import osproc
 import algorithm
+import math
+import hashes
 
 
 #[
@@ -33,7 +41,8 @@ LA4falcon Columns:
  10. startRead2
  11. endRead2
  12. length read2
- 13. tag
+ 13. tag (optional)
+ 14. extra column(s)? (optional)
 ]#
 
 #Bitfield for read classification
@@ -46,21 +55,6 @@ const BREAD = 32 # read balance is off
 const GREAD = 64 # read has unspanned bases, putative chimera
 
 type
-    Overlap* = object
-        ridA*: string
-        ridB*: string
-        score*: int
-        idt*: float
-        strand1*: bool
-        start1*: int
-        end1*: int
-        l1*: int
-        strand2*: bool
-        start2*: int
-        end2*: int
-        l2*: int
-        tag: string
-
     coverageInfo = tuple[gap: bool, lowCov: bool, highCov: bool,
             balance: bool]
 
@@ -68,36 +62,6 @@ type
         ovlpLen: int
         mRange: int
         o: Overlap
-
-proc parseOvl*(s: string): Overlap =
-    var ovl: Overlap
-    let ld = s.split(" ")
-    if 13 != ld.len():
-        let msg = "Error parsing ovl (split={ld.len()}): '{s}'".fmt
-        log(msg)
-    doAssert ld.len() == 13
-    ovl.ridA = ld[0]
-    ovl.ridB = ld[1]
-    ovl.score = parseInt(ld[2])
-    ovl.idt = parseFloat(ld[3])
-    ovl.strand1 = parseBool(ld[4])
-    ovl.start1 = parseInt(ld[5])
-    ovl.end1 = parseInt(ld[6])
-    ovl.l1 = parseInt(ld[7])
-    ovl.strand2 = parseBool(ld[8])
-    ovl.start2 = parseInt(ld[9])
-    ovl.end2 = parseInt(ld[10])
-    ovl.l2 = parseInt(ld[11])
-    ovl.tag = ld[12]
-    return ovl
-
-proc `$`(o: Overlap): string =
-    var strand1 = 0
-    var strand2 = 0
-    if o.strand1: strand1 = 1
-    if o.strand2: strand2 = 1
-
-    result = "{o.ridA} {o.ridB} {o.score} {o.idt:.3f} {strand1} {o.start1} {o.end1} {o.l1} {strand2} {o.start2} {o.end2} {o.l2} {o.tag}".fmt
 
 proc lowIdt*(o: Overlap, idt: float): bool =
     ##Check if percent identity is below threshold
@@ -110,8 +74,8 @@ proc checkFractionOverlap*(o: Overlap, lowOverlap: float,
         highOverlap: float): bool =
     ##Check for percentage of two reads that overlap
     #This is an overlap filter - new as of June 2019
-    let perA = (float(o.end1 - o.start1) / (float(o.l1))) * 100
-    let perB = (float(o.end2 - o.start2) / (float(o.l2))) * 100
+    let perA = (float(o.Aend - o.Astart) / (float(o.Alen))) * 100
+    let perB = (float(o.Bend - o.Bstart) / (float(o.Blen))) * 100
     if (perA < lowOverlap) or (perA > highOverlap) or (perB < lowOverlap) or (
             perB > highOverlap):
         return true
@@ -120,65 +84,24 @@ proc checkFractionOverlap*(o: Overlap, lowOverlap: float,
 proc small*(o: Overlap, l: int): bool =
     ##Tests if a read is too small
     #This is a read filter
-    if o.l1 < l:
+    if o.Alen < l:
         return true
     else:
         return false
-
-proc contained*(o: Overlap): bool =
-    ##Tests if A-read is contained within B
-    #This is a read filter
-    if o.start1 > 0:
-        return false
-    if o.end1 != o.l1:
-        return false
-    else:
-        return true
 
 proc missingTerminus*(o: Overlap): bool =
     ##Test that overlap reaches the end of both reads
     #This is an overlap filter
-    if o.start1 != 0 and o.end1 != o.l1:
+    if o.Astart != 0 and o.Aend != o.Alen:
         return true
-    if o.start2 != 0 and o.end2 != o.l2:
+    if o.Bstart != 0 and o.Bend != o.Blen:
         return true
     else:
         return false
 
 
 
-iterator abOvl*(sin: Stream): seq[Overlap] =
-    var
-        readA: string
-        ov: Overlap
-        #The buffer len of 500 should be adjusted if more fields are added.
-        buff = newString(500)
-        ovls = newSeq[Overlap]()
-    if not readLine(sin, buff):
-        # empty input
-        #return # not legal unless we use a "closure" iterator, which is a little slower
-        let msg = "empty input for abOvl()"
-        util.raiseEx(msg)
-    try:
-        ov = parseOvl(buff)
-        readA = ov.ridA
-        ovls.add(ov)
-        while(readLine(sin, buff)):
-            ov = parseOvl(buff)
-            if ov.ridA != readA:
-                yield ovls
-            if ov.ridA != readA:
-                readA = ov.ridA
-                ovls = @[]
-            ovls.add(ov)
-        yield ovls
-    except AssertionError:
-        log("buff='{buff}'".fmt)
-        raise
-
-
-
-proc summarize(filterLog: string, readsToFilter: var Table[string, int]) =
+proc summarize(filterLog: string, readsToFilter: var tables.Table[string, int]) =
     var readFilterCounts = initCountTable[string]()
     for k, v in readsToFilter:
         if (v and CREAD) > 0: readFilterCounts.inc("contained read")
@@ -232,43 +155,40 @@ proc summarize(filterLog: string, readsToFilter: var Table[string, int]) =
     fout.write(report)
 
 proc summarize(filterLog: string, fn: string) =
-    var readsToFilterSum = initTable[string, int]()
+    var readsToFilterSum = tables.initTable[string, int]()
     var fstream = newFileStream(fn, fmRead)
     defer: fstream.close()
     fstream.unpack(readsToFilterSum)
     summarize(filterLog, readsToFilterSum)
 
-proc gapInCoverage*(ovls: seq[Overlap], minDepth: int, minIdt: float): bool =
-    ##Calculates the coverage in a linear pass. If the start or end < minDepth there
-    ##is a gap. The first and last position are skipped
+type PositionInfo = tuple
+    cov: int #coverage
+    cco: int #clean cov
+    cli: int #clip
+
+proc coverageProfile*(ovls: seq[Overlap]): OrderedTable[int, PositionInfo] =
+    ##Calculates the coverage profile of an A read in a linear pass.
+
     type PosAndTag = tuple
         pos: int #read a position
         tag: bool #starts are true ends are false
         cli: bool #if start == 0 or end == len; is it a clipped read
         loc: bool #is this a local align
-    type Info = tuple
-        cov: int #coverage
-        cco: int #clean cov
-        cli: int #clip
-
-
-    var ep = ovls[0].l1
-    var an = ovls[0].ridA
 
     var positions = newSeq[PosAndTag]()
     # load start/end into a tuple for linear depth caculation
     for i in ovls:
         if i.idt < 95.0:
             continue
-        var clipped = (i.start2 != 0) and (i.end2 != i.l2)
+        var clipped = (i.Bstart != 0) and (i.Bend != i.Blen)
         var loc = (i.tag == "u")
-        positions.add( (i.start1, true, clipped, loc))
-        positions.add( (i.end1, false, clipped, loc))
+        positions.add( (i.Astart, true, clipped, loc))
+        positions.add( (i.Aend, false, clipped, loc))
 
     positions.sort()
 
     var runningClip, runningCov, runningClean = 0
-    var posInfo = initOrderedTable[int, Info]()
+    var posInfo = tables.initOrderedTable[int, PositionInfo]()
     # turn running start/end into a depth at each start/end
     for i in 0 .. (positions.len() - 1):
         if positions[i].tag:
@@ -285,6 +205,14 @@ proc gapInCoverage*(ovls: seq[Overlap], minDepth: int, minIdt: float): bool =
         posInfo[positions[i].pos] = (runningCov, runningClean, max(0,
                 runningClip))
 
+    return posInfo
+
+proc gapInCoverage*(ovls: seq[Overlap], posInfo: OrderedTable[int, PositionInfo], minDepth: int, minIdt: float): bool =
+    ##Identify gaps in coverage of a read (positions covered < minDepth).
+    ##Do not consider every position in a read, only endpoints of overlaps.
+    ##The first and last position are skipped
+    var ep = ovls[0].Alen
+    var an = ovls[0].Aname
 
     var hasCovDip = false
     var hasZeroCovInDip = false
@@ -341,22 +269,25 @@ proc gapInCoverage*(ovls: seq[Overlap], minDepth: int, minIdt: float): bool =
     return false
 
 proc stage1Filter*(overlaps: seq[Overlap],
-maxDiff: int,
-maxOvlp: int,
-minOvlp: int,
-minLen: int,
-minDepth: int,
-gapFilt: bool,
-minIdt: float,
-readsToFilter: var Table[string, int]) =
-
+ maxDiff: int,
+ maxOvlp: int,
+ minOvlp: int,
+ minLen: int,
+ minDepth: int,
+ gapFilt: bool,
+ minIdt: float,
+ readsToFilter: var tables.Table[string, int]) =
+    if 0 == len(overlaps):
+        return
     var fivePrimeCount, threePrimeCount: int = 0
-    var ridA = overlaps[0].ridA
+    var ridA = overlaps[0].Aname
     var containedBreads = initHashSet[string]()
     var aReadPass = true
 
+    var posInfo = coverageProfile(overlaps)
+
     if gapFilt:
-        if gapInCoverage(overlaps, minDepth, minIdt):
+        if gapInCoverage(overlaps, posInfo, minDepth, minIdt):
             discard readsToFilter.hasKeyOrPut(ridA, 0)
             readsToFilter[ridA] = readsToFilter[ridA] or GREAD
             #stderr.writeLine("YES {ridA}".fmt)
@@ -366,19 +297,19 @@ readsToFilter: var Table[string, int]) =
             continue
         if i.idt < minIdt:
             continue
-        if(i.l1 < minLen):
-            discard readsToFilter.hasKeyOrPut(i.ridA, 0)
-            readsToFilter[i.ridA] = readsToFilter[i.ridA] or SREAD
-        if(i.l2 < minLen):
-            discard readsToFilter.hasKeyOrPut(i.ridB, 0)
-            readsToFilter[i.ridB] = readsToFilter[i.ridB] or SREAD
-        if (i.l1 < minLen) or (i.l2 < minLen):
+        if(i.Alen < minLen):
+            discard readsToFilter.hasKeyOrPut(i.Aname, 0)
+            readsToFilter[i.Aname] = readsToFilter[i.Aname] or SREAD
+        if(i.Blen < minLen):
+            discard readsToFilter.hasKeyOrPut(i.Bname, 0)
+            readsToFilter[i.Bname] = readsToFilter[i.Bname] or SREAD
+        if (i.Alen < minLen) or (i.Blen < minLen):
             continue
-        if i.tag == "contains":
-            containedBreads.incl(i.ridB)
-        if i.start1 == 0:
+        if op.isTagContains(i.tag):
+            containedBreads.incl(i.Bname)
+        if i.Astart == 0:
             inc(fivePrimeCount)
-        if i.end1 == i.l1:
+        if i.Aend == i.Alen:
             inc(threePrimeCount)
 
     if abs(fivePrimeCount - threePrimeCount) > maxDiff:
@@ -407,65 +338,214 @@ readsToFilter: var Table[string, int]) =
             discard readsToFilter.hasKeyOrPut(i, 0)
             readsToFilter[i] = readsToFilter[i] or CREAD
 
+proc stage1Filter*(overlaps: seq[Overlap],
+ maxDiff: int,
+ maxOvlp: int,
+ minOvlp: int,
+ minLen: int,
+ minDepth: int,
+ highCopySampleRate: float,
+ gapFilt: bool,
+ minIdt: float,
+ readsToFilter: var tables.Table[string, int]) =
+    assert highCopySampleRate >= 0.0
+    if 0 == len(overlaps):
+        return
+    var fivePrimeCount, threePrimeCount: int = 0
+    var ridA = overlaps[0].Aname
+    var containedBreads = initHashSet[string]()
+    var aReadPass = true
+
+    var posInfo = coverageProfile(overlaps)
+
+    if gapFilt:
+        if gapInCoverage(overlaps, posInfo, minDepth, minIdt):
+            discard readsToFilter.hasKeyOrPut(ridA, 0)
+            readsToFilter[ridA] = readsToFilter[ridA] or GREAD
+            #stderr.writeLine("YES {ridA}".fmt)
+
+    for i in overlaps:
+        if i.tag == "u":
+            continue
+        if i.idt < minIdt:
+            continue
+        if(i.Alen < minLen):
+            discard readsToFilter.hasKeyOrPut(i.Aname, 0)
+            readsToFilter[i.Aname] = readsToFilter[i.Aname] or SREAD
+        if(i.Blen < minLen):
+            discard readsToFilter.hasKeyOrPut(i.Bname, 0)
+            readsToFilter[i.Bname] = readsToFilter[i.Bname] or SREAD
+        if (i.Alen < minLen) or (i.Blen < minLen):
+            continue
+        if op.isTagContains(i.tag):
+            containedBreads.incl(i.Bname)
+        if i.Astart == 0:
+            inc(fivePrimeCount)
+        if i.Aend == i.Alen:
+            inc(threePrimeCount)
+
+    # Calculate the average coverage across the A read
+    var covWeightA: int = 0
+    var prevPos: int = 0
+    var prevCov: int = 0
+    for pos, info in posInfo:
+        covWeightA += (pos-prevPos) * prevCov
+        prevPos = pos
+        prevCov = info.cov
+    var avgCovA: float = covWeightA / overlaps[0].Alen
+
+    var lowerCount, higherCount: int
+    if fivePrimeCount < threePrimeCount:
+        lowerCount = fivePrimeCount
+        higherCount = threePrimeCount
+    else:
+        lowerCount = threePrimeCount
+        higherCount = fivePrimeCount
+
+    if higherCount > maxOvlp or (higherCount - lowerCount) > maxDiff: # (putative) end in repeat
+        var discardAread = true
+        # Retain some reads from high-copy elements like organelles that have "uniformly" high coverage,
+        # i.e. where the edge overlap count is similar to the average coverage of the read.
+        # A potential improvement here is to define uniform coverage more stringently, perhaps that
+        # all coverage levels in the profile are +/-50% of the average coverage.
+        if float(higherCount) < 1.5*avgCovA:
+            # Retain with probability ~ highCopySampleRate*maxOvlp/avgCovA; use a hash of read name so decision is deterministic
+            var ridARand = hash(ridA)
+            if highCopySampleRate > 0.0 and ridARand mod int(ceil(avgCovA/highCopySampleRate)) < maxOvlp:
+                discardAread = false
+        if discardAread:
+            discard readsToFilter.hasKeyOrPut(ridA, 0)
+            if higherCount > maxOvlp:
+                readsToFilter[ridA] = readsToFilter[ridA] or HREAD
+            if (higherCount - lowerCount) > maxDiff:
+                readsToFilter[ridA] = readsToFilter[ridA] or BREAD
+            aReadPass = false
+    if lowerCount < minOvlp:
+        discard readsToFilter.hasKeyOrPut(ridA, 0)
+        readsToFilter[ridA] = readsToFilter[ridA] or LREAD
+        aReadPass = false
+
+    if aReadPass:
+        for i in containedBreads:
+            discard readsToFilter.hasKeyOrPut(i, 0)
+            readsToFilter[i] = readsToFilter[i] or CREAD
+
 proc comp(x, y: ScoredOverlap): int =
     ## custom sort for bestN
+    if x.ovlpLen < y.ovlpLen:
+        return -1
     if x.ovlpLen == y.ovlpLen:
         if x.mRange < y.mRange:
             return -1
         else:
             return 1
-        if x.ovlpLen < y.ovlpLen:
-            return -1
-        return 1
+    return 1
+
+proc checkOverhangLen*(ovl: Overlap, minOverhang: int): bool =
+    ## This function should filter only dovetail overlaps which
+    ## do not extend beyond minOverhang bases over left or
+    ## right ends.
+    ## Any non-dovetail overlap should return true, because this function
+    ## doesn't filter those.
+
+    let a_left = ovl.Astart
+    let a_right = ovl.Alen - ovl.Aend
+    var b_left = ovl.Bstart
+    var b_right = ovl.Blen - ovl.Bend
+    if ovl.Brev:
+        swap(b_left, b_right)
+    let a_hang = a_left - b_left
+    let b_hang = b_right - a_right
+
+    let allowedDovetailDist: int = 0
+
+    # Unknown.
+    var ovlType: string = "u"
+
+    if a_left <= allowedDovetailDist and a_right <= allowedDovetailDist:
+        # A is contained in B.
+        ovlType = "c"
+    elif b_left <= allowedDovetailDist and b_right <= allowedDovetailDist:
+        # B is contained in A.
+        ovlType = "C"
+    elif a_left <= allowedDovetailDist and b_right <= allowedDovetailDist:
+        # 5' overlap.
+        ovlType = "5"
+    elif a_right <= allowedDovetailDist and b_left <= allowedDovetailDist:
+        # 3' overlap.
+        ovlType = "3"
+
+    if ovlType != "3" and ovlType != "5":
+        return true
+
+    # Legend:
+    # http://wgs-assembler.sourceforge.net/wiki/index.php/Overlaps
+    #   - 3' overlap: a_hang >= 0 && b_hang >= 0
+    #   - 5' overlap: a_hang <= 0 && b_hang <= 0
+    #   - B contained in A: a_hang >= 0 && b_hang <= 0
+    #   - A contained in B: a_hang <= 0 && b_hang >= 0
+    if a_hang >= 0 and b_hang >= 0 and a_hang < minOverhang and b_hang < minOverhang:
+        return false
+    elif a_hang <= 0 and b_hang <= 0 and a_hang > (-minOverhang) and b_hang > (-minOverhang):
+        return false
+
+    return true
 
 proc stage2Filter(overlaps: seq[Overlap],
  minIdt: float,
  bestN: int,
- readsToFilter: var Table[string, int]): seq[string] =
+ minOverhang: int,
+ readsToFilter: var tables.Table[string, int]): seq[string] =
 
     var left, right: seq[ScoredOverlap]
     result = newSeq[string]()
 
-    if overlaps[0].ridA in readsToFilter:
+    if 0 == len(overlaps):
+        return
+    assert len(overlaps) > 0
+    if overlaps[0].Aname in readsToFilter:
         return
 
     for i in overlaps:
         if i.idt < minIdt:
             continue
-        if i.ridB in readsToFilter:
+        if i.Bname in readsToFilter:
             continue
         if i.tag == "u":
             continue
-        if i.start1 == 0:
-            left.add((i.score, i.l2 - (i.end2 - i.start2), i))
-        elif i.end1 == i.l1:
-            right.add((i.score, i.l2 - (i.end2 - i.start2), i))
+        if minOverhang > 0 and checkOverhangLen(i, minOverhang) == false:
+            continue
+
+        if i.Astart == 0:
+            left.add((i.score, i.Blen - (i.Bend - i.Bstart), i))
+        elif i.Aend == i.Alen:
+            right.add((i.score, i.Blen - (i.Bend - i.Bstart), i))
 
     left.sort(comp)
     right.sort(comp)
 
     for i in 0 .. (left.len()-1):
-        result.add($left[i].o)
+        result.add(toString(left[i].o))
         if i >= bestN and left[i].mRange > 1000:
             break
 
     for i in 0 .. (right.len()-1):
-        result.add($right[i].o)
+        result.add(toString(right[i].o))
         if i >= bestN and right[i].mRange > 1000:
             break
 
 proc mergeBlacklists*(blistFofn: string,
- readsToFilter: var Table[string, int]) =
+ readsToFilter: var tables.Table[string, int]) =
     let f = open(blistFofn, fmRead)
     defer: f.close()
 
     var bFile: string
 
     while f.readLine(bFile):
-        var tmp = initTable[string, int]()
+        var tmp = tables.initTable[string, int]()
         var fstream = newFileStream(bFile, fmRead)
         defer: fstream.close()
-        echo "[INFO] merging blacklist file: {bFile}".fmt
+        log("merging blacklist file: {bFile}".fmt)
         fstream.unpack(tmp)
         for k, v in tmp:
             if k in readsToFilter:
@@ -473,14 +553,12 @@ proc mergeBlacklists*(blistFofn: string,
             else:
                 readsToFilter[k] = v
 
-proc dumpBlacklist*(readsToFilter: var Table[string, int]) =
+proc dumpBlacklist*(readsToFilter: var tables.Table[string, int]) =
     for k, v in readsToFilter:
         echo "{k:09} {v}".fmt
 
 type
     Stage1 = ref object
-        icmd: string
-        sin: Stream
         maxDiff: int
         maxCov: int
         minCov: int
@@ -488,25 +566,61 @@ type
         minIdt: float
         gapFilt: bool
         minDepth: int
+        highCopySampleRate: float
         blacklist: string
-    Stage2 = ref object
+        # Used only san M4Index:
         icmd: string
         sin: Stream
+        # Used only with the M4Index:
+        index: M4Index
+        m4Fn: string
+    Stage2 = ref object
         minIdt: float
         bestN: int
+        minOverhang: int
         blacklistIn: string
         filteredOutput: string
+        # Used only san M4Index:
+        icmd: string
+        sin: Stream
+        # Used only with the M4Index:
+        index: M4Index
+        m4Fn: string
 proc doStage1(args: Stage1) =
-    var readsToFilter1 = initTable[string, int]()
-    for i in abOvl(args.sin):
-        stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+    var readsToFilter1 = tables.initTable[string, int]()
+    for i in op.getNextPile(args.sin):
+        if args.highCopySampleRate < 0.0:
+            # old way
+            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
                 args.minDepth, args.gapFilt,
+                args.minIdt, readsToFilter1)
+        else:
+            # new way
+            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+                args.minDepth, args.highCopySampleRate, args.gapFilt,
+                args.minIdt, readsToFilter1)
+    var fstream = newFileStream(args.blacklist, fmWrite)
+    defer: fstream.close()
+    fstream.pack(readsToFilter1)
+proc doStage1Indexed(args: Stage1) =
+    # Here, we actually use the index in the Stage1 obj.
+    var readsToFilter1 = tables.initTable[string, int]()
+    var sin = streams.newFileStream(args.m4Fn, fmRead)
+    defer: sin.close()
+    for i in getNextPile(sin, args.index):
+        if args.highCopySampleRate < 0.0:
+            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+                args.minDepth, args.gapFilt,
+                args.minIdt, readsToFilter1)
+        else:
+            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+                args.minDepth, args.highCopySampleRate, args.gapFilt,
                 args.minIdt, readsToFilter1)
     var fstream = newFileStream(args.blacklist, fmWrite)
     defer: fstream.close()
     fstream.pack(readsToFilter1)
 proc doStage2(args: Stage2) =
-    var readsToFilter2 = initTable[string, int]()
+    var readsToFilter2 = tables.initTable[string, int]()
     var fstream = newFileStream(args.blacklistIn, fmRead)
     defer: fstream.close()
     fstream.unpack(readsToFilter2)
@@ -514,8 +628,24 @@ proc doStage2(args: Stage2) =
     var output = open(args.filteredOutput, fmWrite)
     defer: output.close()
 
-    for i in abOvl(args.sin):
-        let lines = stage2Filter(i, args.minIdt, args.bestN, readsToFilter2)
+    for i in op.getNextPile(args.sin):
+        let lines = stage2Filter(i, args.minIdt, args.bestN, args.minOverhang, readsToFilter2)
+        for l in lines:
+            output.writeLine(l)
+proc doStage2Indexed(args: Stage2) =
+    # Here, we actually use the index in the Stage2 obj.
+    var readsToFilter2 = tables.initTable[string, int]()
+    var fstream = newFileStream(args.blacklistIn, fmRead)
+    defer: fstream.close()
+    fstream.unpack(readsToFilter2)
+
+    var output = open(args.filteredOutput, fmWrite)
+    defer: output.close()
+
+    var sin = streams.newFileStream(args.m4Fn, fmRead)
+    defer: sin.close()
+    for i in getNextPile(sin, args.index):
+        let lines = stage2Filter(i, args.minIdt, args.bestN, args.minOverhang, readsToFilter2)
         for l in lines:
             output.writeLine(l)
 proc startStage1(args: Stage1) =
@@ -577,19 +707,21 @@ proc runStage1*(
 proc runStage2*(
  minIdt: float = 90.0,
  bestN: int = 10,
+ minOverhang: int = 0,
  blacklistIn: string,
  filteredOutput: string
     ) =
     var args = Stage2(
         minIdt: minIdt,
         bestN: bestN,
+        minOverhang: minOverhang,
         filteredOutput: filteredOutput,
         blacklistIn: blacklistIn)
     args.sin = newFileStream(stdin)
     doStage2(args)
 
 proc runMergeBlacklists*(blistFofn: string, outFn: string) =
-    var readsToFilter = initTable[string, int]()
+    var readsToFilter = tables.initTable[string, int]()
 
     mergeBlacklists(blistFofn, readsToFilter)
 
@@ -598,7 +730,7 @@ proc runMergeBlacklists*(blistFofn: string, outFn: string) =
     fstream.pack(readsToFilter)
 
 proc runDumpBlacklist*(blacklist: string) =
-    var readsToFilter = initTable[string, int]()
+    var readsToFilter = tables.initTable[string, int]()
     var fstream = newFileStream(blacklist, fmRead)
     defer: fstream.close()
     fstream.unpack(readsToFilter)
@@ -613,14 +745,124 @@ type
         minCov: int
         maxCov: int
         maxDiff: int
+        highCopySampleRate: float
         bestN: int
+        minOverhang: int
         minDepth: int
         gapFilt: bool
         keepIntermediates: bool
         filterLogFn: string
         outFn: string
 
-proc m4filt(icmds: seq[string],
+proc m4filtSingleton(m4Fn: string,
+  splits: seq[int],
+  index: M4Index,
+  opts: M4filtOptions,
+  threadpool: threadpool_simple.ThreadPool) =
+    # This m4filt operates on a single M4 file.
+    # The parallelism is on split portions of it.
+
+    log("Pile-weighted splits:", splits)
+    #util.raiseEx("HELLO")
+    var stage1 = newSeq[Stage1]()
+    var stage2 = newSeq[Stage2]()
+    var ovls = newSeq[string]()
+
+    let minDepthGapFilt =
+        if opts.gapFilt:
+            opts.minDepth
+        else:
+            0
+
+    var counter = 0
+    let blacklist_msgpack_fn = "blacklist_fofn.stage1.msgpck"
+    var msgpackFofnS1 = open(blacklist_msgpack_fn, fmWrite)
+
+    let merged_blacklist_msgpack_fn = "merged_blacklist.stage1.msgpck"
+
+    var intermediateFns: seq[string]
+    intermediateFns.add(blacklist_msgpack_fn)
+    intermediateFns.add(merged_blacklist_msgpack_fn)
+
+    var
+        pileBeg = 0
+        pileEnd = 0
+
+    for npiles in splits:
+        inc(counter)
+        pileBeg = pileEnd
+        pileEnd = pileBeg + npiles
+
+        let blacklist_fn = "{counter}.stage1.tmp.msgpck".fmt
+        intermediateFns.add(blacklist_fn)
+        let args1 = Stage1(
+            m4Fn: m4Fn,
+            index: index[pileBeg ..< pileEnd],
+            #icmd: icmd,
+            maxDiff: opts.maxDiff,
+            maxCov: opts.maxCov,
+            minCov: opts.minCov,
+            minLen: opts.minLen,
+            minIdt: opts.idtStage1,
+            gapFilt: opts.gapFilt,
+            minDepth: minDepthGapFilt,
+            highCopySampleRate: opts.highCopySampleRate,
+            blacklist: blacklist_fn)
+        stage1.add(args1)
+
+        # We will generate merged_blacklist_msgpack btw stage 1 and 2.
+        let ovlFn = "{counter}.tmp.ovl".fmt
+        let args2 = Stage2(
+            m4Fn: m4Fn,
+            index: index[pileBeg ..< pileEnd],
+            #icmd: icmd,
+            minIdt: opts.idtStage2,
+            bestN: opts.bestN,
+            minOverhang: opts.minOverhang,
+            filteredOutput: ovlFn,
+            blacklistIn: merged_blacklist_msgpack_fn)
+        stage2.add(args2)
+
+        ovls.add(ovlFn)
+        msgpackFofnS1.writeLine(blacklist_fn)
+    msgpackFofnS1.close()
+
+    let timeStart = times.getTime()
+    for x in stage1:
+        threadpool.spawn doStage1Indexed(x)
+        #doStage1Indexed(x)
+    threadpool.sync()
+
+    let timeStage1 = times.getTime()
+    log("TIME stage1:", (timeStage1 - timeStart))
+    runMergeBlacklists(blacklist_msgpack_fn, merged_blacklist_msgpack_fn)
+    summarize(opts.filterLogFn, merged_blacklist_msgpack_fn)
+
+    let timeBlacklist = times.getTime()
+    log("TIME blacklist:", (timeBlacklist - timeStage1))
+    for x in stage2:
+        threadpool.spawn doStage2Indexed(x)
+        #doStage2Indexed(x)
+    threadpool.sync()
+    let timeEnd = times.getTime()
+
+    log("TIME stage2:", (timeEnd - timeBlacklist))
+
+    var outFile = open(opts.outFn, fmWrite)
+
+    for i in ovls:
+        let ov = open(i, fmRead)
+        defer: ov.close()
+        for line in ov.lines:
+            outFile.writeLine(line)
+    outFile.writeLine("---")
+    outFile.close()
+
+    if not opts.keepIntermediates:
+        util.removeFiles(ovls)
+        util.removeFiles(intermediateFns)
+
+proc m4filtPiped(icmds: seq[string],
     opts: M4filtOptions,
     threadpool: threadpool_simple.ThreadPool) =
 
@@ -650,6 +892,7 @@ proc m4filt(icmds: seq[string],
         let blacklist_fn = "{counter}.stage1.tmp.msgpck".fmt
         intermediateFns.add(blacklist_fn)
         let args1 = Stage1(
+            #index: index,
             icmd: icmd,
             maxDiff: opts.maxDiff,
             maxCov: opts.maxCov,
@@ -675,18 +918,26 @@ proc m4filt(icmds: seq[string],
         msgpackFofnS1.writeLine(blacklist_fn)
     msgpackFofnS1.close()
 
+    let timeStart = times.getTime()
     for x in stage1:
         threadpool.spawn startStage1(x)
         #startStage1(x)
     threadpool.sync()
 
+    let timeStage1 = times.getTime()
+    log("TIME stage1:", (timeStage1 - timeStart))
     runMergeBlacklists(blacklist_msgpack_fn, merged_blacklist_msgpack_fn)
     summarize(opts.filterLogFn, merged_blacklist_msgpack_fn)
 
+    let timeBlacklist = times.getTime()
+    log("TIME blacklist:", (timeBlacklist - timeStage1))
     for x in stage2:
         threadpool.spawn startStage2(x)
         #startStage2(x)
     threadpool.sync()
+    let timeEnd = times.getTime()
+
+    log("TIME stage2:", (timeEnd - timeBlacklist))
 
     var outFile = open(opts.outFn, fmWrite)
 
@@ -702,63 +953,55 @@ proc m4filt(icmds: seq[string],
         util.removeFiles(ovls)
         util.removeFiles(intermediateFns)
 
-proc parsem4(sin: streams.Stream): seq[Overlap] =
-    for line in streams.lines(sin):
-        if strutils.startswith(line, '-'):
-            break # This can be used for signify EOF, but only if
-            # we ever have more trouble with filesystem errors.
-
-        let overlap = parseOvl(line)
-        result.add(overlap)
-
 proc m4filtContainedStreams*(
  sin: streams.Stream,
  sout: streams.Stream,
  min_len: int,
  min_idt_pct: float): int =
     # Return the number of lines written.
-    let overlaps = parsem4(sin)
+    let overlaps = op.parseM4(sin)
 
     # Filter for length and identity
     var good_enough_overlaps: seq[Overlap]
 
     for ovl in overlaps:
-        if ovl.ridA == ovl.ridB: # don't need self-self overlapping
+        if ovl.Aname == ovl.Bname: # don't need self-self overlapping
             continue
         if ovl.tag == "none" or ovl.tag == "?":
             continue
         if ovl.idt < min_idt_pct: # only take record with >96% identity as overlapped reads
             continue
         # Only use reads longer than min_len for assembly.
-        if ovl.l1 < min_len:
+        if ovl.Alen < min_len:
             continue
-        if ovl.l2 < min_len:
+        if ovl.Blen < min_len:
             continue
         good_enough_overlaps.add(ovl)
 
     # Find all contained rids.
     var contained_rids = sets.initHashSet[string]()
     for ovl in good_enough_overlaps:
-        if ovl.tag == "contained" or ovl.tag == "C":
-            contained_rids.incl(ovl.ridA)
-        elif ovl.tag == "contains" or ovl.tag == "c":
-            contained_rids.incl(ovl.ridB)
+        if op.isTagContained(ovl.tag):
+            contained_rids.incl(ovl.Aname)
+        elif op.isTagContains(ovl.tag):
+            contained_rids.incl(ovl.Bname)
 
     # Drop all overlaps with contained reads.
     var desired_overlaps: seq[Overlap]
 
     for ovl in good_enough_overlaps:
-        if contained_rids.contains(ovl.ridA) or contained_rids.contains(ovl.ridB):
+        if contained_rids.contains(ovl.Aname) or contained_rids.contains(ovl.Bname):
             continue
         desired_overlaps.add(ovl)
 
     for ovl in desired_overlaps:
-        sout.writeLine($ovl)
+        sout.writeLine(toString(ovl))
         result += 1
 
 proc m4filtContained*(
  in_fn: string,
  out_fn: string,
+ nProc: int = 24,
  lfc = false, # IGNORED
  disable_chimer_bridge_removal = false, # IGNORED
  ctg_prefix = "", # IGNORED
@@ -772,6 +1015,8 @@ proc m4filtContained*(
 
     # Also, write a single letter for 5/3/C/O instead of "contained/contains/overlap".
 
+    let m4idx = getM4Index(in_fn)
+    log(" len(m4idx)={len(m4idx)}".fmt)
     let sin = streams.newFileStream(in_fn, fmRead)
     defer: sin.close()
     let sout = streams.newFileStream(out_fn, fmWrite)
@@ -779,13 +1024,23 @@ proc m4filtContained*(
 
     let n = m4filtContainedStreams(sin, sout, min_len, min_idt_pct)
 
-    # Write the number of lines into a separate file (to aid parsing, someday).
-    let
-        nout_fn = out_fn & ".n"
-        fh = open(nout_fn, fmWrite)
-    fh.write($n)
-    fh.close()
+proc split(index: M4Index, nProc: int): seq[int] =
+    # Split index into at most nProc subsets, weighted by the
+    # overlap count of each pile.
+    # len(result) will be <= nProc
 
+    var sizes: seq[int]
+    for rec in index:
+        sizes.add(rec.count)
+    return util.splitWeighted(nProc, sizes)
+
+proc m4filt(inFn: string,
+ nProc: int,
+ opts: M4filtOptions) =
+    let index = getM4Index(inFn)
+    let threadpool = threadpool_simple.newThreadPool(nProc)
+    let splits = split(index, nProc)
+    m4filtSingleton(inFn, splits, index, opts, threadpool)
 
 proc m4filtRunner*(
  idtStage1: float = 90.0,
@@ -794,25 +1049,23 @@ proc m4filtRunner*(
  minCov: int = 2,
  maxCov: int = 200,
  maxDiff: int = 100,
+ highCopySampleRate: float = 1.0,
  bestN: int = 10,
+ minOverhang: int = 0,
  minDepth: int = 2,
  gapFilt: bool = false,
  keepIntermediates: bool = false,
  nProc: int = 24,
+ inFn: string,
  filterLogFn: string,
  outFn: string) =
-    ## Run the multi-stage m4 overlap filter.
-    ## Read the m4 filenames from stdin.
+    ## Run the multi-stage m4 overlap filter (for HiFi Asm).
+    ## Take only one m4 file, inFn. If in+'.idx' exists, that is the index.
     ## In stage one, reads that
     ## trigger a filter are marked including containment, gaps in coverage along the
     ## A-read, and repeat reads.
     ## In stage two the filters are applied and the N-best
     ## overlaps are kept for the 5prime and 3prime of each read.
-
-    var icmds: seq[string]
-    for line in lines(stdin):
-        let icmd = "cat {line}".fmt
-        icmds.add(icmd)
 
     let opts = M4filtOptions(
         idtStage1: idtStage1,
@@ -821,16 +1074,16 @@ proc m4filtRunner*(
         minCov: minCov,
         maxCov: maxCov,
         maxDiff: maxDiff,
+        highCopySampleRate: highCopySampleRate,
         bestN: bestN,
+        minOverhang: minOverhang,
         minDepth: minDepth,
         gapFilt: gapFilt,
         keepIntermediates: keepIntermediates,
         filterLogFn: filterLogFn,
         outFn: outFn)
 
-    let threadpool = threadpool_simple.newThreadPool(nProc)
-
-    m4filt(icmds, opts, threadpool)
+    m4filt(inFn, nProc, opts)
 
 proc falconRunner*(db: string,
  lasJsonFn: string,
@@ -842,6 +1095,7 @@ proc falconRunner*(db: string,
  maxDiff: int = 100,
  bestN: int = 10,
  minDepth: int = 2,
+ minOverhang: int = 0,
  gapFilt: bool = false,
  keepIntermediates: bool = false,
  nProc: int = 24,
@@ -872,6 +1126,7 @@ proc falconRunner*(db: string,
         maxCov: maxCov,
         maxDiff: maxDiff,
         bestN: bestN,
+        minOverhang: minOverhang,
         minDepth: minDepth,
         gapFilt: gapFilt,
         keepIntermediates: keepIntermediates,
@@ -880,7 +1135,7 @@ proc falconRunner*(db: string,
 
     let threadpool = threadpool_simple.newThreadPool(nProc)
 
-    m4filt(icmds, opts, threadpool)
+    m4filtPiped(icmds, opts, threadpool)
 
 proc ipaRunner*(ovlsFofnFn: string,
  idtStage1: float = 90.0,
@@ -890,6 +1145,7 @@ proc ipaRunner*(ovlsFofnFn: string,
  maxCov: int = 200,
  maxDiff: int = 100,
  bestN: int = 10,
+ minOverhang: int = 0,
  minDepth: int = 2,
  gapFilt: bool = false,
  keepIntermediates: bool = false,
@@ -923,6 +1179,7 @@ proc ipaRunner*(ovlsFofnFn: string,
         maxCov: maxCov,
         maxDiff: maxDiff,
         bestN: bestN,
+        minOverhang: minOverhang,
         minDepth: minDepth,
         gapFilt: gapFilt,
         keepIntermediates: keepIntermediates,
@@ -931,8 +1188,16 @@ proc ipaRunner*(ovlsFofnFn: string,
 
     let threadpool = threadpool_simple.newThreadPool(nProc)
 
-    m4filt(icmds, opts, threadpool)
+    m4filtPiped(icmds, opts, threadpool)
 
+proc idx*(in_fn: string) =
+    ## Given foo.m4, create index file foo.m4.idx
+    ## (Or just use it if it exists.) Format is
+    ## "0000 count start len", where count is the number of overlaps in the pile.
+    ## (First field is dummy, instead of Aread name, for efficiency.)
+    ## Return the sum of all pileups, which should exactly match filesize.
+    let m4idx = op.getM4Index(in_fn)
+    log("Number of piles={len(m4idx)}".fmt)
 
 proc main() =
     echo "main"

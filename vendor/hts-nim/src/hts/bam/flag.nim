@@ -1,4 +1,5 @@
 import ../private/hts_concat
+import ../utils
 type
   Flag* = distinct uint16
 
@@ -50,4 +51,6 @@ proc supplementary*(f: Flag): bool {.inline.} =
   return f.has_flag(BAM_FSUPPLEMENTARY)
 
 proc `$`*(f:Flag): string =
-  return $(bam_flag2str(cint(f)))
+  var cs = bam_flag2str(cint(f))
+  result = $cs
+  free(cs)

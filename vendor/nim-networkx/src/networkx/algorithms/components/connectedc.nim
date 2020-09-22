@@ -4,7 +4,7 @@ from "../../util" import raiseEx
 from deques import nil
 from sequtils import nil
 from sets import contains, incl, items
-from strutils import `%`, format
+#from strutils import `%`, format
 
 export util.NetworkxError
 

@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.2.20"
+version       = "0.3.10"
 author        = "Brent Pedersen"
 description   = "hts (bam/sam) for nim"
 license       = "MIT"
@@ -14,10 +14,10 @@ srcDir = "src"
 skipDirs = @["tests"]
 skipFiles = @["teloage.nim"]
 
-import ospaths,strutils
+import os, strutils
 
 task test, "run the tests":
-  exec "nim c --lineDir:on --debuginfo -r tests/all"
+  exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo -r tests/all"
 
 #before test:
 #  exec "c2nim src/hts/private/hts_concat.h"

@@ -2,6 +2,7 @@
 type module >& /dev/null || . /mnt/software/Modules/current/init/bash
 set -e
 source bash/module.sh
+module list
 
 set -vex
 
@@ -35,7 +36,7 @@ fi
 
 make rsync
 make test
-make build
+R=$(git rev-parse HEAD) make build
 
 # Install
 
