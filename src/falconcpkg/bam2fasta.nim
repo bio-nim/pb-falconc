@@ -11,17 +11,26 @@ proc bam_to_fasta*(in_bam, region: string, flag: int = 3844,
         flip_rc: bool = false) =
     ## Very similar to `samtools fasta`, but the reads are subSequenced.  Output is printed to STDOUT
 
-    let region = region.split({':', '-'});
-    let t_start = parseInt(region[1])
-    let t_end = parseInt(region[2])
+    let region = region.split({':'});
+
+    if region.len != 2:
+        raiseEx(format("[FATAL] Region is incorrectly formatted '$#'", region.join(" ")))
+
+    let pos    = region[1].split({'-'})
+
+    if pos.len != 2:
+        raiseEx(format("[FATAL] Region is incorrectly formatted '$#'", pos.join(" ")))
 
     var b: Bam
     open(b, in_bam, index = true)
     defer:
         b.close()
 
-    if region.len != 3:
-        raiseEx(format("[FATAL] Region is incorrectly formatted '$#'", region))
+
+
+    let t_start = parseInt(pos[0])
+    let t_end = parseInt(pos[1])
+
 
     for r in b.query(region[0], t_start, t_end):
         if ((r.flag.int and flag) > 0):
