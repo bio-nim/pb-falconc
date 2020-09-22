@@ -33,6 +33,8 @@ test/HelpTabCols
 test/out
 test/Suppress
 test/FancyRepeats
+test/FancyRepeats2
+test/OneCharLong
 test/OneCharParams
 test/ImplicitDefault
 test/AllSeqTypes
@@ -63,3 +65,4 @@ test/StroppedParams
 test/PassValues
 test/PassValuesMulti
 cligen/abbrev
+cligen/dents

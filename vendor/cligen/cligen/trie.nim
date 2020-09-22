@@ -17,8 +17,9 @@ type
     root*: Node[T]
     depth*: int         # Depth of Tree
 
-proc rawPfx[T](t: Trie[T], key: string, i: var int, longest=false): Node[T] =
+proc rawPfx[T](t: Trie[T], key: string, nPfx: var int, longest=false): Node[T] =
   var n = t.root
+  nPfx = 0
   if n == nil:
     return nil
   var p = n
@@ -28,16 +29,14 @@ proc rawPfx[T](t: Trie[T], key: string, i: var int, longest=false): Node[T] =
       p = n
       n = n.kidp[h]
     else:
-      n = if longest: p else: nil
+      if not longest: n = nil
       break
-    i = j + 1
+    nPfx.inc
   n
 
-proc rawGet[T](t: Trie[T], key: string): Node[T] =
-  var i = 0
-  let n = t.rawPfx(key, i)
-  if n == nil or not n.term: return nil
-  n
+proc rawGet[T](t: Trie[T], key: string): Node[T] {.inline.} =
+  let n = t.rawPfx(key)
+  result = if n == nil or not n.term: nil else: n
 
 proc rawInsert[T](t: var Trie[T], key: string): Node[T] =
   var cntps = newSeqOfCap[ptr uint32](t.depth + key.len)
@@ -63,8 +62,8 @@ proc rawInsert[T](t: var Trie[T], key: string): Node[T] =
     t.depth = max(t.depth, depth)
   n
 
-proc missingOrExcl*[T](t: var Trie[T], key: string): bool =
-  ##``t.excl(key)`` if present in ``t`` and return true else just return false.
+proc missingOrExcl*[T](t: var Trie[T], key: string): bool {.inline.} =
+  ## ``t.excl(key)`` if present in ``t`` and return true else just return false.
   var stack = newSeqOfCap[Node[T]](t.depth)
   var stackH = newSeqOfCap[int](t.depth)
   var n = t.root
@@ -75,7 +74,7 @@ proc missingOrExcl*[T](t: var Trie[T], key: string): bool =
     let h = n.kidc.findUO ch
     if h >= 0: n = n.kidp[h]; stack.add n; stackH.add h
     else: return false
-  if not stack[^1].term:      #may have only foundk key as a prefix
+  if not stack[^1].term:      #may have only found key as a prefix
     return false
   stack[^1].term = false
   for i in countdown(stack.len - 1, 1):
@@ -87,7 +86,7 @@ proc missingOrExcl*[T](t: var Trie[T], key: string): bool =
   if stack[0].cnt == 0:
     t.root = nil
 
-proc excl*[T](t: var Trie[T], key: string) =
+proc excl*[T](t: var Trie[T], key: string) {.inline.} =
   ## Remove ``key`` (and any associated value) from ``t`` or do nothing.
   discard t.missingOrExcl key
 
@@ -113,7 +112,7 @@ proc match[T](a: var HashSet[string], n: Node[T], pat="", i=0, key: var string,
     return
   if i >= pat.len:
     if n.term and key.len > 0:
-      a.incl key
+      a.incl move(key)
       if a.len >= limit: raise newException(IOError, "done")
     return
   var h: int
@@ -129,7 +128,7 @@ proc match[T](a: var HashSet[string], n: Node[T], pat="", i=0, key: var string,
         var key2 = key & n.kidc[h]
         a.match(p, pat, i, key2, a1, aN, limit)
     elif n.term and i + 1 == pat.len:
-      a.incl key
+      a.incl move(key)
       if a.len >= limit: raise newException(IOError, "done")
   elif (h := n.kidc.findUO(pat[i])) >= 0:
     let p = n.kidp[h]
@@ -182,20 +181,15 @@ proc nearLev*[T](t: Trie[T], key: string, dmax=1,
     k[0] = ch
     result.nearLevR(t.root.kidp[h], ch, k, key, row, 1, dmax, limit)
 
-proc collect*[T](n: Node[T], key: var string, d=0, pfx="", i=0): seq[tuple[k: string, n: Node[T]]] =
-  if n == nil:
-    return
-  if n.term:
-    result.add (k: (if i > 0: pfx[0..<i] & key else: key), n: n)
-  for h, ch in n.kidc:
-    key.setLen d + 1
-    key[d] = ch
-    result.add collect(n.kidp[h], key, d + 1, pfx, i)
-
-proc leaves[T](r: Node[T], depth=99, pfx="", i=0, d=0):
-       seq[tuple[k: string, n: Node[T]]] =
-  var key = ""                  #Would be nicer to do iterator w/state bounded
-  collect(r, key, d, pfx, i)    #..by depth, but seemed tricky & unimportant.
+proc leaves[T](r: Node[T], key=""):
+    iterator(): tuple[k: string, n: Node[T]] =
+  result = iterator(): tuple[k: string, n: Node[T]] =
+    if r != nil:
+      if r.term:
+        yield (k: key, n: r)
+      for h, ch in r.kidc:
+        for e in toItr(leaves(r.kidp[h], key & ch)):
+          yield e
 
 proc len*[T](t: Trie[T]): int {.inline.} =
   if t.root == nil: 0 else: t.root.cnt.int
@@ -217,7 +211,7 @@ proc `[]`*[T](t: var Trie[T], key: string): var T {.inline.} =
   ## Retrieves modifiable value at ``t[key]`` or raises ``KeyError`` if missing.
   get(t, key)
 
-proc mgetOrPut*[T](t: var Trie[T], key: string, val: T): var T =
+proc mgetOrPut*[T](t: var Trie[T], key: string, val: T): var T {.inline.} =
   ## Retrieves modifiable value at ``t[key]`` or inserts if missing.
   let oldLen = t.len
   var n = rawInsert(t, key)
@@ -225,7 +219,7 @@ proc mgetOrPut*[T](t: var Trie[T], key: string, val: T): var T =
     n.val = val
     n.val
 
-proc containsOrIncl*[T](t: var Trie[T], key: string, val: T): bool =
+proc containsOrIncl*[T](t: var Trie[T], key: string, val: T): bool {.inline.} =
   ## Returns true iff ``t`` contains ``key`` or does ``t[key]=val`` if missing.
   let oldLen = t.len
   var n = rawInsert(t, key)
@@ -233,56 +227,56 @@ proc containsOrIncl*[T](t: var Trie[T], key: string, val: T): bool =
   when T isnot void:
     if not result: n.val = val
 
-proc containsOrIncl*[T](t: var Trie[T], key: string): bool {.discardable.}=
+proc containsOrIncl*[T](t:var Trie[T], key:string): bool {.discardable,inline.}=
   ## Returns true iff ``t`` contains ``key`` or inserts into ``t`` if missing.
   let oldLen = t.len
   discard rawInsert(t, key)
   result = t.len == oldLen
 
-proc inc*[T](t: var Trie[T], key: string, val: int = 1) =
+proc inc*[T](t: var Trie[T], key: string, val: int = 1) {.inline.} =
   ## Increments ``t[key]`` by ``val`` (starting from 0 if missing).
   var n = rawInsert(t, key)
   inc n.val, val
 
-proc incl*(t: var Trie[void], key: string) =
+proc incl*(t: var Trie[void], key: string) {.inline.} =
   ## Includes ``key`` in ``t``.
   discard rawInsert(t, key)
 
-proc incl*[T](t: var Trie[T], key: string, val: T) =
+proc incl*[T](t: var Trie[T], key: string, val: T) {.inline.} =
   ## Inserts ``key`` with value ``val`` into ``t``, overwriting if present
   var n = rawInsert(t, key)
   n.val = val
 
-proc `[]=`*[T](t: var Trie[T], key: string, val: T) =
+proc `[]=`*[T](t: var Trie[T], key: string, val: T) {.inline.} =
   ## Inserts ``key``, ``val``-pair into ``t``, overwriting if present.
   var n = rawInsert(t, key)
   n.val = val
 
 iterator keys*[T](t: Trie[T]): string =
   ## yields all keys in lexicographical order.
-  for tup in t.root.leaves(t.depth): yield tup.k
+  for tup in toItr(t.root.leaves()): yield tup.k
 
 iterator values*[T](t: Trie[T]): T =
   ## yields all values of `t` in the lexicographical order of the
   ## corresponding keys.
-  for tup in t.root.leaves(t.depth): yield tup.n.val
+  for tup in toItr(t.root.leaves()): yield tup.n.val
 
 iterator mvalues*[T](t: var Trie[T]): var T =
   ## yields all values of `t` in the lexicographical order of the
   ## corresponding keys. The values can be modified.
-  for tup in t.root.leaves(t.depth): yield tup.n.val
+  for tup in toItr(t.root.leaves()): yield tup.n.val
 
 iterator items*[T](t: Trie[T]): string =
   ## yields all keys in lexicographical order.
-  for tup in t.root.leaves(t.depth): yield tup.k
+  for tup in toItr(t.root.leaves()): yield tup.k
 
 iterator pairs*[T](t: Trie[T]): tuple[key: string, val: T] =
   ## yields all (key, value)-pairs of `t`.
-  for tup in t.root.leaves(t.depth): yield (tup.k, tup.val)
+  for tup in toItr(t.root.leaves()): yield (tup.k, tup.val)
 
 iterator mpairs*[T](t: var Trie[T]): tuple[key: string, val: var T] =
   ## yields all (key, value)-pairs of `t`. The yielded values can be modified.
-  for tup in t.root.leaves(t.depth): yield (tup.k, tup.val)
+  for tup in toItr(t.root.leaves()): yield (tup.k, tup.val)
 
 proc `$`*[T](t: Trie[T]): string =
   ## Return string form of ``t``; ``{A,B,..}`` if ``T`` is ``void`` or else
@@ -311,39 +305,45 @@ proc `$`*[T](t: Trie[T]): string =
 
 iterator keysWithPrefix*[T](t: Trie[T], prefix: string, longest=false): string =
   ## Yields all keys starting with `prefix`.
-  var i = 0
-  for tup in rawPfx(t, prefix, i, longest).leaves(t.depth, prefix, i):
+  var nPfx = 0
+  let n = rawPfx(t, prefix, nPfx, longest)
+  for tup in toItr(n.leaves(prefix[0..<nPfx])):
     yield tup.k
 
 iterator valuesWithPrefix*[T](t: Trie[T], prefix: string, longest=false): T =
   ## Yields all values of ``t`` for keys starting with ``prefix``.
-  var i = 0
-  for tup in rawPfx(t, prefix, i, longest).leaves(t.depth, prefix, i):
+  var nPfx = 0
+  let n = rawPfx(t, prefix, nPfx, longest)
+  for tup in toItr(n.leaves(prefix[0..<nPfx])):
     yield tup.n.val
 
 iterator mvaluesWithPrefix*[T](t: var Trie[T], prefix: string,
                                longest=false): var T =
   ## Yields all values of ``t`` for keys starting with ``prefix``.  The values
   ## can be modified.
-  var i = 0
-  for tup in rawPfx(t, prefix, i, longest).leaves(t.depth, prefix, i):
+  var nPfx = 0
+  let n = rawPfx(t, prefix, nPfx, longest)
+  for tup in toItr(n.leaves(prefix[0..<nPfx])):
     yield tup.n.val
 
 iterator pairsWithPrefix*[T](t: Trie[T], prefix: string,
                              longest=false): tuple[key: string, val: T] =
   ## Yields all (key, value)-pairs of `t` starting with `prefix`.
-  var i = 0
-  for tup in rawPfx(t, prefix, i, longest).leaves(t.depth, prefix, i):
+  var nPfx = 0
+  let n = rawPfx(t, prefix, nPfx, longest)
+  for tup in toItr(n.leaves(prefix[0..<nPfx])):
     yield (tup.k, tup.n.val)
 
 iterator mpairsWithPrefix*[T](t: var Trie[T], prefix: string,
                               longest=false): tuple[key: string, val: var T] =
   ## Yields all (key, value)-pairs of `t` starting with `prefix`.
   ## The yielded values can be modified.
-  var i = 0
-  for tup in rawPfx(t, prefix, i, longest).leaves(t.depth, prefix, i):
+  var nPfx = 0
+  let n = rawPfx(t, prefix, nPfx, longest)
+  for tup in toItr(n.leaves(prefix[0..<nPfx])):
     yield (tup.k, tup.n.val)
-#These uses overloading rathe than plural Pats to disambiguate vs `tern` names
+
+#These use overloading rather than plural Pats to disambiguate vs `tern` names
 proc uniquePfxPat*(x: openArray[string], sep="*"): seq[string] =
   ## Return unique prefixes in ``x`` assuming non-empty-string&unique ``x[i]``.
   result.setLen x.len
