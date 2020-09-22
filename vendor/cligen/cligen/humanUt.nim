@@ -1,3 +1,5 @@
+when (NimMajor,NimMinor,NimPatch) > (0,20,2):
+  {.push warning[UnusedImport]: off.} # import-inside-include confuses used-system
 import math, strutils, algorithm, sets, tables, parseutils, posix, textUt
 when not declared(initHashSet):
   proc initHashSet*[T](): HashSet[T] = initSet[T]()
@@ -43,15 +45,15 @@ proc humanReadable4*(bytes: uint, binary=false): string =
   elif Bytes < 99.5 * K : result = ff(Bytes/K, 2) & "K"
   elif Bytes < 100 * K  : result = "100K"
   elif Bytes < 995 * K  : result = ff(Bytes/K, 3) & "K"
-  elif Bytes <  m  * K  : result = ff(Bytes/M, 2) & "M"
+  elif Bytes < m  *  K  : result = ff(Bytes/M, 2) & "M"
   elif Bytes < 99.5 * M : result = ff(Bytes/M, 2) & "M"
   elif Bytes < 100 * M  : result = "100M"
   elif Bytes < 995 * M  : result = ff(Bytes/M, 3) & "M"
-  elif Bytes <  m  * M  : result = ff(Bytes/G, 2) & "G"
+  elif Bytes < m  *  M  : result = ff(Bytes/G, 2) & "G"
   elif Bytes < 99.5 * G : result = ff(Bytes/G, 2) & "G"
   elif Bytes < 100 * G  : result = "100G"
   elif Bytes < 995 * G  : result = ff(Bytes/G, 3) & "G"
-  elif Bytes <  m  * G  : result = ff(Bytes/T, 2) & "T"
+  elif Bytes < m  *  G  : result = ff(Bytes/T, 2) & "T"
   elif Bytes < 99.5 * T : result = ff(Bytes/T, 2) & "T"
   elif Bytes < 100 * T  : result = "100T"
   else:                   result = ff(Bytes/T, 3) & "T"
@@ -64,7 +66,9 @@ when not declared(fromHex):
 
 let attrNames = {  #WTF: const compiles but then cannot look anything up
   "plain": "0", "bold":  "1", "faint":   "2", "italic": "3", "underline": "4",
-  "blink": "5", "BLINK": "6", "inverse": "7", "struck": "9", "NONE":      "",
+  "blink": "5", "BLINK": "6", "inverse": "7", "struck": "9",
+  "NONE":   "", "-bold":"22", "-faint": "22", "-italic":"23","-underline":"24",
+  "-blink":"25","-BLINK":"25","-inverse":"27","-struck":"29",
   "black"   : "30", "red"      : "31", "green"    : "32", "yellow"   : "33",#DkF
   "blue"    : "34", "purple"   : "35", "cyan"     : "36", "white"    : "37",
   "BLACK"   : "90", "RED"      : "91", "GREEN"    : "92", "YELLOW"   : "93",#LiF
@@ -79,6 +83,8 @@ var textAttrAliases = initTable[string, string]()
 
 proc textAttrAlias*(name, value: string) =
   textAttrAliases[name] = value
+
+proc textAttrAliasClear*() = textAttrAliases.clear
 
 proc textAttrRegisterAliases*(colors: seq[string]) =
   for spec in colors:
@@ -118,36 +124,48 @@ proc textAttrOn*(spec: seq[string], plain=false): string =
 const textAttrOff* = "\x1b[0m"
 
 proc specifierHighlight*(fmt: string, pctTerm: set[char], plain=false, pct='%',
-                         openBkt = { '{','[' }, closeBkt = { '}',']' }): string=
-  ## ".. %X[{A1 A2}]Ya .." -> ".. AttrOn[A1 A2]%XYaAttrOff .."
+    openBkt="([{", closeBkt=")]}", keepPct=true, termInAttr=true): string =
+  ## ".. %X(A1 A2)Ya .." -> ".. ON[A1 A2]%XYaOFF .."
   var term = pctTerm; term.incl pct     #Caller need not enter pct in pctTerm
   var other, attr, attrOn: string       #..Should maybe check xBkt^pctTerm=={}.
-  var inPct, inBkt: bool
+  var inPct = false
+  var mchdBkt = false
+  var bkt: char
   let attrOff = if plain: "" else: textAttrOff
   for c in fmt:
     if inPct:
-      if inBkt:
-        if c in closeBkt:
-          inBkt = false
+      if bkt != '\0':
+        if c == bkt:
+          bkt = '\0'
           attrOn = textAttrOn(attr.split(), plain)
           attr.setLen(0)
-        else:
-          attr.add c
+          mchdBkt = true
+        else: attr.add c
       else:
-        if c in openBkt:
-          inBkt = true
+        if not mchdBkt and c in openBkt:
+          bkt = closeBkt[openBkt.find(c)]
           attr.setLen(0)
-        elif c in term:
-          inPct = false
+        elif c in term or c == pct:
           if attrOn.len > 0: result.add attrOn
-          result.add other; result.add c
+          result.add other
+          if termInAttr and c != pct: result.add c
           if attrOn.len > 0: result.add attrOff
           attrOn.setLen(0)
           other.setLen(0)
+          if not termInAttr and c != pct: result.add c
+          mchdBkt = false
+          inPct = c == pct
+          if keepPct and c == pct: other.add c
         else: other.add c
     else:
-      if c == '%': inPct = true; other.add c
+      if c == pct:
+        inPct = true
+        if keepPct: other.add c
       else: result.add(c)
+  if inPct and bkt == '\0':   # End of string is a simplified c in term branch
+    if attrOn.len > 0: result.add attrOn
+    result.add other
+    if attrOn.len > 0: result.add attrOff
 
 proc humanDuration*(dt: int, fmt: string, plain=false): string =
   ## fmt is divisor-aka-numerical-unit-in-seconds unit-text [attrs]
@@ -172,3 +190,120 @@ proc humanDuration*(dt: int, fmt: string, plain=false): string =
     if cols.len > 2: result.add attrOff
   except:
     raise newException(ValueError, "bad humanDuration format \"" & fmt & "\"")
+
+#NOTE: \-escape off only inside inline DB literals breaks any parser layering &
+#I think blocks any 1-pass parse.  For now ``lit\eral`` -> <DB0>literal<DB1>.
+#Also, the old parser/substitutor also failed in this same, way.
+iterator descape(s: string, escape='\\'): tuple[c: char; escaped: bool] =
+  var escaping = false  # This just yields a char & bool escaped status
+  for c in s:
+    if escaping: escaping = false; yield (c, true)
+    elif c == escape: escaping = true
+    else: yield (c, false)
+
+type
+  RstKind = enum rstNil, rstBeg,rstEnd, rstEsc, rstWhite,rstText, rstOpn,rstCls,
+                 rstPunc, rstSS,rstDS,rstTS, rstSB,rstDB
+  RstToken = tuple[kind: RstKind; text: string; ix: int]
+let rstMarks = { rstSS, rstDS, rstTS, rstSB, rstDB }
+let bktOpn = "([{<\"'"
+let bktCls = ")]}>\"'"
+let punc = { '-', ':', '/', '.', ',', ';', '!', '?' }
+
+let key2tok = { "singlestar": rstSS, "doublestar": rstDS, "triplestar": rstTS,
+                "singlebquo": rstSB, "doublebquo": rstDB }.toTable
+
+let rstMdSGRDefault* = { "singlestar": "italic     ; -italic"       ,
+                         "doublestar": "bold        ; -bold"        ,
+                         "triplestar": "bold italic ; -bold -italic",
+                         "singlebquo": "underline   ; -underline"   ,
+                         "doublebquo": "inverse     ; -inverse"     }.toTable
+type rstMdSGR* = object
+  attr: Table[RstKind, tuple[on, off: string]]
+
+proc initRstMdSGR*(attrs=rstMdSGRDefault, plain=false): rstMdSGR =
+  ## A hybrid restructuredText-Markdown-to-ANSI SGR/highlighter/renderer that
+  ## does *only inline* font markup (single-|double-|triple-)(*|`) since A) that
+  ## is what is most useful displaying to a terminal and B) the whole idea of
+  ## these markups is to be readable as-is.  Backslash escape & spacing work as
+  ## usual to block adornment interpretation.  This proc inits ``rstMdSGR`` with
+  ## a Table of {style: "open;close"} text adornments. ``plain==true`` will make
+  ## the associated ``render`` proc merely remove all such adornments.
+  for key, val in attrs:
+    let c = val.split(';')
+    if c.len != 2:
+      stderr.write "[render] values must be ';'-separated on/off pairs\n"
+    result.attr[key2tok[key]] =
+      (textAttrOn(c[0].strip.split, plain), textAttrOn(c[1].strip.split, plain))
+
+iterator rstTokens(s: string): RstToken =
+  var tok: RstToken = (rstBeg, "", -1)
+  yield tok
+  tok.kind = rstNil
+
+  template doYield() =          # Maybe yield and if so reset token
+    if tok.kind != rstNil:
+      yield tok
+      tok.text.setLen 0
+      tok.kind = rstNil
+      tok.ix = -1
+
+  for c, escaped in s.descape:
+    let op = bktOpn.find(c)     # -1 | index of open bracket
+    let cl = bktCls.find(c)     # -1 | index of close bracket
+    if escaped:
+      doYield()
+      tok.kind = rstEsc; tok.text.add c
+    elif c in Whitespace:
+      if tok.kind == rstWhite: tok.text.add c
+      else: doYield(); tok.kind = rstWhite; tok.text.add c
+    elif c == '*':
+      if    tok.kind == rstSS: tok.kind = rstDS
+      elif  tok.kind == rstDS: tok.kind = rstTS; doYield()
+      else: doYield(); tok.kind = rstSS
+    elif c == '`':
+      if    tok.kind == rstSB: tok.kind = rstDB; doYield()
+      else: doYield(); tok.kind = rstSB
+    elif c in punc:
+      if tok.kind == rstPunc: tok.text.add c
+      else: doYield(); tok.kind = rstPunc; tok.text.add c
+    elif op != -1:
+      doYield()
+      tok.kind = rstOpn; tok.text.add bktOpn[op]; tok.ix = op; doYield()
+    elif cl != -1:
+      doYield()
+      tok.kind = rstCls; tok.text.add bktCls[cl]; tok.ix = cl; doYield()
+    else:
+      if tok.kind == rstText: tok.text.add c
+      else: doYield(); tok.kind = rstText; tok.text.add c
+  doYield()
+  yield (rstEnd, "", -1)
+
+# docutils.sourceforge.io/docs/ref/rst/restructuredtext.html: inline markup rec.
+# Markup is done when the following patterns occur (where MARK = *|**|***|`|``,
+# OPEN = [({<.. & CLOSE = ])}>..):
+#   BegText|White|OPEN|BegPunc MARK nonWhite|[0]!=MchCLOSE          => Beg font
+#   nonWhite                   MARK EndText|White|CLOSE|Esc|EndPunc => End font
+proc render*(r: rstMdSGR, rstOrMd: string): string =
+  ## Translate restructuredText inline font markup (extended with triple star)
+  ## to ANSI SGR/highlighted text via highlighting ``r``.
+  var toks: seq[RstToken]       # Last 2 tokens + current decide what to do
+  var mup = false               # Markup does not nest; mup==true => cannot Beg
+  let none = ("", "")
+  for tok in rstOrMd.rstTokens:
+    if toks.len < 2:
+      toks.add tok
+      continue
+    result.add toks[0].text
+    if mup and toks[0].kind != rstWhite and toks[1].kind in rstMarks and
+       tok.kind in {rstEnd, rstWhite, rstCls, rstEsc, rstPunc}:
+      mup = false
+      result.add r.attr.getOrDefault(toks[1].kind, none).off
+    elif not mup and toks[0].kind in {rstBeg, rstWhite, rstOpn, rstPunc} and
+         toks[1].kind in rstMarks and tok.kind != rstWhite:
+      mup = true
+      #XXX for rstOpn lexer tells us .ix; Should save & use above for rstCls
+      result.add r.attr.getOrDefault(toks[1].kind, none).on
+    toks[0] = toks[1]; toks[1] = tok    # shift
+  for tok in toks:
+    result.add tok.text

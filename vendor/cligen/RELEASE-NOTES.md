@@ -1,6 +1,179 @@
 RELEASE NOTES
 =============
 
+Version: 1.2.2
+--------------
+  Just compatibility fixes.
+
+Version: 1.2.1
+--------------
+  Empty helpSyntax string suppresses showing --help-syntax in the automated
+  help table.
+
+  Compatibility fix for pending Nim changes.
+
+Version: 1.2.0
+--------------
+
+  Roll our own very partial rST/markdown-like font markup parser to remove
+  run-time dependency on PCRE libraries for easier deployment.
+
+  Add `cgCfg.helpSyntax` field which CLI authors can default differently and
+  `[templates]/helpSyntax` which end CL users can override to say whatever.
+
+  The type `ClCfg`, the global compile-time default `clCfg`, and the two
+  provided config file parsers have grown ways to suppress prefix matching.
+  A CLauthor can set clCfg.longPfxOk = false and then his (savvy) CLusers
+  can override that default with longPrefixOk = false in the syntax section
+  of their config file (unless the CLauthor doesn't use a config file or
+  overrides the provided impls...).
+
+  Add `sysUt.toItr` to simplify life when using closure iterators.  Show use
+  in `trie.leaves` as a "recursive iterator" (as close as makes sense in Nim).
+
+  Add minimal proof-of-concept Python multiprocessing-like `procpool` module &
+  `examples/only` and `examples/dirq` using inotify as a reliable OS queue.
+
+Version: 1.1.0
+---------------
+  Add fast file tree walk iteration `cligen/dents.forPath`.  On Linux (esp.
+  true Intel), sys\_batch & -d:batch afford even more speed-ups.  Add `chom.nim`
+  example to also exhibit some fancy "octal integer" argparse usage.  Add `rr`,
+  `dirt`, and `du` examples to show non-trivial cases needing a recursion-aware
+  recursion abstraction.
+
+  Replace `NimVersion vs ""` tests with `(NimMajor,NimMinor,NimPatch)` tests.
+
+  Add some support inequality routines for `cligen/statx.StatxTs`.
+
+  Repo does auto-CI runs & auto-doc gen now thanks to @jiro4989 and @kaushalmodi
+  { Testing pre-commit is better (both less waiting and, well, pre-commit). }
+
+  Added `$doc` and `$help[param]` rendering via any non-nil `clCfg.render`
+  string-to-string transformer.  One easy way to get one is to add a `[render]`
+  section to your `~/.config/cligen/config` file that sets at least one of
+  singleStar, doubleStar, tripleStar, singleBQuo, doubleBQuo to some "on ; off"
+  pair.  That will do an initRstMdSGR/render on $doc and $help[param] text.
+
+  As follow-on from the above better help formating work, also do a smarter
+  word wrap that A) minimizes the Lp norm of the extra-space-at-EOL vector,
+  B) is better about preserving the blank line structure in inputs, and C) can
+  still wrap lines in paragraphs that are outside of indented lines (instead
+  of the prior any-indent-anywhere ==> whole string pre-formatted).
+
+  The top-level help of a `dispatchMulti` command is now rendered and wrapped
+  just like the `$doc` for each subcommand.
+
+  Add more conveniences in cligen/mslice, cilgen/osUt, & factor out stripSGR.
+
+Version: 1.0.0
+---------------
+  No new problems in the past few weeks => call it time to stamp 1.0.  (Truly
+  well argued/motivated breaking changes will always remain possible, but do
+  not seem super likely.)
+
+Version: 0.9.47
+---------------
+  Try to clean up documentation of new config file/colorization features.
+
+  Fix minor bugs in `cligen/abbrev.expandFit` & `examples/dups.nim` on Android.
+
+  Address long-standing (since the beginning) bug when a parameter name is one
+  letter and collides with either automatically selected or manually specified
+  short options.  https://github.com/c-blake/cligen/issues/146
+
+  Address long-standing surprising behavior where `mergeParams` is called twice
+  for `dispatch` style.  Still called N+2 times for `dispatchMulti` until some
+  re-write of that to not itself use dispatchGen on some generated proc.  Update
+  0-level `cligen/mergeCfgEnv.nim`; add 1-level `cligen/mergeCfgEnvMulti.nim`
+  example/library impls.  The only impact of this is that people (maybe no one)
+  calling `dispatchCf` directly (to use its `cf` parameter to pass a CLauthor
+  `ClCfg`) must now provide a command line themselves via `dispatchCf`'s new
+  `cmdLine` parameter.  They can call `mergeParams` there to recreate the old
+  broken behavior exactly or do something else which is probably more useful.
+
+Version: 0.9.46
+---------------
+  Silence `argcvt.nim` implicit copy warnings in `--gc:arc` mode.  Problem cases
+  (no move warns but using move fails) remain at: cligen.nim:{490,504}, and
+  cfUt.nim:16 and cligen/clCfgInit.nim:14 (at least..maybe others).  The exact
+  cases will be specific to your exact version of Nim as `gc:arc` is in a rapid
+  development phase.
+
+  Added convenience wrappers `recEntries`, `paths` in `cligen/posixUt.nim` for
+  fully general path inputs often nice in CL utils.  See `examples/dups.nim`.
+
+  Remove `cligen/oldAPI.nim` and its `include` in `cligen.nim`.  I'm not sure
+  anyone ever used this, but it is especially defunct given `clCfgInit`.
+
+  Add `test/FancyRepeats2.nim` to show a second way to do it.
+
+  Add one "output breaking" change to simplify implementation of dropping (in
+  `dispatchMulti` context) the "Usage:\n" header more like how skipping repeats
+  of -h,--help and --help-syntax works.  If you were passing your own `usage`
+  template anywhere then you will probably want to delete the "Usage:" prefix.
+  It will work ok with it still there, but be repetitive/ugly.
+
+  --
+
+  The above is part of a large feature addition to allow opt-in presentation
+  (and some CL syntax) configuration by CL end users -- probably How It Always
+  Should Have Been (TM) since CL authors can only anticipate so much.  This
+  configuration is via the include `cligen/cfCfgInit.nim` by default which reads
+  `~/.config/cligen/config`|`~/.config/cligen files`.  `configs/config` in the
+  distribution is an example config and the Wiki will have more details someday.
+
+  If you hate parsecfg and don't mind an additional parsetoml dependency,
+  @kaushalmodi has contributed an alternate config parser with an example in
+  `configs/config.toml`.  Just compile with `-d:cgCfgToml` to activate and
+  see `configs/config.toml`.
+
+  If you really hate providing CL end users with some/all of this flexibility
+  then you can always write your own project-specific `cligen/clCfgInit.nim`.
+  For maximum terminal compatibility `cligen` does no colors by default.  If
+  your user base is un-picky, such as "only yourself", you can also provide
+  colorful defaults via compile time `clCfg` hacking.
+
+  Further, if the user sets the `$NO_COLOR` environment variable to any value
+  then all escape sequences are suppressed.  This can be helpful for programs
+  that parse the output of `cmd --help`.  E.g., for the Zsh auto-complete system
+  you want to patch the `_call_program` function to export `NO_COLOR=1`.  I am
+  considering interpreting the double negative `NO_COLOR=notty` as a tty-test.
+  { Often one wants colors piped to `less -r`.  So, that alone isn't enough. }
+
+  Environment-variable sensitive `[include__VAR]` can be used to set up night
+  mode/day mode https://github.com/c-blake/cligen/wiki/Color-themes-schemes
+
+  Since this new feature addition is a large change with slight compatibility
+  ramifications, and more importantly since it seems likely to inspire follow-on
+  requests that may be hard to make compatibly, I am deferring the 1.0.0 stamp
+  until a release or two from now.
+
+Version: 0.9.45
+---------------
+  Make compatible with pre-1.0 Nim.
+
+  This is the last pre-1.0 release with 1.0 likely at the end of April.  Please
+  make any feature requests you think may require breaking changes now or be
+  prepared for even more than usual pushback in the interests of stability.
+  (Truly well argued/motivated breaking changes will always remain possible.)
+
+Version: 0.9.44
+---------------
+  Fix bad bug in `posixUt.recEntries` where it only worked for "." and make
+  the warning message more clear/specific about re-visitation not looping.
+
+  Have `argcvt.ElementError` inherit from `ValueError` not `Exception`.
+
+  Make `helpDump` in `dispatchMulti` skip repetitive --help/--help-syntax rows
+  with instead just a note at the top about general availability.
+
+  I've added some `move` annotations to silence many gc:arc warnings, but many
+  (cligen.nim:457, cligen.nim:471, cfUt.nim:16, argcvt.nim:308, argcvt.nim:318,
+  argcvt.nim:320) fail with `move` due to immutability/etc. (the very first only
+  at runtime) while warning without move.  If you find any you can silence with
+  a `move` successfully let me know.
+
 Version: 0.9.43
 ---------------
   In most contexts for most parameters you can now use a compile-time `const`

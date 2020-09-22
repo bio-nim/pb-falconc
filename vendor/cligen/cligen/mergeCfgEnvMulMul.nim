@@ -12,8 +12,8 @@ proc mergeParams(cmdNames: seq[string],
   ## ``cmdLine`` (usually command-line-entered parameters or @["--help"]).
   when defined(debugMergeParams):
     echo "mergeParams got cmdNames: ", cmdNames, " cmdLine:", cmdLine
-  if cmdNames.len < 1:
-    return cmdLine
+  if cmdNames.len < 3:  # If depth can vary CLauthor must write own mergeParams
+    return cmdLine      #..aware of subcommands that are .len == 2 "leaves".
   var cfPath = os.getEnv(strutils.toUpperAscii(cmdNames[0]) & "_CONFIG")
   if cfPath.len == 0:
     cfPath = os.getConfigDir() & cmdNames[0] & "/config"

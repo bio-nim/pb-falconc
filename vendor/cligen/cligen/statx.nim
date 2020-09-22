@@ -1,3 +1,8 @@
+## The idea of this module is to allow callers to pretend their system has the
+## Linux ``statx`` call & ``Statx`` type even if it does not.  Callers simply
+## program to the "superset" using ``Statx`` and ``statx`` and i just works.
+## We simulate/translate ordinary ``Stat`` results when necessary.
+
 import posix, posixUt
 
 const haveStatx* = (gorgeEx "[ -e /usr/include/bits/statx.h ]")[1] == 0
@@ -57,21 +62,24 @@ else:
       stx_dev_major*:       uint32   ## Major ID of dev of FS where file resides
       stx_dev_minor*:       uint32   ## Minor ID of dev of FS where file resides
 
-template impConst*(T: untyped, path: string, name: untyped): untyped {.dirty.} =
-  var `loc name` {.header: path, importc: astToStr(name) .}: `T`
-  let name* {.inject.} = `loc name`
+proc `<`*(x, y: StatxTs): bool {.inline.} =
+  x.tv_sec < y.tv_sec or (x.tv_sec == y.tv_sec and x.tv_nsec < y.tv_sec)
 
-template impCint*(path: string, name: untyped): untyped {.dirty.} =
-  impConst(cint, path, name)
+proc `<=`*(x, y: StatxTs): bool {.inline.} =
+  x.tv_sec < y.tv_sec or (x.tv_sec == y.tv_sec and x.tv_nsec <= y.tv_sec)
 
-impCint("fcntl.h", AT_FDCWD)            ## Tells *at calls to use CurrWkgDir
-impCint("fcntl.h", AT_SYMLINK_NOFOLLOW) ## Do not follow symbolic links
-impCint("fcntl.h", AT_REMOVEDIR)        ## Remove dir instead of unlinking file
-impCint("fcntl.h", AT_SYMLINK_FOLLOW)   ## Follow symbolic links
-impCint("fcntl.h", AT_EACCESS)          ## Test access perm for EID,not real ID
+proc toInt64*(t: StatxTs): int64 {.inline.} =
+  ## 64-bits represents +-292 years from 1970 exactly & conveniently.
+  t.tv_sec * 1_000_000_000 + t.tv_nsec
+
+proc toStatxTs*(t: int64): StatxTs {.inline.} =
+  result.tv_sec  = t div 1_000_000_000
+  result.tv_nsec = int32(t - result.tv_sec * 1_000_000_000)
+
+export impConst, impCint, AT_FDCWD, AT_SYMLINK_NOFOLLOW, AT_SYMLINK_FOLLOW,
+       AT_REMOVEDIR, AT_EACCESS      ## These & next export used to live here.
 when defined(linux) and haveStatx:
-  impCint("fcntl.h", AT_NO_AUTOMOUNT)   ## Suppress terminal automount traversal
-  impCint("fcntl.h", AT_EMPTY_PATH)     ## Allow empty relative pathname
+  export AT_NO_AUTOMOUNT, AT_EMPTY_PATH
   impCint("fcntl.h", AT_STATX_SYNC_TYPE)
   impCint("fcntl.h", AT_STATX_SYNC_AS_STAT)
   impCint("fcntl.h", AT_STATX_FORCE_SYNC)
@@ -105,20 +113,27 @@ when haveStatx:
   proc statx*(dirfd: cint, path: cstring, flags: cint, mask: cint,
               stx: ptr Statx): cint {.importc: "statx", header: "<sys/stat.h>".}
 
+  proc statx*(dirfd: cint, path: cstring, stx: var Statx, flags: cint,
+              mask=statxMask): cint {.inline.} =
+    ##A statx that looks more like ``fstatat`` with an ignorable final parameter
+    statx(dirfd, path, flags, mask, stx.addr)
+
   proc statx*(path: cstring, stx: var Statx,
-              flags=statxFlags, mask=statxMask): cint =
+              flags=statxFlags, mask=statxMask): cint {.inline.} =
     ##A Linux statx wrapper with a call signature more like regular ``stat``.
     statx(AT_FDCWD, path, flags, mask, stx.addr)
 
   proc lstatx*(path: cstring, stx: var Statx,
-              flags=(statxFlags or AT_SYMLINK_NOFOLLOW), mask=statxMask): cint =
+              flags=(statxFlags or AT_SYMLINK_NOFOLLOW), mask=statxMask): cint {.inline.} =
     ##A Linux statx wrapper with a call signature more like regular ``lstat``.
     statx(AT_FDCWD, path, flags, mask, stx.addr)
 
   proc fstatx*(fd: cint, stx: var Statx,
-              flags=(AT_EMPTY_PATH or statxFlags), mask=statxMask): cint =
+              flags=(AT_EMPTY_PATH or statxFlags), mask=statxMask): cint {.inline.} =
     ##A Linux statx wrapper with a call signature more like regular ``fstat``.
     statx(fd, "", flags, mask, stx.addr)
+else:
+  var statxMask* = cint(0) # Just a dummy to compile when not haveStatx
 
 #A code porting/compatibility layer so client code can just replace "Stat" with
 #"Statx", use all the same query call names as overloads, and access all .st_
@@ -126,57 +141,58 @@ when haveStatx:
 
 #This just uses the antiquated high/low byte of a 16-bit int.  It would be best
 #to get major() & minor() macros out of sys/types.h | sys/sysmacros.h.
-proc st_major*(dno: Dev): uint32 = (dno.uint shr 8).uint32
-proc st_minor*(dno: Dev): uint32 = (dno.uint and 0xFF).uint32
+proc st_major*(dno: Dev): uint32 {.inline.} = (dno.uint shr 8).uint32
+proc st_minor*(dno: Dev): uint32 {.inline.} = (dno.uint and 0xFF).uint32
 
-proc toTimespec*(ts: StatxTs): Timespec =
+proc toTimespec*(ts: StatxTs): Timespec {.inline.} =
   result.tv_sec = ts.tv_sec.Time
   result.tv_nsec = ts.tv_nsec
 
-proc toStatxTs*(ts: Timespec): StatxTs =
+proc toStatxTs*(ts: Timespec): StatxTs {.inline.} =
   result.tv_sec = ts.tv_sec.int64
   result.tv_nsec = ts.tv_nsec.int32
 
-when not haveStatx:
-  proc stat2statx(dst: var Statx, src: Stat) =
-    dst.stx_mask            = 0xFFFFFFFF.uint32
-#   dst.stx_attributes      = .uint64     #No analogues; Extra syscalls?
-#   dst.stx_attributes_mask = .uint64
-    dst.stx_blksize         = src.st_blksize.uint32
-    dst.stx_nlink           = src.st_nlink.uint32
-    dst.stx_uid             = src.st_uid.uint32
-    dst.stx_gid             = src.st_gid.uint32
-    dst.stx_mode            = src.st_mode.uint16
-    dst.stx_ino             = src.st_ino.uint64
-    dst.stx_size            = src.st_size.uint64
-    dst.stx_blocks          = src.st_blocks.uint64
-    dst.stx_atime           = src.st_atim.toStatxTs
-    dst.stx_btime = min(src.st_atim, min(src.st_ctim, src.st_mtim)).toStatxTs
-    dst.stx_ctime           = src.st_ctim.toStatxTs
-    dst.stx_mtime           = src.st_mtim.toStatxTs
-    dst.stx_rdev_major      = src.st_rdev.st_major.uint32
-    dst.stx_rdev_minor      = src.st_rdev.st_minor.uint32
-    dst.stx_dev_major       = src.st_dev.st_major.uint32
-    dst.stx_dev_minor       = src.st_dev.st_minor.uint32
+proc stat2statx(dst: var Statx, src: Stat) {.inline.} =
+  dst.stx_mask            = 0xFFFFFFFF.uint32
+# dst.stx_attributes      = .uint64     #No analogues; Extra syscalls?
+# dst.stx_attributes_mask = .uint64
+  dst.stx_blksize         = src.st_blksize.uint32
+  dst.stx_nlink           = src.st_nlink.uint32
+  dst.stx_uid             = src.st_uid.uint32
+  dst.stx_gid             = src.st_gid.uint32
+  dst.stx_mode            = src.st_mode.uint16
+  dst.stx_ino             = src.st_ino.uint64
+  dst.stx_size            = src.st_size.uint64
+  dst.stx_blocks          = src.st_blocks.uint64
+  dst.stx_atime           = src.st_atim.toStatxTs
+  dst.stx_btime = min(src.st_atim, min(src.st_ctim, src.st_mtim)).toStatxTs
+  dst.stx_ctime           = src.st_ctim.toStatxTs
+  dst.stx_mtime           = src.st_mtim.toStatxTs
+  dst.stx_rdev_major      = src.st_rdev.st_major.uint32
+  dst.stx_rdev_minor      = src.st_rdev.st_minor.uint32
+  dst.stx_dev_major       = src.st_dev.st_major.uint32
+  dst.stx_dev_minor       = src.st_dev.st_minor.uint32
 
-proc st_blksize*(st: Statx): Blksize = st.stx_blksize.Blksize
-proc st_nlink*(st: Statx): Nlink     = st.stx_nlink.Nlink
-proc st_uid*(st: Statx): Uid         = st.stx_uid.Uid
-proc st_gid*(st: Statx): Gid         = st.stx_gid.Gid
-proc st_mode*(st: Statx): Mode       = st.stx_mode.Mode
-proc st_ino*(st: Statx): Ino         = st.stx_ino.Ino
-proc st_size*(st: Statx): Off        = st.stx_size.Off
-proc st_blocks*(st: Statx): Blkcnt   = st.stx_blocks.Blkcnt
-proc st_atim*(st: Statx): Timespec   = st.stx_atime.toTimespec
-proc st_ctim*(st: Statx): Timespec   = st.stx_ctime.toTimespec
-proc st_mtim*(st: Statx): Timespec   = st.stx_mtime.toTimespec
-proc st_rmaj*(st: Statx): Dev        = st.stx_rdev_major.Dev
-proc st_rmin*(st: Statx): Dev        = st.stx_rdev_minor.Dev
-proc st_dev*(st: Statx): Dev         = st.stx_dev_minor.Dev
+proc st_blksize*(st: Statx): Blksize {.inline.} = st.stx_blksize.Blksize
+proc st_nlink*(st: Statx): Nlink     {.inline.} = st.stx_nlink.Nlink
+proc st_uid*(st: Statx): Uid         {.inline.} = st.stx_uid.Uid
+proc st_gid*(st: Statx): Gid         {.inline.} = st.stx_gid.Gid
+proc st_mode*(st: Statx): Mode       {.inline.} = st.stx_mode.Mode
+proc st_ino*(st: Statx): Ino         {.inline.} = st.stx_ino.Ino
+proc st_size*(st: Statx): Off        {.inline.} = st.stx_size.Off
+proc st_blocks*(st: Statx): Blkcnt   {.inline.} = st.stx_blocks.Blkcnt
+proc st_atim*(st: Statx): Timespec   {.inline.} = st.stx_atime.toTimespec
+proc st_ctim*(st: Statx): Timespec   {.inline.} = st.stx_ctime.toTimespec
+proc st_mtim*(st: Statx): Timespec   {.inline.} = st.stx_mtime.toTimespec
+proc st_rmaj*(st: Statx): Dev        {.inline.} = st.stx_rdev_major.Dev
+proc st_rmin*(st: Statx): Dev        {.inline.} = st.stx_rdev_minor.Dev
+proc st_dev*(st: Statx): Dev         {.inline.} =
+  (st.stx_dev_major shl 32 or st.stx_dev_minor).Dev
+proc `st_nlink=`*(st: var Statx, n: Nlink) {.inline.} = st.stx_nlink = uint32(n)
 
-proc st_btim*(st: Statx): Timespec = st.stx_btime.toTimespec
+proc st_btim*(st: Statx): Timespec {.inline.} = st.stx_btime.toTimespec
 
-proc st_vtim*(st: Statx): Timespec =
+proc st_vtim*(st: Statx): Timespec {.inline.} =
   if cmp(st.st_mtim, st.st_ctim) > 0: st.st_mtim
   else:                               st.st_ctim
 
@@ -204,14 +220,36 @@ proc fstat*(fd: cint, stx: var Statx): cint {.inline.} =
     result = fstat(fd, st)
     stat2statx(stx, st)
 
+proc fstatat*(dirfd: cint, path: cstring, stx: var Statx, flags: cint):
+       cint {.inline.} =
+  ## Always ``fstatat`` but take/return ``Statx`` w/simulated e.g. stx_btime.
+  var st: Stat
+  result = fstatat(dirfd, path, st, flags)
+  stat2statx(stx, st)
+
+proc statx*(dirfd: cint, path: cstring, flags: cint, stx: var Statx,
+            mask=statxMask): cint {.inline.} =
+  ## A ``statx`` that looks more like ``fstatat`` w/a final parameter ignored
+  ## when simulated.
+  when haveStatx:
+    result = statx(dirfd, path, flags, statxMask, stx.addr)
+  else:
+    fstatat(dirfd, path, stx, flags)
+
+proc statxat*(dirfd: cint, path: cstring, stx: var Statx, flags: cint): cint {.inline.} =
+  statx(dirfd, path, flags, stx)
+
+proc lstatxat*(dirfd: cint, path: cstring, stx: var Statx, flags: cint): cint {.inline.} =
+  statx(dirfd, path, flags or AT_SYMLINK_NOFOLLOW, stx)
+
 template makeGetTimeNSec(name: untyped, field: untyped) =
-  proc name*(stx: Statx): int =
+  proc name*(stx: Statx): int64 {.inline.} =
     int(stx.field.tv_sec)*1_000_000_000 + stx.field.tv_nsec
 makeGetTimeNSec(getLastAccTimeNsec, stx_atime)
 makeGetTimeNSec(getLastModTimeNsec, stx_mtime)
 makeGetTimeNSec(getCreationTimeNsec, stx_ctime)
 makeGetTimeNSec(getBirthTimeNsec, stx_btime)
 
-proc getBirthTimeNsec*(path: string): int =
+proc getBirthTimeNsec*(path: string): int64 =
   var stx: Statx
-  result = if stat(path, stx) < cint(0): 0 else: getBirthTimeNsec(stx)
+  result = if stat(path, stx) < cint(0): 0'i64 else: getBirthTimeNsec(stx)
