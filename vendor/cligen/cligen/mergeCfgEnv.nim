@@ -11,15 +11,16 @@ proc mergeParams(cmdNames: seq[string],
   ## for multi-commands, e.g. $PROG_SUBCMD).  Finally, it appends the passed
   ## ``cmdLine`` (usually command-line-entered parameters or @["--help"]).
   when defined(debugMergeParams):
-    echo "mergeParams got cmdNames: ", cmdNames
-  if cmdNames.len > 0:
-    var cfPath = os.getEnv(strutils.toUpperAscii(cmdNames[0]) & "_CONFIG")
-    if cfPath.len == 0:
-      cfPath = os.getConfigDir() & cmdNames[0] & "/config"
-      if not existsFile(cfPath):
-        cfPath = cfPath[0..^8]
-    if existsFile(cfPath):
-      result.add cfToCL(cfPath, if cmdNames.len > 1: cmdNames[1] else: "")
-    result.add envToCL(strutils.toUpperAscii(strutils.join(cmdNames, "_")))
-  result = result & cmdLine
+    echo "mergeParams got cmdNames: ", cmdNames, " cmdLine:", cmdLine
+  if cmdNames.len < 1:
+    return cmdLine
+  var cfPath = os.getEnv(strutils.toUpperAscii(cmdNames[0]) & "_CONFIG")
+  if cfPath.len == 0:
+    cfPath = os.getConfigDir() & cmdNames[0] & "/config"
+    if not existsFile(cfPath):
+      cfPath = cfPath[0..^8]
+  if existsFile(cfPath):
+    result.add cfToCL(cfPath, if cmdNames.len > 1: cmdNames[1] else: "")
+  result.add envToCL(strutils.toUpperAscii(strutils.join(cmdNames, "_")))
+  result.add cmdLine
 {.pop.}

@@ -54,9 +54,16 @@ proc `$`*(ms: MSlice): string {.inline.} =
   ## Return a Nim string built from an MSlice.
   ms.toString(result)
 
+proc add*(s: var string, ms: MSlice) {.inline.} =
+  ## Append an `MSlice` to a Nim string
+  if ms.len < 1: return
+  let len0 = s.len
+  s.setLen len0 + ms.len
+  copyMem s[len0].addr, ms.mem, ms.len
+
 proc `==`*(x, y: MSlice): bool {.inline.} =
   ## Compare a pair of MSlice for strict equality.
-  result = (x.len == y.len and equalMem(x.mem, y.mem, x.len))
+  x.len == y.len and equalMem(x.mem, y.mem, x.len)
 
 proc `<`*(a,b: MSlice): bool {.inline.} =
   ## Compare a pair of MSlice for inequality.
@@ -76,6 +83,10 @@ proc urite*(f: File, ms: MSlice) {.inline.} =
     proc c_fwrite(buf: pointer, size, n: csize, f: File): cint {.
             importc: "fwrite", header: "<stdio.h>".}
   discard c_fwrite(ms.mem, 1, ms.len.csize, f)
+
+proc mrite*(f: File, mses: varargs[MSlice]) {.inline.} =
+  ## unlocked write all ``mses`` to file ``f``; Be careful of many fwrite()s.
+  for ms in items(mses): f.urite ms
 
 proc `==`*(a: string, ms: MSlice): bool {.inline.} =
   a.len == ms.len and cmemcmp(unsafeAddr a[0], ms.mem, a.len.csize) == 0
@@ -133,7 +144,7 @@ proc charEq(x, c: char): bool {.inline.} = x == c
 proc charIn(x: char, c: set[char]): bool {.inline.} = x in c
 
 proc mempbrk*(s: pointer, accept: set[char], n: csize): pointer {.inline.} =
-  for i in 0 ..< n:   #Like cstrpbrk or cmemchr but for mem
+  for i in 0 ..< int(n):  #Like cstrpbrk or cmemchr but for mem
     if (cast[cstring](s))[i] in accept: return s +! i
 
 proc mem(s: string): pointer = cast[pointer](cstring(s))
@@ -197,25 +208,33 @@ proc msplit*(s: string, seps=wspace, n=0, repeat=true): seq[MSlice] {.inline.}=
   discard msplit(s, result, seps, n, repeat)
 
 template defSplitr(slc: string, fs: var seq[string], n: int, repeat: bool,
-                   sep: untyped, nextSep: untyped, isSep: untyped) {.dirty.} =
+                   sep: untyped, nextSep: untyped, isSep: untyped,
+                   sp: ptr seq[string]) {.dirty.} =
   fs.setLen(if n < 1: 16 else: n)
+  if sp != nil: sp[].setLen fs.len
   var b0  = slc.mem
   var b   = b0
   var eob = b +! slc.len
   while repeat and eob -! b > 0 and isSep((cast[cstring](b))[0], sep):
     b = b +! 1
-    if b == eob: fs.setLen(0); return
+    if b == eob:
+      fs.setLen(0)
+      if sp != nil: sp[].setLen(0)
+      return
   var e = nextSep(b, sep, (eob -! b).csize)
   while e != nil:
     if n < 1:                               #Unbounded splitr
       if result == fs.len - 1:              #Expand capacity
         fs.setLen(if fs.len < 512: 2*fs.len else: fs.len + 512)
+        if sp != nil: sp[].setLen fs.len
     elif result == n - 1:                   #Need 1 more slot for final field
       break
     fs[result] = slc[(b -! b0) ..< (e -! b0)]
     result += 1
+    let e0 = e
     while repeat and eob -! e > 0 and isSep((cast[cstring](e))[1], sep):
       e = e +! 1
+    if sp != nil: sp[][result - 1] = slc[(e0 -! b0) .. (e -! b0)]
     b = e +! 1
     if eob -! b <= 0:
       b = eob
@@ -223,20 +242,24 @@ template defSplitr(slc: string, fs: var seq[string], n: int, repeat: bool,
     e = nextSep(b, sep, (eob -! b).csize)
   if not repeat or eob -! b > 0:
     fs[result] = slc[(b -! b0) ..< (eob -! b0)]
+    if sp != nil: sp[][result] = ""
     result += 1
   fs.setLen(result)
+  if sp != nil: sp[].setLen(result)
 
-proc splitr*(s: string, fs: var seq[string], sep=' ', n=0, repeat=false):int=
+proc splitr*(s: string, fs: var seq[string], sep=' ', n=0, repeat=false,
+             sp: ptr seq[string] = nil): int =
   ##split w/reused ``fs[]`` & bounded cols ``n``, maybe-repeatable sep.
-  defSplitr(s, fs, n, repeat, sep, cmemchr, charEq)
+  defSplitr(s, fs, n, repeat, sep, cmemchr, charEq, sp)
 
 proc splitr*(s: string, sep: char, n=0, repeat=false): seq[string] {.inline.} =
   ##Like ``splitr(string, var seq[string], int, char)``, but return the ``seq``.
   discard splitr(s, result, sep, n, repeat)
 
-proc splitr*(s: string, fs: var seq[string], seps=wspace, n=0, repeat=true):int=
+proc splitr*(s: string, fs: var seq[string], seps=wspace, n=0, repeat=true,
+             sp: ptr seq[string] = nil): int =
   ##split w/reused fs[], bounded cols char-of-set sep which can maybe repeat.
-  defSplitr(s, fs, n, repeat, seps, mempbrk, charIn)
+  defSplitr(s, fs, n, repeat, seps, mempbrk, charIn, sp)
 
 proc splitr*(s: string, seps=wspace, n=0, repeat=true): seq[string] {.inline.}=
   ##Like ``splitr(string, var seq[string], int, set[char])``,but return ``seq``.
@@ -281,6 +304,22 @@ iterator items*(a: MSlice): char {.inline.} =
   ## Iterates over each char of `a`.
   for i in 0 ..< a.len:
     yield a[i]
+
+proc findNot*(s: string, chars: set[char], start: Natural = 0, last = 0): int =
+  ## Searches for *NOT* `chars` in `s` inside inclusive range ``start..last``.
+  ## If `last` is unspecified, it defaults to `s.high` (the last element).
+  ##
+  ## If `s` contains none of the characters in `chars`, -1 is returned.
+  ## Otherwise the index returned is relative to ``s[0]``, not ``start``.
+  ## Use `s[start..last].find` for a ``start``-origin index.
+  ##
+  ## See also:
+  ## * `rfind proc<#rfind,string,set[char],Natural,int>`_
+  ## * `multiReplace proc<#multiReplace,string,varargs[]>`_
+  let last = if last == 0: s.high else: last
+  for i in int(start)..last:
+    if s[i] notin chars: return i
+  return -1
 
 when isMainModule:  #Run tests with n<1, nCol, <nCol, repeat=false,true.
   let s = "1_2__3"

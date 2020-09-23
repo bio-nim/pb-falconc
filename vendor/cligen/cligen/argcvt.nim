@@ -1,11 +1,13 @@
-## ``argParse`` determines how string args are interpreted into native types.
+## ``argParse`` determines how string args are converted to native Nim types.
 ## ``argHelp`` explains this interpretation to a command-line user.  Define new
 ## overloads in-scope of ``dispatch`` to override these or support more types.
 
-import strformat, sets, ./textUt, parseopt3, critbits, strutils
+when (NimMajor,NimMinor,NimPatch) > (0,20,2):
+  {.push warning[UnusedImport]: off.} # This is only for gcarc
+import strformat, sets, ./textUt, ./gcarc, ./parseopt3, critbits, strutils
 from parseutils import parseBiggestInt, parseBiggestUInt, parseBiggestFloat
 from strutils   import `%`, join, split, strip, toLowerAscii, cmpIgnoreStyle
-when NimVersion <= "0.19.8": import typetraits #$T -> system
+when (NimMajor,NimMinor,NimPatch) <= (0,19,8): import typetraits #$T -> system
 
 type
   ClHelpContext* = enum clLongOpt,      ## a long option identifier
@@ -64,7 +66,7 @@ proc unescape*(s: string): string =
       result.add(s[i])
       inc(i, 1)
 
-type ElementError = object of Exception
+type ElementError* = object of ValueError
 type ArgcvtParams* = object ## \
   ## Abstraction of non-param-type arguments to `argParse` and `argHelp`.
   ## Per-use data, then per-parameter data, then per-command/global data.
@@ -110,7 +112,7 @@ proc argHelp*(dfl: bool; a: var ArgcvtParams): seq[string] =
   result = @[ a.argKeys(argSep=""), "bool", $dfl ]
   if a.parSh.len > 0:
     a.shortNoVal.incl(a.parSh[0]) # bool can elide option arguments.
-  a.longNoVal.add(a.parNm)        # So, add to *NoVal.
+  a.longNoVal.add(move(a.parNm))  # So, add to *NoVal.
 
 # cstrings
 proc argParse*(dst: var cstring, dfl: cstring, a: var ArgcvtParams): bool =
@@ -142,10 +144,11 @@ proc argParse*[T: enum](dst: var T, dfl: T, a: var ArgcvtParams): bool =
   var crbt: CritBitTree[EnumCanon[T]]
   if valNorm.len > 0:
     for e in low(T)..high(T):
-      allCanon.add(helpCase($e, clEnumVal))
-      let norm = optionNormalize(allCanon[^1])
+      let canon = helpCase($e, clEnumVal)
+      allCanon.add canon
+      let norm = optionNormalize(canon)
       allNorm.add(norm)
-      crbt[norm] = (e, allCanon[^1])
+      crbt[norm] = (e, canon)
   var ks: seq[string]; var es: seq[T]
   for v in crbt.valuesWithPrefix(valNorm):
     ks.add(v.canon)
@@ -203,8 +206,8 @@ argParseHelpNum(BiggestUInt , parseBiggestUInt , uint64 )
 argParseHelpNum(BiggestFloat, parseBiggestFloat, float32)  #floats
 argParseHelpNum(BiggestFloat, parseBiggestFloat, float  )
 
-## ** PARSING AGGREGATES (string,set,seq,..) **
-##
+## PARSING AGGREGATES (set,seq,..)
+## ###############################
 ## This module also defines ``argParse``/``argHelp`` pairs for ``seq[T]`` and
 ## such (``set[T]``, ``HashSet[T]``, ..) with a full complement of operations:
 ## prepend (``^=``), subtract/delete (``-=``), as well as the usual append
@@ -230,7 +233,7 @@ argParseHelpNum(BiggestFloat, parseBiggestFloat, float  )
 
 proc argAggSplit*[T](a: var ArgcvtParams, split=true): seq[T] =
   ## Split DPSV (e.g. ",hello,world") into a parsed seq[T].
-  let toks = if split: a.val[1..^1].split(a.val[0]) else: @[ a.val ]
+  let toks = if split: a.val[1..^1].split(a.val[0]) else: @[ move(a.val) ]
   let old = a.sep; a.sep = ""     #can have agg[string] & want clobbers on elts
   for i, tok in toks:
     var parsed, default: T
@@ -238,7 +241,7 @@ proc argAggSplit*[T](a: var ArgcvtParams, split=true): seq[T] =
     if not argParse(parsed, default, a):
       result.setLen(0); a.sep = old
       raise newException(ElementError, "Bad element " & $i)
-    result.add(parsed)
+    result.add(move(parsed))
   a.sep = old                     #probably don't need to restore, but eh.
 
 proc getDescription*[T](defVal: T, parNm: string, defaultHelp: string): string =
@@ -304,7 +307,7 @@ proc argParse*[T](dst: var seq[T], dfl: seq[T], a: var ArgcvtParams): bool =
       dst.add(argAggSplit[T](a, false))
       return
     if   a.sep == "+=": dst.add(argAggSplit[T](a, false))
-    elif a.sep == "^=": dst = argAggSplit[T](a, false) & dst
+    elif a.sep == "^=": dst = argAggSplit[T](a, false) & move(dst)
     elif a.sep == "-=":                     # Delete Mode
       let parsed = argAggSplit[T](a, false)[0]
       for i, e in dst:                      # Slow algo,..
@@ -314,9 +317,9 @@ proc argParse*[T](dst: var seq[T], dfl: seq[T], a: var ArgcvtParams): bool =
     elif a.sep == ",@=":                    # split-clobber-assign
       dst = argAggSplit[T](a)
     elif a.sep == ",=" or a.sep == ",+=":   # split-append
-      dst = dst & argAggSplit[T](a)
+      dst = move(dst) & argAggSplit[T](a)
     elif a.sep == ",^=":                    # split-prepend
-      dst = argAggSplit[T](a) & dst
+      dst = argAggSplit[T](a) & move(dst)
     elif a.sep == ",-=":                    # split-delete
       let parsed = argAggSplit[T](a)
       for i, e in dst:                      # Slow algo,..
@@ -387,7 +390,7 @@ proc argHelp*[T](dfl: set[T], a: var ArgcvtParams): seq[string]=
   result = @[ a.argKeys, typ, df ]
 
 # HashSets
-when NimVersion <= "0.19.8":
+when (NimMajor,NimMinor,NimPatch) <= (0,19,8):
   proc toHashSet[A](keys: openArray[A]): HashSet[A] = toSet[A](keys)
 
 proc argParse*[T](dst: var HashSet[T], dfl: HashSet[T],

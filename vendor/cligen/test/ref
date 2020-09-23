@@ -168,8 +168,10 @@ Options:
 ==> test/EchoResult.out <==
 Usage:
   editDistanceAscii [required&optional-params] 
-Returns the edit distance between `a` and `b`.  This uses the `Levenshtein`:idx:
-distance algorithm with only a linear memory overhead.
+Returns the edit distance between `a` and `b`.
+
+This uses the `Levenshtein`:idx: distance algorithm with only a linear memory
+overhead.
 Options:
   -h, --help                       print this cligen-erated help
   --help-syntax                    advanced: prepend,plurals,..
@@ -217,9 +219,22 @@ Options:
   -j=, --junk=   strings  rs,tu  append 1 val to junk
   -s=, --stuff=  strings  ab,cd  append 1 val to stuff
 
+==> test/FancyRepeats2.out <==
+Usage:
+  demo [optional-params] [args: string...]
+demo entry point with varied, meaningless parameters.  A Nim invocation might
+be: demo(alpha=2, @[ "hi", "ho" ]) corresponding to the command invocation "demo
+--alpha=2 hi ho" (assuming executable gets named demo).
+Options:
+  -h, --help                     print this cligen-erated help
+  --help-syntax                  advanced: prepend,plurals,..
+  -a=, --alpha=  int      1      set alpha
+  -v=, --verb=   countr   0      set verb
+  -j=, --junk=   strings  rs,tu  append 1 val to junk
+  -s=, --stuff=  strings  ab,cd  append 1 val to stuff
+
 ==> test/FullyAutoMulti.out <==
 Infer & generate command-line interace/option/argument parser
-
 Usage:
   FullyAutoMulti {SUBCMD}  [sub-command options & parameters]
 
@@ -228,6 +243,7 @@ SUBCMDs:
   demo    demo entry point with varied, meaningless parameters.
   print   show entry point with varied, meaningless parameters.
   punt    Another entry point; here we echoResult
+  .       . is an alias for `punt`
   nel-ly  Yet another entry point; here we block autoEcho
 
 FullyAutoMulti {-h|--help} or with no args at all prints this message.
@@ -237,16 +253,14 @@ Run "FullyAutoMulti help" to get *comprehensive* help.
 Top-level --version also available
 
 ==> test/FullyAutoMultiTopLvl.out <==
-This is a multiple-dispatch command.  Top-level --help/--help-syntax
-is also available.  Usage is like:
+This is a multiple-dispatch command.  -h/--help/--help-syntax is available
+for top-level/all subcommands.  Usage is like:
     FullyAutoMulti {SUBCMD} [subcommand-opts & args]
 where subcommand syntaxes are as follows:
 
   demo [optional-params] [files: string...]
     demo entry point with varied, meaningless parameters.
   Options:
-      -h, --help                    print this cligen-erated help
-      --help-syntax                 advanced: prepend,plurals,..
       --version      bool    false  print version
       -a=, --alpha=  int     1      set alpha
       -b=, --beta=   float   2.0    set beta
@@ -256,8 +270,6 @@ where subcommand syntaxes are as follows:
   print [optional-params] [paths: string...]
     show entry point with varied, meaningless parameters.
   Options:
-      -h, --help                   print this cligen-erated help
-      --help-syntax                advanced: prepend,plurals,..
       --version      bool   false  print version
       -z=, --gamma=  int    1      set gamma
       -i=, --iota=   float  2.0    set iota
@@ -266,17 +278,15 @@ where subcommand syntaxes are as follows:
   punt [optional-params] [names: string...]
     Another entry point; here we echoResult
   Options:
-      -h, --help                   print this cligen-erated help
-      --help-syntax                advanced: prepend,plurals,..
-      -z=, --zeta=   int    1      set zeta
-      -e=, --eta=    float  2.0    set eta
-      -v, --verb     bool   false  set verb
+      -z=, --zeta=  int    1      set zeta
+      -e=, --eta=   float  2.0    set eta
+      -v, --verb    bool   false  set verb
+
+  . is an alias for `punt`
 
   nel-ly [optional-params] [names: string...]
     Yet another entry point; here we block autoEcho
   Options:
-      -h, --help                  print this cligen-erated help
-      --help-syntax               advanced: prepend,plurals,..
       --version      bool  false  print version
       --hooves=      int   4      set hooves
       -r=, --races=  int   9      set races
@@ -296,7 +306,7 @@ Options:
   -u=, --u1=     hashset(uint8)   {}        include 1 val in u1
   -U=, --U1=     hashset(uint8)   6,7       include 1 val in U1
   --u2=          hashset(uint16)  {}        include 1 val in u2
-  --U2=          hashset(uint16)  8,9       include 1 val in U2
+  --U2=          hashset(uint16)  9,8       include 1 val in U2
   -e=, --e=      hashset(Color)   {}        include 1 val in e
   -E=, --E=      hashset(Color)   red,blue  include 1 val in E
 
@@ -424,10 +434,10 @@ Usage:
                                         auto-wrapped by alignTable into a
                                         multi-line format unless you have eagle
                                         eyes, a gigantic monitor, or maybe a
-                                        little bit of both. :-)
+                                        little bit of both.  :-)
           -b=, --beta=   float   2.0    This is more modest, but might still
                                         wrap around once or twice or so.
-          -v, --verb     bool    false  on=chatty, off=quiet. 'Nuff said.
+          -v, --verb     bool    false  on=chatty, off=quiet.  'Nuff said.
           -i=, --item=   string  ""     set item
 
     ManualMulti show [optional-params] [paths: string...]
@@ -442,7 +452,6 @@ Usage:
 
 ==> test/MultMultMult.out <==
 module doc
-
 Usage:
   MultMultMult {SUBCMD}  [sub-command options & parameters]
 where {SUBCMD} is one of:
@@ -471,7 +480,6 @@ Options:
 ==> test/MultiMulti.out <==
 NAME
   Test sub-sub-command CLI instantiation.
-
 USAGE
   MultiMulti {SUBCMD}  [sub-command options & parameters]
 
@@ -491,20 +499,18 @@ AUTHOR
   Charles Blake
 
 ==> test/MultiMultiTopLvl.out <==
-This is a multiple-dispatch command.  Top-level --help/--help-syntax
-is also available.  Usage is like:
+This is a multiple-dispatch command.  -h/--help/--help-syntax is available
+for top-level/all subcommands.  Usage is like:
     MultiMulti {SUBCMD} [subcommand-opts & args]
 where subcommand syntaxes are as follows:
 
   whoa [optional-params] [names: string...]
     Another entry point; here we echoResult
   Options:
-      -h, --help                   print this cligen-erated help
-      --help-syntax                advanced: prepend,plurals,..
-      --version      bool   false  print version
-      -z=, --zeta=   int    1      set zeta
-      -e=, --eta=    float  2.0    set eta
-      -v, --verb     bool   false  set verb
+      --version     bool   false  print version
+      -z=, --zeta=  int    1      set zeta
+      -e=, --eta=   float  2.0    set eta
+      -v, --verb    bool   false  set verb
 
     apple/apple help for sub-sub commands
   
@@ -512,8 +518,6 @@ where subcommand syntaxes are as follows:
   nelly [optional-params] [names: string...]
     Yet another entry point; here we block autoEcho
   Options:
-      -h, --help                  print this cligen-erated help
-      --help-syntax               advanced: prepend,plurals,..
       --version      bool  false  print version
       --hooves=      int   4      set hooves
       -r=, --races=  int   9      set races
@@ -561,6 +565,16 @@ Options:
   -v, --verb      bool    false  set verb
   -i=, --item=    string  ""     set item
 
+==> test/OneCharLong.out <==
+Usage:
+  test [optional-params] 
+Options:
+  -h, --help                 print this cligen-erated help
+  --help-syntax              advanced: prepend,plurals,..
+  --sp=          string  ""  set sp
+  --sl=          string  ""  set sl
+  -s=, --s=      string  ""  set s
+
 ==> test/OneCharParams.out <==
 Usage:
   demo [optional-params] [b: string...]
@@ -588,8 +602,8 @@ Options:
 
 
 ==> test/PassValues.out <==
-USE:
-	myCmd [optional-params] [a1: string...]
+Usage:
+  myCmd [optional-params] [a1: string...]
 The doc
 Options:
   -h, --help                    print this cligen-erated help
@@ -601,7 +615,6 @@ Options:
 
 ==> test/PassValuesMulti.out <==
 Infer & generate command-line interace/option/argument parser
-
 Usage:
   PassValuesMulti {SUBCMD}  [sub-command options & parameters]
 
@@ -656,8 +669,10 @@ Options:
 ==> test/ResultInt.out <==
 Usage:
   editDistanceAscii [required&optional-params] 
-Returns the edit distance between `a` and `b`.  This uses the `Levenshtein`:idx:
-distance algorithm with only a linear memory overhead.
+Returns the edit distance between `a` and `b`.
+
+This uses the `Levenshtein`:idx: distance algorithm with only a linear memory
+overhead.
 Options:
   -h, --help                       print this cligen-erated help
   --help-syntax                    advanced: prepend,plurals,..
@@ -812,9 +827,9 @@ Options:
 
 ==> test/TwoNondefaultedSeq.out <==
 test/TwoNondefaultedSeq.nim(9, 11) template/generic instantiation of `dispatch` from here
-cligen.nim(699, 14) template/generic instantiation of `dispatchCf` from here
-cligen.nim(685, 14) template/generic instantiation of `dispatchGen` from here
-cligen.nim(199, 16) Warning: cligen only supports one seq param for positional args; using `args`, not `stuff`.  Use `positional` parameter to `dispatch` to override this. [User]
+cligen.nim(768, 14) template/generic instantiation of `dispatchCf` from here
+cligen.nim(755, 14) template/generic instantiation of `dispatchGen` from here
+cligen.nim(243, 16) Warning: cligen only supports one seq param for positional args; using `args`, not `stuff`.  Use `positional` parameter to `dispatch` to override this. [User]
 Usage:
   demo [required&optional-params] [args: string...]
 demo entry point with varied, meaningless parameters.
@@ -839,8 +854,8 @@ Options:
 ==> test/UserAliases.out <==
 Usage:
   UserAliases [optional-params] [args: string...]
-demo entry point with varied, meaningless parameters with an alias system. E.g.,
-USERALIASES='"-Dk=-a9 -b3.0" "-DK=-Rk -v 1 2"' ./UserAliases -RK 3 4 or
+demo entry point with varied, meaningless parameters with an alias system.
+E.g., USERALIASES='"-Dk=-a9 -b3.0" "-DK=-Rk -v 1 2"' ./UserAliases -RK 3 4 or
 USERALIASES_CONFIG=UserAliases.cf ./UserAliases -RK 3 4
 Options:
   -h, --help                     print this cligen-erated help

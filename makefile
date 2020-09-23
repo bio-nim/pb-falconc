@@ -34,8 +34,9 @@ build:
 	# We need a no-internet flag for "nimble install".
 	# For now, we rsync and install manually.
 	${MAKE} rsync
-	nim c --listCmd --threads:on -d:release -d:cGitSha1=$R src/falconc.nim # uses NIMBLE_DIR
-	#nim c --listCmd --threads:on -d:release src/falconc.nim # uses NIMBLE_DIR
+	# "nim c" uses NIMBLE_DIR
+	nim c --listCmd --threads:on -d:release --styleCheck:hint -d:cGitSha1=$R src/falconc.nim
+	#nim c --listCmd --threads:on -d:release --styleCheck:hint src/falconc.nim
 install:
 	mkdir -p ${PREFIX}/bin
 	mv -f src/falconc ${PREFIX}/bin

@@ -1,4 +1,55 @@
-import posix, sets,tables, strutils,strformat, ./sysUt, ./argcvt, parseUtils
+when (NimMajor,NimMinor,NimPatch) > (0,20,2):
+  {.push warning[UnusedImport]: off.} # This is only for gcarc
+import posix,sets,tables, strutils,strformat,parseUtils, sysUt,argcvt,gcarc,osUt
+
+proc openat*(dirfd: cint, path: cstring, flags: cint):
+       cint {.varargs, importc, header: "<unistd.h>", sideEffect.}
+proc fstatat*(dirfd: cint, path: cstring, stx: var Stat, flags: cint):
+       cint {.importc, header: "<unistd.h>", sideEffect.}
+proc faccessat*(dirfd: cint; path: cstring; mode: cint; flags: cint):
+       cint {.importc, header: "<unistd.h>", sideEffect.}
+proc fchmodat*(dirfd: cint; path: cstring; mode: Mode; flags: cint):
+       cint {.importc, header: "<unistd.h>", sideEffect.}
+proc fchownat*(dirfd: cint; path: cstring; owner: Uid; group: Gid;
+               flags: cint): cint {.importc, header: "<unistd.h>", sideEffect.}
+proc futimesat*(dirfd: cint; path: cstring; times: array[2, Timeval]):
+       cint {.importc, header: "<unistd.h>", sideEffect.}
+proc utimensat*(dirfd: cint; path: cstring; times: array[2, Timespec];
+       flags: cint): cint {.importc, header: "<unistd.h>", sideEffect.}
+proc futimens*(fd: cint; times: array[2, Timespec]):
+       cint {.importc, header: "<unistd.h>", sideEffect.}
+proc linkat*(olddirfd: cint; oldpath: cstring; newdirfd: cint; newpath: cstring;
+       flags: cint): cint {.importc, header: "<unistd.h>", sideEffect.}
+proc mkdirat*(dirfd: cint; path: cstring; mode: Mode):
+       cint {.importc, header: "<unistd.h>", sideEffect.}
+proc mknodat*(dirfd: cint; path: cstring; mode: Mode; dev: Dev):
+       cint {.importc, header: "<unistd.h>", sideEffect.}
+proc symlinkat*(target: cstring; newdirfd: cint; linkpath: cstring):
+       cint {.importc, header: "<unistd.h>", sideEffect.}
+proc readlinkat*(dirfd: cint; path: cstring; buf: cstring; bufsiz: csize):
+       clong {.importc, header: "<unistd.h>", sideEffect.}
+proc unlinkat*(dirfd: cint; path: cstring; flags: cint):
+       cint {.importc, header: "<unistd.h>", sideEffect.}
+proc renameat*(olddirfd: cint; oldpath: cstring; newdirfd: cint;
+       newpath: cstring): cint {.importc, header: "<unistd.h>", sideEffect.}
+
+template impConst*(T: untyped, path: string, name: untyped): untyped {.dirty.} =
+  var `loc name` {.header: path, importc: astToStr(name) .}: `T`
+  let name* {.inject.} = `loc name`
+
+template impCint*(path: string, name: untyped): untyped {.dirty.} =
+  impConst(cint, path, name)
+
+impCint("fcntl.h", AT_FDCWD)            ## Tell *at calls to use CWorking Direct
+impCint("fcntl.h", AT_SYMLINK_NOFOLLOW) ## Do not follow symbolic links
+impCint("fcntl.h", AT_REMOVEDIR)        ## Remove dir instead of unlinking file
+impCint("fcntl.h", AT_SYMLINK_FOLLOW)   ## Follow symbolic links
+impCint("fcntl.h", AT_EACCESS)          ## Test access perm for EID,not real ID
+impConst(clong, "sys/stat.h", UTIME_NOW)  ## tv_nsec value for *utimens* => now
+impConst(clong, "sys/stat.h", UTIME_OMIT) ## tv_nsec value for *utimens* => omit
+when defined(linux):
+  const AT_NO_AUTOMOUNT* = 0x800        ## Suppress terminal automount traversal
+  const AT_EMPTY_PATH*   = 0x1000       ## Allow empty relative pathname
 
 proc log*(f: File, s: string) {.inline.} =
   ## This does nothing if ``f`` is ``nil``, but otherwise calls ``write``.
@@ -71,13 +122,13 @@ proc argHelp*(dfl: Timespec, a: var ArgcvtParams): seq[string] =
 
 proc toUidSet*(strs: seq[string]): HashSet[Uid] =
   ##Just parse some ints into typed Uids
-  when NimVersion < "0.20.0": result = initSet[Uid]()
+  when (NimMajor,NimMinor,NimPatch) < (0,20,0): result = initSet[Uid]()
   else: result = initHashSet[Uid]()
   for s in strs: result.incl s.parseInt.Uid
 
 proc toGidSet*(strs: seq[string]): HashSet[Gid] =
   ##Just parse some ints into typed Gids
-  when NimVersion < "0.20.0": result = initSet[Gid]()
+  when (NimMajor,NimMinor,NimPatch) < (0,20,0): result = initSet[Gid]()
   else: result = initHashSet[Gid]()
   for s in strs: result.incl s.parseInt.Gid
 
@@ -96,7 +147,7 @@ proc getgroups*(): HashSet[Gid] = getgroups(result)
 template defineIdentities(ids,Id,Entry,getid,rewind,getident,en_id,en_nm) {.dirty.} =
   proc ids*(): Table[Id, string] =
     ##Populate Table[Id, string] with data from system account files
-    when NimVersion < "0.20.0": result = initTable[Id, string]()
+    when (NimMajor,NimMinor,NimPatch) < (0,20,0): result = initTable[Id, string]()
     var id: ptr Entry
     when defined(android):
       proc getid(id: Id): ptr Entry {.importc.}
@@ -114,7 +165,7 @@ defineIdentities(groups, Gid, Group, getgrgid,setgrent,getgrent,gr_gid,gr_name)
 template defineIds(ids,Id,Entry,getid,rewind,getident,en_id,en_nm) {.dirty.} =
   proc ids*(): Table[string, Id] =
     ##Populate Table[Id, string] with data from system account files
-    when NimVersion < "0.20.0": result = initTable[Id, string]()
+    when (NimMajor,NimMinor,NimPatch) < (0,20,0): result = initTable[string, Id]()
     var id: ptr Entry
     when defined(android):
       proc getid(id: Id): ptr Entry {.importc.}
@@ -158,16 +209,9 @@ proc `$`*(st: Stat): string =
    "atim: "    & $st.st_atim    & ", " & "mtim: "   & $st.st_mtim   & ", " &
    "ctim: "    & $st.st_ctim    & ")"
 
-proc stat2dtype*(st_mode: Mode): int8 =
+proc stat2dtype*(st_mode: Mode): int8 {.inline.} =
   ##Convert S_ISDIR(st_mode) style dirent types to DT_DIR style.
-  if    S_ISREG(st_mode): result = DT_REG
-  elif  S_ISDIR(st_mode): result = DT_DIR
-  elif  S_ISBLK(st_mode): result = DT_BLK
-  elif  S_ISCHR(st_mode): result = DT_CHR
-  elif  S_ISLNK(st_mode): result = DT_LNK
-  elif S_ISFIFO(st_mode): result = DT_FIFO
-  elif S_ISSOCK(st_mode): result = DT_SOCK
-  else:                   result = DT_UNKNOWN
+  int8((int(st_mode) shr 12) and 15)    # See dirent.h:IFTODT(mode)
 
 proc getDents*(fd: cint, st: Stat, dts: ptr seq[int8] = nil,
                inos: ptr seq[Ino] = nil, avgLen=24): seq[string] =
@@ -266,8 +310,8 @@ proc pathId*(path: string): PathId =
   if stat(path, st) != -1: return (st.st_dev, st.st_ino)
   return (0.Dev, 0.Ino)
 
-proc `==`*(a, b: PathId): bool = a.dev == b.dev and a.ino == b.ino
-proc hash*(x: PathId): int = x.dev.int * x.ino.int
+proc `==`*(a, b: PathId): bool {.inline.} = a.dev == b.dev and a.ino == b.ino
+proc hash*(x: PathId): int {.inline.} = x.dev.int * x.ino.int
 
 proc readFile*(path: string, buf: var string, st: ptr Stat=nil, perRead=4096) =
   ## Read whole file of unknown (& fstat-non-informative) size using re-usable
@@ -377,7 +421,7 @@ iterator dirEntries*(dir: string; st: ptr Stat=nil; canRec: ptr bool=nil;
           de.d_name[1]=='.' and de.d_name[2]=='\0'):
         continue                        #Skip "." and ".."
       var ent = $de.d_name.addr.cstring #Make a Nim string
-      var path = dir // ent             #Join path down from `dir`
+      var path = dir // move(ent)       #Join path down from `dir`
       dt[] = de.d_type
       st[].st_nlink = 0                 #Tell caller we did no stat/lstat
       if canRec != nil:
@@ -416,32 +460,57 @@ iterator recEntries*(dir: string; st: ptr Stat=nil; dt: ptr int8=nil,
   type DevIno = tuple[dev: Dev, ino: Ino]             #For directory identity
   var dev: Dev                                        #Local st_dev(sub)
   var id: DevIno                                      #Local full identity
-  if statOk(dir, st, err) and S_ISDIR(st[].st_mode):  #Ensure target is a dir
+  if statOk(dir,st,err) and S_ISDIR(st[].st_mode) or  #Ensure target is a dir
+     (follow and S_ISLNK(st[].st_mode)):
     var did {.noInit.}: HashSet[DevIno]               #..and also init `did`
     if follow:                                        #..with its dev,ino.
-      did = initHashSet[DevIno](8)                    #Did means "put in stack"
+      when (NimMajor,NimMinor,NimPatch) < (0,20,0): did = initSet[DevIno](8)
+      else: did = initHashSet[DevIno](8)              #Did means "put in stack"
       did.incl (dev: st[].st_dev, ino: st[].st_ino)   #..not "iterated over dir"
     var canRecurse = false                            #->true based on `follow`
     var paths  = @[""]                                #Init recursion stacks
     var dirDev = @[ st.st_dev ]
+    var depths = @[ 0 ]
     let dir = if dir.endsWith('/'): dir else: dir & '/'
     yield dir
     while paths.len > 0:
-      let sub = paths.pop()                           #sub-directory or ""
+      let sub   = paths.pop()                         #sub-directory or ""
+      let depth = depths.pop()
       if follow: dev = dirDev.pop()                   #Get st_dev(sub)
-      let subDepth = sub.count('/')                   #XXX depth stack instead?
-      for path in dirEntries(dir // sub, st, canRecurse.addr, dt, err, follow):
-        if canRecurse and (maxDepth == 0 or subDepth + 1 < maxDepth):
+      let target = if depth == 0: dir // sub else: sub
+      for path in dirEntries(target, st, canRecurse.addr, dt, err, follow):
+        if canRecurse and (maxDepth == 0 or depth + 1 < maxDepth):
           if follow:
-            let d = if st[].st_nlink > 0: st[].st_dev else: dev
-            id = (dev: st[].st_dev, ino: st[].st_ino)
+            let d = if int(st[].st_nlink) > 0: st[].st_dev else: dev
+            id = (dev: d, ino: st[].st_ino)
             if id in did:                         #Already did stack put of this
-              err.log &"pruning symLink loop at {path}\n"   #Warn & skip
-              continue
+              err.log &"Already visited symLink at \"{path}\".  Loop?\n"
+              continue                            #Skip
             did.incl id                           #Register as done
             dirDev.add d                          #Put st_dev(path about to add)
-          paths.add path                          #Add path to recursion stack
-        yield dir // path
+          paths.add  path                         #Add path to recursion stack
+          depths.add depth + 1                    #Add path to recursion stack
+        yield path
+  else:                                 #Yield just the root for non-recursables
+    yield dir
+
+proc recEntries*(it: iterator(): string; st: ptr Stat=nil; dt: ptr int8=nil,
+                 follow=false, maxDepth=0, err=stderr): iterator(): string =
+  ## Return iterator yielding ``maxDepth|follow`` recursive closure of ``it``.
+  result = iterator(): string =
+    for root in it():
+      for e in recEntries(root, st, dt, follow, maxDepth, err): yield e
+
+iterator paths*(roots:seq[string], maxDepth=0, follow=false, file="",delim='\n',
+                err=stderr, st: ptr Stat=nil, dt: ptr int8=nil): string =
+  ## iterator for maybe-following, maybe-recursive closure of the union of
+  ## ``roots`` and optional ``delim``-delimited input ``file`` (stdin if "-"|if
+  ## "" & stdin not a tty).  Usage is ``for p in paths(roots,...): echo p``.
+  ## This allows fully general path input if used in a command pipeline like
+  ## ``find .  -print0 | cmd -d\\0`` (where ``-d`` sets ``delim``).
+  let it = recEntries(both(roots, fileStrings(file, delim)),
+                      st, dt, follow, maxDepth, err)
+  for e in it(): yield e
 
 #These two are almost universally available although not technically "POSIX"
 proc setGroups*(size: csize, list: ptr Gid): cint {. importc: "setgroups",
@@ -488,3 +557,23 @@ when defined(testDropPriv):
     discard execvp(arg0.cstring, argv)
     stderr.write "cannot exec `id`\n"
   quit(1)
+
+proc system*(csa: cstringArray; wait=true): cint =
+  ## Like system(3) but does fork & exec of an already set up ``cstringArray``.
+  ## If wait==true, returns status for WEXITSTATUS(); else returns kid pid.
+  var status: cint
+  case (let pid = fork(); pid):
+  of -1: return cint(-1)                          # fork fails
+  of 0: discard execvp(csa[0], csa); quit(1)      # kid exec err
+  else:
+    if wait:
+      discard wait4(pid, status.addr, 0, nil)     # errs impossible in context
+      return status
+    else:
+      return cint(pid)
+
+proc reapAnyKids*(signo: cint) {.noconv.} =
+  ## Wait on any/only waitable kids; Useful to ``signal(SIGCHLD, reapAnyKids)``
+  ## to avoid zombies when treating all background children the same is ok.
+  var status: cint
+  while wait4(Pid(-1), status.addr, WNOHANG, nil) > 0: discard
