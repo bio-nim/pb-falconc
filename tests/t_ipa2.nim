@@ -9,6 +9,7 @@ config_autocomp_max_cov=1
 config_block_size=4096
 config_cleanup=0
 config_coverage=0
+config_erc_min_idt=99.9
 config_existing_db_prefix=''
 config_genome_size=0
 config_m4filt_high_copy_sample_rate=1.0
@@ -38,6 +39,7 @@ let expected_default_json = """
     "config_block_size": "4096",
     "config_cleanup": "0",
     "config_coverage": "0",
+    "config_erc_min_idt": "99.9",
     "config_existing_db_prefix": "",
     "config_genome_size": "0",
     "config_m4filt_high_copy_sample_rate": "1.0",
