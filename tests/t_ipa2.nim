@@ -23,7 +23,7 @@ config_phasing_split_opt='--split-type noverlaps --limit 3000000'
 config_polish_min_len=50000
 config_polish_run=1
 config_purge_dups_calcuts=''
-config_purge_dups_get_seqs=-e
+config_purge_dups_get_seqs=''
 config_purge_dups_run=0
 config_purge_map_opt='--min-map-len 1000 --min-idt 98.0 --bestn 5'
 config_seeddb_opt='-k 32 -w 80 --space 2'
@@ -52,7 +52,7 @@ let expected_default_json = """
     "config_polish_min_len": "50000",
     "config_polish_run": "1",
     "config_purge_dups_calcuts": "",
-    "config_purge_dups_get_seqs": "-e",
+    "config_purge_dups_get_seqs": "",
     "config_purge_dups_run": "0",
     "config_purge_map_opt": "--min-map-len 1000 --min-idt 98.0 --bestn 5",
     "config_seeddb_opt": "-k 32 -w 80 --space 2",
