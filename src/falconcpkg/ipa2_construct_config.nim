@@ -89,7 +89,8 @@ proc validate_param_names(valid_params, test_params: ConfigTable) =
             unknown_params.add(p)
     if len(unknown_params) != 0:
         let msg = "Unknown config parameters specified: " & $unknown_params
-        raiseEx(msg)
+        log("WARNING: " & msg)
+        #raiseEx(msg)
 
 proc parse*(in_str: string): ConfigTable =
     # Load the defaults.
