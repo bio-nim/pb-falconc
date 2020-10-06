@@ -45,7 +45,9 @@ proc countLines(prefix, ext: string): BlockWeights =
     let pattern = prefix & "*" & ext
     var counts = tables.initCountTable[int]()
     for fn in os.walkFiles(pattern):
-        let count = countLines(streams.openFileStream(fn))
+        let sin = streams.openFileStream(fn)
+        let count = countLines(sin)
+        streams.close(sin)
         log("Found {count} lines in '{fn}'.".fmt)
         let block_id = getBlockIdFromFilename(fn, ext)
         tables.inc(counts, block_id, count)
