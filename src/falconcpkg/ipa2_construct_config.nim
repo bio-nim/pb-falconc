@@ -108,10 +108,12 @@ proc parse*(in_str: string): ConfigTable =
     for k, v in tables.pairs(user_config_dict):
         result[k] = v
 
-proc run*(fp_out, fp_in: streams.Stream, out_fmt: char, sort: bool) =
+proc run*(fp_out, fp_in: streams.Stream, defaults_fn: string, out_fmt: char, sort: bool) =
     # Collect the input lines.
     let in_str = strutils.join(sequtils.toSeq(lines(fp_in)), ";")
 
+    if "" != defaults_fn:
+        default_config = system.readFile(defaults_fn)
     var config_dict = parse(in_str)
     if sort:
         # Sort to match Python behavior.
@@ -122,12 +124,12 @@ proc run*(fp_out, fp_in: streams.Stream, out_fmt: char, sort: bool) =
     let out_str = formatter(config_dict)
     fp_out.writeLine(out_str)
 
-proc main*(out_fn: string, out_fmt: string = "json", in_fn = "-", no_sort = false) =
+proc main*(out_fn: string, out_fmt: string = "json", in_defaults_fn = "", in_fn = "-", no_sort = false) =
     ## Takes an advanced options string, and reformats it into JSON format.
     ## Input/output is on stdin/stdout. Options which aren't set explicitly in the input
     ## will be set to default (configurable via args).
 
     var fp_in = if in_fn == "-": streams.newFileStream(stdin) else: streams.newFileStream(in_fn, fmRead)
     var fp_out = streams.newFileStream(out_fn, fmWrite)
-    run(fp_out, fp_in, out_fmt[0], not no_sort)
+    run(fp_out, fp_in, in_defaults_fn, out_fmt[0], not no_sort)
     fp_out.close()
