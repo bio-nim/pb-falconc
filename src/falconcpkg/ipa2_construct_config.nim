@@ -6,6 +6,8 @@ import json, tables, sets, sequtils, strutils, streams
 
 export PbError
 
+var failOnUnexpectedKey = false
+
 var default_config = """
 config_genome_size = 0
 config_coverage = 0
@@ -90,7 +92,8 @@ proc validate_param_names(valid_params, test_params: ConfigTable) =
     if len(unknown_params) != 0:
         let msg = "Unknown config parameters specified: " & $unknown_params
         log("WARNING: " & msg)
-        #raiseEx(msg)
+        if failOnUnexpectedKey:
+            raiseEx(msg)
 
 proc parse*(in_str: string): ConfigTable =
     # Load the defaults.
@@ -114,6 +117,7 @@ proc run*(fp_out, fp_in: streams.Stream, defaults_fn: string, out_fmt: char, sor
 
     if "" != defaults_fn:
         default_config = system.readFile(defaults_fn)
+        failOnUnexpectedKey = true
     var config_dict = parse(in_str)
     if sort:
         # Sort to match Python behavior.
