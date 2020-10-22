@@ -69,7 +69,7 @@ suite "ipa2_construct_config":
         var
             outs = streams.newStringStream()
             ins = streams.newStringStream()
-        run(outs, ins, 'b', true)
+        run(outs, ins, "", 'b', true)
         outs.setPosition(0)
         check outs.readAll() == expected_default_bash
 
@@ -77,7 +77,7 @@ suite "ipa2_construct_config":
         var
             outs = streams.newStringStream()
             ins = streams.newStringStream()
-        run(outs, ins, 'j', true)
+        run(outs, ins, "", 'j', true)
         outs.setPosition(0)
         check outs.readAll() == expected_default_json
 
