@@ -12,12 +12,16 @@ proc renamedSeq*(name: string): string =
     else:
         return "{name_parts[1]}".fmt
 
-proc renameSeqs(seq_fn, output_prefix: string, pa: bool) =
+type
+    POrA = enum
+        # val = (string version of val),
+        pCtg = "p",
+        aCtg = "a",
+
+proc renameSeqs(seq_fn, output_prefix: string, extension: POrA) =
     var refx: hts.Fai
     if not hts.open(refx, seq_fn):
         util.raiseEx(format("[FATAL] Could not open '$#'", seq_fn))
-
-    let extension = (if pa : "a" else: "p")
 
     var f = open("{output_prefix}.{extension}.fasta".fmt, fmWrite)
 
@@ -33,5 +37,5 @@ proc renameSeqs(seq_fn, output_prefix: string, pa: bool) =
 
 proc main*(input_p_fn, input_a_fn, output_prefix: string) =
     ##Rename IPA2 fasta header names to match falcon
-    renameSeqs(input_p_fn, output_prefix, false)
-    renameSeqs(input_a_fn, output_prefix, true)
+    renameSeqs(input_p_fn, output_prefix, pCtg)
+    renameSeqs(input_a_fn, output_prefix, aCtg)
