@@ -257,7 +257,7 @@ when isMainModule:
         "flag": "filter reads with flag"
             },
         ],
-        [ipa2Header2Falcon.main, cmdName = "ipa2ToFalconUnzip",
+        [ipa2Header2Falcon.main, cmdName = "ipa2-to-falcon-unzip",
             help = {
                 "input-p-fn": "input primary contigs",
                 "input-a-fn": "input associate contigs",
