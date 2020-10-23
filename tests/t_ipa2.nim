@@ -2,6 +2,7 @@
 
 import falconcpkg/ipa2_construct_config
 import falconcpkg/ipa2_polish
+import falconcpkg/ipa2Header2Falcon
 import unittest, streams, tables
 
 let expected_default_bash = """
@@ -307,3 +308,13 @@ suite "ipa_polish_prepare":
 0 2 3
 1 2 3
 """
+
+suite "ipa2Header2Falcon":
+    test "renamedSeq":
+        expect system.Exception:
+            discard renamedSeq("foo")
+        check renamedSeq("foo.bar") == "bar"
+        check renamedSeq("foo-bar") == "bar"
+        check renamedSeq("foo.bar.baz") == ""
+        check renamedSeq("foo-01-02") == ""
+        check renamedSeq("foo-01-01") == "01_01"

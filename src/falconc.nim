@@ -16,6 +16,7 @@ from falconcpkg/ovl_cov_stats import nil
 from falconcpkg/stats_gff import nil
 from falconcpkg/ipa2_construct_config import nil
 from falconcpkg/ipa2_polish import nil
+from falconcpkg/ipa2Header2Falcon import nil
 
 import cligen
 
@@ -254,6 +255,13 @@ when isMainModule:
         "region": "htslib formatted region seqid:start-end",
         "flip-rc": "reverse complement (RC) the sequence if alignment is in RC",
         "flag": "filter reads with flag"
+            },
+        ],
+        [ipa2Header2Falcon.main, cmdName = "ipa2-to-falcon-unzip",
+            help = {
+                "input-p-fn": "input primary contigs",
+                "input-a-fn": "input associate contigs",
+                "output-prefix" : "prefix for output files"
             },
         ],
         [align.bam2paf, cmdName = "bam2paf",
