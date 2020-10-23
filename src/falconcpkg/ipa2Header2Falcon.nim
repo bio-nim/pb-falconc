@@ -33,8 +33,5 @@ proc renameSeqs(seq_fn, output_prefix: string, pa: bool) =
 
 proc main*(input_p_fn, input_a_fn, output_prefix: string) =
     ##Rename IPA2 fasta header names to match falcon
-    if input_p_fn == "" or input_a_fn == "" or output_prefix == "":
-        let msg = "Missing input or output required options."
-        util.raiseEx(msg)
     renameSeqs(input_p_fn, output_prefix, false)
     renameSeqs(input_a_fn, output_prefix, true)
