@@ -137,3 +137,10 @@ proc main*(out_fn: string, out_fmt: string = "json", in_defaults_fn = "", in_fn 
     var fp_out = streams.newFileStream(out_fn, fmWrite)
     run(fp_out, fp_in, in_defaults_fn, out_fmt[0], not no_sort)
     fp_out.close()
+
+proc main_separate_p_from_a*(out_p_fn, out_a_fn, in_fn: string) =
+    ## Given a merged fasta, separate into primary and alternate contigs.
+    ## Only .fasta is supported. An index is neither required nor generated.
+    var out_p = streams.newFileStream(out_p_fn, fmWrite)
+    var out_a = streams.newFileStream(out_a_fn, fmWrite)
+    var in_merged = streams.newFileStream(in_fn)
