@@ -133,7 +133,38 @@ proc main*(out_fn: string, out_fmt: string = "json", in_defaults_fn = "", in_fn 
     ## Input/output is on stdin/stdout. Options which aren't set explicitly in the input
     ## will be set to default (configurable via args).
 
-    var fp_in = if in_fn == "-": streams.newFileStream(stdin) else: streams.newFileStream(in_fn, fmRead)
-    var fp_out = streams.newFileStream(out_fn, fmWrite)
+    var fp_in = if in_fn == "-": streams.newFileStream(stdin) else: streams.openFileStream(in_fn, fmRead)
+    var fp_out = streams.openFileStream(out_fn, fmWrite)
+    defer: streams.close(fp_out)
     run(fp_out, fp_in, in_defaults_fn, out_fmt[0], not no_sort)
     fp_out.close()
+
+proc isHaplotigHeader*(line: string): bool =
+    # >foo-bar is a haplotig.
+    # >foo is not.
+    assert line.len > 0
+    assert line[0] == '>'
+    for c in line:
+        if c == '-':
+            return true
+        elif c == ' ' or c == '\t':
+            return false
+    return false
+
+proc main_separate_p_from_a*(out_p_fn, out_a_fn, in_fn: string) =
+    ## Given a merged fasta, separate into primary and alternate contigs.
+    ## Only .fasta is supported. An index is neither required nor generated.
+    var
+        out_curr: streams.Stream = nil
+        out_p = streams.openFileStream(out_p_fn, fmWrite)
+        out_a = streams.openFileStream(out_a_fn, fmWrite)
+        in_merged = streams.openFileStream(in_fn)
+    defer:
+        streams.close(in_merged)
+        streams.close(out_a)
+        streams.close(out_p)
+
+    for line in streams.lines(in_merged):
+        if line.startsWith('>'):
+            out_curr = if isHaplotigHeader(line): out_a else: out_p
+        streams.writeLine(out_curr, line)

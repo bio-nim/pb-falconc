@@ -287,6 +287,13 @@ when isMainModule:
           "out-fn": "Output file.",
             }
         ],
+        [ipa2_construct_config.main_separate_p_from_a, cmdName = "ipa-separate-p-from-a",
+            help = {
+                "in-fn": "merged (fasta)",
+                "out-p-fn": "primary contigs (fasta)",
+                "out-a-fn": "associate contigs (fasta)",
+            },
+        ],
         [ipa2_polish.shard_ovl_asym, cmdName = "ipa-shard-ovl-asym",
          help = {
           "max-nshards": "Maximum number of distributed jobs",
