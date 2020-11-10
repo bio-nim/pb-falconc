@@ -311,7 +311,9 @@ suite "ipa_polish_prepare":
 
 suite "ipa-separate-p-from-a":
     test "isHaplotigHeader":
-        check isHaplotigHeader("foo") == false
+        check isHaplotigHeader(">foo-bar") == true
+        check isHaplotigHeader(">name foo-bar") == false
+        check isHaplotigHeader(">foo") == false
 
 suite "ipa2Header2Falcon":
     test "renamedSeq":
