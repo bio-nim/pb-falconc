@@ -207,7 +207,7 @@ proc coverageProfile*(ovls: seq[Overlap]): OrderedTable[int, PositionInfo] =
 
     return posInfo
 
-proc gapInCoverage*(ovls: seq[Overlap], posInfo: OrderedTable[int, PositionInfo], minDepth, minAvgCoverage: int, minIdt: float): bool =
+proc gapInCoverage*(ovls: seq[Overlap], posInfo: OrderedTable[int, PositionInfo], minDepth: int, minAvgCoverage, minIdt: float): bool =
     ##Identify gaps in coverage of a read (positions covered < minDepth).
     ##Do not consider every position in a read, only endpoints of overlaps.
     ##The first and last position are skipped
@@ -255,7 +255,7 @@ proc gapInCoverage*(ovls: seq[Overlap], posInfo: OrderedTable[int, PositionInfo]
     #    echo "{an} {i} {j.cli} clipCov".fmt
     averageCoverage = averageCoverage/float(ep)
     #echo "clipHigh:{clipHigh} hasCovDip:{hasCovDip} hasZeroDepthInDip:{hasZeroCovInDip} avgCov:{averageCoverage}".fmt
-    if averageCoverage < float(minAvgCoverage):
+    if averageCoverage < minAvgCoverage:
         return false
     # Requested by Ivan
     if hasCovDip and hasZeroCovInDip:
@@ -274,7 +274,7 @@ proc stage1Filter*(overlaps: seq[Overlap],
  minOvlp: int,
  minLen: int,
  minDepth: int,
- minAvgCov: int,
+ minAvgCov: float,
  gapFilt: bool,
  minIdt: float,
  readsToFilter: var tables.Table[string, int]) =
@@ -345,7 +345,7 @@ proc stage1Filter*(overlaps: seq[Overlap],
  minOvlp: int,
  minLen: int,
  minDepth: int,
- minAvgCov: int,
+ minAvgCov: float,
  highCopySampleRate: float,
  gapFilt: bool,
  minIdt: float,
@@ -568,7 +568,7 @@ type
         minIdt: float
         gapFilt: bool
         minDepth: int
-        minAvgCov: int
+        minAvgCov: float
         highCopySampleRate: float
         blacklist: string
         # Used only san M4Index:
@@ -612,12 +612,12 @@ proc doStage1Indexed(args: Stage1) =
     defer: sin.close()
     for i in getNextPile(sin, args.index):
         if args.highCopySampleRate < 0.0:
-            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minAvgCov, args.minLen,
-                args.minDepth, args.gapFilt,
+            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+                args.minDepth, args.minAvgCov, args.gapFilt,
                 args.minIdt, readsToFilter1)
         else:
-            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minAvgCov, args.minLen,
-                args.minDepth, args.highCopySampleRate, args.gapFilt,
+            stage1Filter(i, args.maxDiff, args.maxCov, args.minCov, args.minLen,
+                args.minDepth, args.minAvgCov, args.highCopySampleRate, args.gapFilt,
                 args.minIdt, readsToFilter1)
     var fstream = newFileStream(args.blacklist, fmWrite)
     defer: fstream.close()
@@ -752,7 +752,7 @@ type
         bestN: int
         minOverhang: int
         minDepth: int
-        minAvgCov: int
+        minAvgCov: float
         gapFilt: bool
         keepIntermediates: bool
         filterLogFn: string
@@ -1057,7 +1057,7 @@ proc m4filtRunner*(
  bestN: int = 10,
  minOverhang: int = 0,
  minDepth: int = 2,
- minAvgCov: int = 5,
+ minAvgCov: float = 5.0,
  gapFilt: bool = false,
  keepIntermediates: bool = false,
  nProc: int = 24,
@@ -1102,7 +1102,7 @@ proc falconRunner*(db: string,
  bestN: int = 10,
  minDepth: int = 2,
  minOverhang: int = 0,
- minAvgCov: int = 5,
+ minAvgCov: float = 5.0,
  gapFilt: bool = false,
  keepIntermediates: bool = false,
  nProc: int = 24,
@@ -1155,7 +1155,7 @@ proc ipaRunner*(ovlsFofnFn: string,
  bestN: int = 10,
  minOverhang: int = 0,
  minDepth: int = 2,
- minAvgCov: int = 5,
+ minAvgCov: float = 5.0,
  gapFilt: bool = false,
  keepIntermediates: bool = false,
  nProc: int = 24,
