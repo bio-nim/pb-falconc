@@ -141,6 +141,13 @@ proc main*(out_fn: string, out_fmt: string = "json", in_defaults_fn = "", in_fn 
 proc main_separate_p_from_a*(out_p_fn, out_a_fn, in_fn: string) =
     ## Given a merged fasta, separate into primary and alternate contigs.
     ## Only .fasta is supported. An index is neither required nor generated.
-    var out_p = streams.newFileStream(out_p_fn, fmWrite)
-    var out_a = streams.newFileStream(out_a_fn, fmWrite)
-    var in_merged = streams.newFileStream(in_fn)
+    var
+        out_curr: streams.Stream = nil
+        out_p = streams.openFileStream(out_p_fn, fmWrite)
+        out_a = streams.openFileStream(out_a_fn, fmWrite)
+        in_merged = streams.openFileStream(in_fn)
+
+    for line in streams.lines(in_merged):
+        if line.startsWith('>'):
+            out_curr = out_p
+        streams.writeLine(out_curr, line)
