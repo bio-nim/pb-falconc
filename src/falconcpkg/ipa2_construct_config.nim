@@ -135,6 +135,7 @@ proc main*(out_fn: string, out_fmt: string = "json", in_defaults_fn = "", in_fn 
 
     var fp_in = if in_fn == "-": streams.newFileStream(stdin) else: streams.openFileStream(in_fn, fmRead)
     var fp_out = streams.openFileStream(out_fn, fmWrite)
+    defer: streams.close(fp_out)
     run(fp_out, fp_in, in_defaults_fn, out_fmt[0], not no_sort)
     fp_out.close()
 
@@ -158,6 +159,10 @@ proc main_separate_p_from_a*(out_p_fn, out_a_fn, in_fn: string) =
         out_p = streams.openFileStream(out_p_fn, fmWrite)
         out_a = streams.openFileStream(out_a_fn, fmWrite)
         in_merged = streams.openFileStream(in_fn)
+    defer:
+        streams.close(in_merged)
+        streams.close(out_a)
+        streams.close(out_p)
 
     for line in streams.lines(in_merged):
         if line.startsWith('>'):
