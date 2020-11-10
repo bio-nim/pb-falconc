@@ -138,6 +138,10 @@ proc main*(out_fn: string, out_fmt: string = "json", in_defaults_fn = "", in_fn 
     run(fp_out, fp_in, in_defaults_fn, out_fmt[0], not no_sort)
     fp_out.close()
 
+proc isHaplotigHeader*(line: string): bool =
+    # >foo-bar is a haplotig.
+    # >foo is not.
+    return false
 proc main_separate_p_from_a*(out_p_fn, out_a_fn, in_fn: string) =
     ## Given a merged fasta, separate into primary and alternate contigs.
     ## Only .fasta is supported. An index is neither required nor generated.
@@ -149,5 +153,5 @@ proc main_separate_p_from_a*(out_p_fn, out_a_fn, in_fn: string) =
 
     for line in streams.lines(in_merged):
         if line.startsWith('>'):
-            out_curr = out_p
+            out_curr = if isHaplotigHeader(line): out_a else: out_p
         streams.writeLine(out_curr, line)

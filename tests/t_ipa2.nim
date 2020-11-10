@@ -309,6 +309,10 @@ suite "ipa_polish_prepare":
 1 2 3
 """
 
+suite "ipa-separate-p-from-a":
+    test "isHaplotigHeader":
+        check isHaplotigHeader("foo") == false
+
 suite "ipa2Header2Falcon":
     test "renamedSeq":
         expect system.Exception:
