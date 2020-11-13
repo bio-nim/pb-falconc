@@ -371,6 +371,38 @@ proc loadSet(sin: streams.Stream): HashSet[string] =
     while streams.readLine(sin, line):
         result.incl(line)
 
+proc split_paf*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
+        in_read_to_contig_fn = "sorted.read_to_contig.csv", out_ids_fn = "all_shard_ids",
+        mb_per_block: int,
+        blacklist_fn: string = "",
+        in_fai_fns: seq[string]) =
+    ## The trailing list of fasta.fai filenames are FASTA index files.
+    ## They will be used to split the shards somewhat evenly.
+    ## (Used to shard the polishing jobs.)
+
+    var blacklist = initHashSet[string]()
+    if len(blacklist_fn) != 0:
+        log("Loading the blacklist from '{blacklist_fn}'.".fmt)
+        var sin = streams.openFileStream(blacklist_fn)
+        blacklist = loadSet(sin)
+        streams.close(sin)
+    log("Blacklist contains {len(blacklist)} elements.".fmt)
+
+    log("split {max_nshards} shard:{shard_prefix} block:{block_prefix} in:'{in_read_to_contig_fn}' out:'{out_ids_fn}'".fmt)
+    var chrom2len = tables.newTable[string, int]()
+    for fn in in_fai_fns:
+        chrom2len.updateChromLens(fn, blacklist)
+    var sin = streams.openFileStream(in_read_to_contig_fn)
+    let contig2reads = get_Contig2Reads(sin, in_read_to_contig_fn, chrom2len)
+    streams.close(sin)
+    writeBlocksMulti(chrom2len, contig2reads, block_prefix, mb_per_block)
+    let shards = combineBlocks(shard_prefix, countLines(block_prefix&".", ".reads"), max_nshards)
+    if out_ids_fn != "":
+        var fout = open(out_ids_fn, fmWrite)
+        for shard_id in 0 ..< len(shards):
+            fout.writeLine(shard_id)
+        fout.close()
+
 proc split*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
         in_read_to_contig_fn = "sorted.read_to_contig.csv", out_ids_fn = "all_shard_ids",
         mb_per_block: int,
