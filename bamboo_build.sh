@@ -24,11 +24,11 @@ elif [[ $USER == bamboo ]]; then
   _shortPlanKey=$(echo ${bamboo_shortPlanKey}|sed -e 's/[0-9]*$//')
   export CCACHE_DIR=/pbi/flash/bamboo/ccachedir/${bamboo_shortPlanKey}.${bamboo_shortJobKey}
   export XDG_CACHE_HOME=${CCACHE_DIR}
-  if [[ -d /pbi/flash/bamboo/ccachedir/${_shortPlanKey}.${bamboo_shortJobKey}.develop ]]; then
-    ( cd /pbi/flash/bamboo/ccachedir/
-      rsync -av ${_shortPlanKey}.${bamboo_shortJobKey}.develop/ $CCACHE_DIR
-    )
-  fi
+  #if [[ -d /pbi/flash/bamboo/ccachedir/${_shortPlanKey}.${bamboo_shortJobKey}.develop ]]; then
+  #  ( cd /pbi/flash/bamboo/ccachedir/
+  #    rsync -av ${_shortPlanKey}.${bamboo_shortJobKey}.develop/ $CCACHE_DIR
+  #  )
+  #fi
   export CCACHE_TEMPDIR=/scratch/bamboo.ccache_tempdir
 fi
 
