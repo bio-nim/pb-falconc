@@ -270,13 +270,30 @@ type
     Contig2Reads = tables.TableRef[string, seq[string]]
 
 proc get_Contig2Reads(sin: streams.Stream, in_r2c_fn: string, contig2len: tables.TableRef[string, int]): Contig2Reads =
-    result = tables.newTable[string, seq[string]]()
+    new(result)
     var parser: parsecsv.CsvParser
     parsecsv.open(parser, sin, filename = in_r2c_fn, separator = ' ', skipInitialSpace = true)
     while parsecsv.readRow(parser, 2):
         if not contig2len.haskey(parser.row[1]):
             continue
-        tables.mgetOrPut(result, parser.row[1], @[]).add(parser.row[0])
+        let
+            ctg = parser.row[1]
+            read = parser.row[0]
+        tables.mgetOrPut(result, ctg, @[]).add(read)
+
+proc getReadCtgFromPafLine(line: string): (string, string) =
+    let
+        read = util.getNthWord(line, 0, delim = '\t')
+        ctg = util.getNthWord(line, 5, delim = '\t')
+    return (read, ctg)
+
+proc get_Contig2ReadsFromPaf(sin: streams.Stream, contig2len: tables.TableRef[string, int]): Contig2Reads =
+    new(result)
+    var
+        line: string
+    while streams.readLine(sin, line):
+        let (read, ctg) = getReadCtgFromPafLine(line)
+        tables.mgetOrPut(result, ctg, @[]).add(read)
 
 proc combineContigs(target_mb: int, contigs: seq[string], contig2len: tables.TableRef[string, int]): seq[seq[string]] =
     # Combine contigs into subsets, where each has at least mb MegaBases
@@ -294,15 +311,49 @@ proc combineContigs(target_mb: int, contigs: seq[string], contig2len: tables.Tab
         for contig_idx in contig_indices[block_idx]:
             result[block_idx].add(contigs[contig_idx])
 
-proc writeBlocksMulti(contig2len: tables.TableRef[string, int], contig2reads: Contig2Reads, prefix: string, mb: int) =
+proc getBlockLists(contig2len: tables.TableRef[string, int], contig2reads: Contig2Reads, mb: int): seq[seq[string]] =
     # We want multiple contigs per block, as many as slightly over mb
     # MegaBases of contig lengths.
-    # For now, all contigs are in *single* block.
     var contigs = sequtils.toSeq(tables.keys(contig2reads))
     algorithm.sort(contigs) # Sort only for stable tests. Random order is fine too.
 
-    let blocks = combineContigs(mb, contigs, contig2len)
+    return combineContigs(mb, contigs, contig2len)
 
+type
+    PafIndex = ref tables.Table[string, seq[string]]
+    # table of ctg -> [paf-lines]
+
+iterator getPafLines(pi: PafIndex, ctg: string): string =
+    for line in pi[ctg]:
+        yield line
+
+proc newPafIndex(fn: string): PafIndex =
+    new(result)
+    var
+        sin = streams.openFileStream(fn)
+        line: string
+    while streams.readLine(sin, line):
+        let (read, ctg) = getReadCtgFromPafLine(line)
+        tables.mgetOrPut(result, ctg, @[]).add(line)
+
+proc splitBlocksPaf(blocks: seq[seq[string]], contig2reads: Contig2Reads, prefix: string, paf_fn: string) =
+    let pi = newPafIndex(paf_fn)
+    var count = 0
+    for bloke in blocks:
+        let
+            paf_fn = "{prefix}.{count}.paf".fmt
+            # 0-based count must match convention in writeBlocksMulti() for now.
+        var
+            paf_fout = system.open(paf_fn, fmWrite)
+        for contig in bloke:
+            for line in getPafLines(pi, contig):
+                paf_fout.writeLine(line)
+        system.close(paf_fout)
+        count += 1
+
+proc writeBlocksMulti(blocks: seq[seq[string]], contig2reads: Contig2Reads, prefix: string) =
+    # Given block-lists,
+    # write block-files for ctgs and reads.
     var count = 0
     for bloke in blocks:
         let
@@ -371,6 +422,40 @@ proc loadSet(sin: streams.Stream): HashSet[string] =
     while streams.readLine(sin, line):
         result.incl(line)
 
+proc split_paf*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
+        in_paf_fn = "r2c.paf", out_ids_fn = "all_shard_ids",
+        mb_per_block: int,
+        blacklist_fn: string = "",
+        in_fai_fns: seq[string]) =
+    ## The trailing list of fasta.fai filenames are FASTA index files.
+    ## They will be used to split the shards somewhat evenly.
+    ## (Used to shard the polishing jobs.)
+
+    var blacklist = initHashSet[string]()
+    if len(blacklist_fn) != 0:
+        log("Loading the blacklist from '{blacklist_fn}'.".fmt)
+        var sin = streams.openFileStream(blacklist_fn)
+        blacklist = loadSet(sin)
+        streams.close(sin)
+    log("Blacklist contains {len(blacklist)} elements.".fmt)
+
+    log("split_paf {max_nshards} shard:{shard_prefix} block:{block_prefix} in:'{in_paf_fn}' out:'{out_ids_fn}'".fmt)
+    var chrom2len = tables.newTable[string, int]()
+    for fn in in_fai_fns:
+        chrom2len.updateChromLens(fn, blacklist)
+    var sin = streams.openFileStream(in_paf_fn)
+    let contig2reads = get_Contig2ReadsFromPaf(sin, chrom2len)
+    streams.close(sin)
+    let blocks = getBlockLists(chrom2len, contig2reads, mb_per_block)
+    writeBlocksMulti(blocks, contig2reads, block_prefix)
+    splitBlocksPaf(blocks, contig2reads, block_prefix, in_paf_fn) # 2nd pass thru paf
+    let shards = combineBlocks(shard_prefix, countLines(block_prefix&".", ".reads"), max_nshards)
+    if out_ids_fn != "":
+        var fout = open(out_ids_fn, fmWrite)
+        for shard_id in 0 ..< len(shards):
+            fout.writeLine(shard_id)
+        fout.close()
+
 proc split*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
         in_read_to_contig_fn = "sorted.read_to_contig.csv", out_ids_fn = "all_shard_ids",
         mb_per_block: int,
@@ -395,7 +480,8 @@ proc split*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
     var sin = streams.openFileStream(in_read_to_contig_fn)
     let contig2reads = get_Contig2Reads(sin, in_read_to_contig_fn, chrom2len)
     streams.close(sin)
-    writeBlocksMulti(chrom2len, contig2reads, block_prefix, mb_per_block)
+    let blocks = getBlockLists(chrom2len, contig2reads, mb_per_block)
+    writeBlocksMulti(blocks, contig2reads, block_prefix)
     let shards = combineBlocks(shard_prefix, countLines(block_prefix&".", ".reads"), max_nshards)
     if out_ids_fn != "":
         var fout = open(out_ids_fn, fmWrite)

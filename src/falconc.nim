@@ -323,6 +323,18 @@ when isMainModule:
           "in-fai-fns": "Indexed fasta filenames to polish",
             }
         ],
+        [ipa2_polish.split_paf, cmdName = "ipa-polish-paf-split",
+         help = {
+          "max-nshards": "Maximum number of distributed jobs",
+          "mb-per-block": "Try to target megabases total in all contigs in any block",
+          "in-paf-fn": "PAF pairwise mapping format (sorted?)",
+          "block-prefix": "Block files are (prefix).(block_id).reads (prepared previously)",
+          "shard-prefix": "The output. Shard files are (prefix).(shard_id).block_ids",
+          "blacklist-fn": "Specifies a file with a list of contigs to skip for polishing.",
+          "out-ids-fn": "If given, this lists the shard_ids, 0 thru N-1, corresponding to the shard-prefix.block_id files.",
+          "in-fai-fns": "Indexed fasta filenames to polish",
+            }
+        ],
         [ipa2_polish.shard_blocks_m4, cmdName = "ipa-shard-blocks-m4",
          help = {
           "max-nshards": "Maximum number of distributed jobs",
