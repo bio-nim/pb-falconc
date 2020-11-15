@@ -26,7 +26,7 @@ elif [[ $USER == bamboo ]]; then
   export XDG_CACHE_HOME=${CCACHE_DIR}
   if [[ -d /pbi/flash/bamboo/ccachedir/${_shortPlanKey}.${bamboo_shortJobKey}.develop ]]; then
     ( cd /pbi/flash/bamboo/ccachedir/
-      cp -a ${_shortPlanKey}.${bamboo_shortJobKey}.develop $CCACHE_DIR
+      rsync -av ${_shortPlanKey}.${bamboo_shortJobKey}.develop/ $CCACHE_DIR
     )
   fi
   export CCACHE_TEMPDIR=/scratch/bamboo.ccache_tempdir
