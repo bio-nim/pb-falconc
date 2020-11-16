@@ -287,7 +287,7 @@ proc getReadCtgFromPafLine(line: string): (string, string) =
         ctg = util.getNthWord(line, 5, delim = '\t')
     return (read, ctg)
 
-proc get_Contig2ReadsFromPaf(sin: streams.Stream, contig2len: tables.TableRef[string, int]): Contig2Reads =
+proc get_Contig2ReadsFromPaf(sin: streams.Stream): Contig2Reads =
     new(result)
     var
         line: string
@@ -444,7 +444,7 @@ proc split_paf*(max_nshards: int, shard_prefix = "shard", block_prefix = "block"
     for fn in in_fai_fns:
         chrom2len.updateChromLens(fn, blacklist)
     var sin = streams.openFileStream(in_paf_fn)
-    let contig2reads = get_Contig2ReadsFromPaf(sin, chrom2len)
+    let contig2reads = get_Contig2ReadsFromPaf(sin)
     streams.close(sin)
     let blocks = getBlockLists(chrom2len, contig2reads, mb_per_block)
     writeBlocksMulti(blocks, contig2reads, block_prefix)
