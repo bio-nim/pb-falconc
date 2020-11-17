@@ -404,6 +404,9 @@ proc updateChromLens(chrom2len: tables.TableRef[string, int], fai_fn: string, bl
         util.raiseEx("Could not open '{fai_fn}' ({fn})".fmt)
     let nchroms = hts.len(fin)
     log("{nchroms} reads in '{fn}'".fmt)
+    const max_logged = 8
+    var
+        skipped = 0
     for i in 0 ..< nchroms:
         let chrom: string = fin[i]
         # echo " chrom:", chrom
@@ -414,9 +417,14 @@ proc updateChromLens(chrom2len: tables.TableRef[string, int], fai_fn: string, bl
             util.raiseEx(msg)
         let n = hts.chrom_len(fin, chrom)
         if blacklist.contains(chrom):
-            log("Skipping blacklisted sequence: chrom = {chrom}, len = {n}".fmt)
+            if skipped < max_logged:
+                log("Skipping blacklisted sequence: chrom = {chrom}, len = {n}".fmt)
+            elif skipped == max_logged:
+                log("...")
+            skipped += 1
             continue
         chrom2len[chrom] = n
+    log("Skipped a total of {skipped} blacklisted sequences from '{fai_fn}'.".fmt)
     #hts.destroy_fai(fin) # We may need to activate destructors to do this properly. Oh, well.
 
 proc loadSet(sin: streams.Stream): HashSet[string] =
@@ -447,9 +455,14 @@ proc split_paf*(max_nshards: int, shard_prefix = "shard", block_prefix = "block"
         chrom2len.updateChromLens(fn, blacklist)
     let blocks = partitionContigs(chrom2len, mb_per_block)
 
-    var sin = streams.openFileStream(in_paf_fn)
-    let contig2reads = get_Contig2ReadsFromPaf(sin)
-    streams.close(sin)
+    var contig2reads: Contig2Reads
+    try:
+        var sin = streams.openFileStream(in_paf_fn)
+        contig2reads = get_Contig2ReadsFromPaf(sin)
+        streams.close(sin)
+    except Exception as exc:
+        log("Error: '{in_paf_fn}' might not be a paf-file.".fmt)
+        raise
 
     # Note: contig2reads may be larger than chrom2len, which excludes blacklist.
     writeBlocksMulti(blocks, contig2reads, block_prefix)
