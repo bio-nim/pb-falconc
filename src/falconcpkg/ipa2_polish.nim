@@ -268,6 +268,7 @@ proc combineShards(prefix: string, shards: seq[seq[PancakeRange]]) =
 
 type
     Contig2Reads = tables.TableRef[string, seq[string]]
+    ContigLists = seq[seq[string]]
 
 proc get_Contig2Reads(sin: streams.Stream, in_r2c_fn: string, contig2len: tables.TableRef[string, int]): Contig2Reads =
     new(result)
@@ -287,7 +288,7 @@ proc getReadCtgFromPafLine(line: string): (string, string) =
         ctg = util.getNthWord(line, 5, delim = '\t')
     return (read, ctg)
 
-proc get_Contig2ReadsFromPaf(sin: streams.Stream, contig2len: tables.TableRef[string, int]): Contig2Reads =
+proc get_Contig2ReadsFromPaf(sin: streams.Stream): Contig2Reads =
     new(result)
     var
         line: string
@@ -295,9 +296,10 @@ proc get_Contig2ReadsFromPaf(sin: streams.Stream, contig2len: tables.TableRef[st
         let (read, ctg) = getReadCtgFromPafLine(line)
         tables.mgetOrPut(result, ctg, @[]).add(read)
 
-proc combineContigs(target_mb: int, contigs: seq[string], contig2len: tables.TableRef[string, int]): seq[seq[string]] =
+proc combineContigs(target_mb: int, contigs: seq[string], contig2len: tables.TableRef[string, int]): ContigLists =
     # Combine contigs into subsets, where each has at least mb MegaBases
     # of contigs.
+    # Multiple contigs per block are possible.
     if len(contigs) != tables.len(contig2len):
         let msg = "len(contigs)={len(contigs)} != len(contig2len)={len(contig2len)}".fmt
         util.raiseEx(msg)
@@ -311,10 +313,10 @@ proc combineContigs(target_mb: int, contigs: seq[string], contig2len: tables.Tab
         for contig_idx in contig_indices[block_idx]:
             result[block_idx].add(contigs[contig_idx])
 
-proc getBlockLists(contig2len: tables.TableRef[string, int], contig2reads: Contig2Reads, mb: int): seq[seq[string]] =
+proc partitionContigs(contig2len: tables.TableRef[string, int], mb: int): ContigLists =
     # We want multiple contigs per block, as many as slightly over mb
     # MegaBases of contig lengths.
-    var contigs = sequtils.toSeq(tables.keys(contig2reads))
+    var contigs = sequtils.toSeq(tables.keys(contig2len))
     algorithm.sort(contigs) # Sort only for stable tests. Random order is fine too.
 
     return combineContigs(mb, contigs, contig2len)
@@ -443,10 +445,13 @@ proc split_paf*(max_nshards: int, shard_prefix = "shard", block_prefix = "block"
     var chrom2len = tables.newTable[string, int]()
     for fn in in_fai_fns:
         chrom2len.updateChromLens(fn, blacklist)
+    let blocks = partitionContigs(chrom2len, mb_per_block)
+
     var sin = streams.openFileStream(in_paf_fn)
-    let contig2reads = get_Contig2ReadsFromPaf(sin, chrom2len)
+    let contig2reads = get_Contig2ReadsFromPaf(sin)
     streams.close(sin)
-    let blocks = getBlockLists(chrom2len, contig2reads, mb_per_block)
+
+    # Note: contig2reads may be larger than chrom2len, which excludes blacklist.
     writeBlocksMulti(blocks, contig2reads, block_prefix)
     splitBlocksPaf(blocks, contig2reads, block_prefix, in_paf_fn) # 2nd pass thru paf
     let shards = combineBlocks(shard_prefix, countLines(block_prefix&".", ".reads"), max_nshards)
@@ -477,10 +482,13 @@ proc split*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
     var chrom2len = tables.newTable[string, int]()
     for fn in in_fai_fns:
         chrom2len.updateChromLens(fn, blacklist)
+    let blocks = partitionContigs(chrom2len, mb_per_block)
+
     var sin = streams.openFileStream(in_read_to_contig_fn)
     let contig2reads = get_Contig2Reads(sin, in_read_to_contig_fn, chrom2len)
     streams.close(sin)
-    let blocks = getBlockLists(chrom2len, contig2reads, mb_per_block)
+
+    # Note: contig2reads may be larger than chrom2len, which excludes blacklist.
     writeBlocksMulti(blocks, contig2reads, block_prefix)
     let shards = combineBlocks(shard_prefix, countLines(block_prefix&".", ".reads"), max_nshards)
     if out_ids_fn != "":
