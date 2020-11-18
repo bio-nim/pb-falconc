@@ -322,21 +322,33 @@ proc partitionContigs(contig2len: tables.TableRef[string, int], mb: int): Contig
     return combineContigs(mb, contigs, contig2len)
 
 type
-    PafIndex = ref tables.Table[string, seq[string]]
-    # table of ctg -> [paf-lines]
+    Span = tuple[start, stop: int]
+    PafIndex = object
+        sin: streams.Stream
+        ctg2spans: tables.TableRef[string, seq[Span]]
 
 iterator getPafLines(pi: PafIndex, ctg: string): string =
-    for line in pi[ctg]:
-        yield line
+    for span in pi.ctg2spans[ctg]:
+        let
+            (start, stop) = span
+        streams.setPosition(pi.sin, start)
+        yield streams.readStr(pi.sin, stop - start)
 
 proc newPafIndex(fn: string): PafIndex =
-    new(result)
+    result.sin = streams.openFileStream(fn)
+    new(result.ctg2spans)
     var
-        sin = streams.openFileStream(fn)
         line: string
-    while streams.readLine(sin, line):
-        let (read, ctg) = getReadCtgFromPafLine(line)
-        tables.mgetOrPut(result, ctg, @[]).add(line)
+        start = 0
+        span: Span
+    while streams.readLine(result.sin, line):
+        let
+            (read, ctg) = getReadCtgFromPafLine(line)
+            startNext = streams.getPosition(result.sin)
+            stop = start + len(line)
+        span = (start: start, stop: stop)
+        tables.mgetOrPut(result.ctg2spans, ctg, @[]).add(span)
+        start = startNext
 
 proc splitBlocksPaf(blocks: seq[seq[string]], contig2reads: Contig2Reads, prefix: string, paf_fn: string) =
     let pi = newPafIndex(paf_fn)
@@ -447,13 +459,14 @@ proc split_paf*(max_nshards: int, shard_prefix = "shard", block_prefix = "block"
         var sin = streams.openFileStream(blacklist_fn)
         blacklist = loadSet(sin)
         streams.close(sin)
-    log("Blacklist contains {len(blacklist)} elements.".fmt)
+        log("Blacklist contains {len(blacklist)} elements.".fmt)
 
     log("split_paf {max_nshards} shard:{shard_prefix} block:{block_prefix} in:'{in_paf_fn}' out:'{out_ids_fn}'".fmt)
     var chrom2len = tables.newTable[string, int]()
     for fn in in_fai_fns:
         chrom2len.updateChromLens(fn, blacklist)
     let blocks = partitionContigs(chrom2len, mb_per_block)
+    log(" split into {len(blocks)} blocks.".fmt)
 
     var contig2reads: Contig2Reads
     try:
@@ -466,8 +479,11 @@ proc split_paf*(max_nshards: int, shard_prefix = "shard", block_prefix = "block"
 
     # Note: contig2reads may be larger than chrom2len, which excludes blacklist.
     writeBlocksMulti(blocks, contig2reads, block_prefix)
+    log(" Wrote {len(blocks)} blocks based on {len(contig2reads)} contigs.".fmt)
     splitBlocksPaf(blocks, contig2reads, block_prefix, in_paf_fn) # 2nd pass thru paf
+    log(" Split the PAF. Combining blocks ...")
     let shards = combineBlocks(shard_prefix, countLines(block_prefix&".", ".reads"), max_nshards)
+    log(" Combined into {len(shards)} shards.".fmt)
     if out_ids_fn != "":
         var fout = open(out_ids_fn, fmWrite)
         for shard_id in 0 ..< len(shards):

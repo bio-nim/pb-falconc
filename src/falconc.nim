@@ -330,7 +330,7 @@ when isMainModule:
           "in-paf-fn": "PAF pairwise mapping format (sorted?)",
           "block-prefix": "Block files are (prefix).(block_id).reads (prepared previously)",
           "shard-prefix": "The output. Shard files are (prefix).(shard_id).block_ids",
-          "blacklist-fn": "Specifies a file with a list of contigs to skip for polishing.",
+          "blacklist-fn": "Specifies a file with a list of contigs to skip for polishing. (Was needed for only pbmm2.)",
           "out-ids-fn": "If given, this lists the shard_ids, 0 thru N-1, corresponding to the shard-prefix.block_id files.",
           "in-fai-fns": "Indexed fasta filenames to polish",
             }
