@@ -270,17 +270,28 @@ type
     Contig2Reads = tables.TableRef[string, seq[string]]
     ContigLists = seq[seq[string]]
 
-proc get_Contig2Reads(sin: streams.Stream, in_r2c_fn: string, contig2len: tables.TableRef[string, int]): Contig2Reads =
+proc get_Contig2Reads(sin: streams.Stream, in_r2c_fn: string, contig2len: tables.TableRef[string, int], blacklist: HashSet[string]): Contig2Reads =
     new(result)
-    var parser: parsecsv.CsvParser
+    const max_logged = 8
+    var
+        skipped = 0
+        parser: parsecsv.CsvParser
     parsecsv.open(parser, sin, filename = in_r2c_fn, separator = ' ', skipInitialSpace = true)
     while parsecsv.readRow(parser, 2):
-        if not contig2len.haskey(parser.row[1]):
-            continue
         let
             ctg = parser.row[1]
             read = parser.row[0]
+        if ctg in blacklist:
+            if skipped < max_logged:
+                log("Skipping blacklisted sequence: contig = {ctg}".fmt)
+            elif skipped == max_logged:
+                log("...")
+            skipped += 1
+            continue
+        if not (ctg in contig2len): # TODO: Is this possible?
+            continue
         tables.mgetOrPut(result, ctg, @[]).add(read)
+    log("Skipped a total of {skipped} blacklisted sequences from read-to-contig file.".fmt)
 
 proc getReadCtgFromPafLine(line: string): (string, string) =
     let
@@ -288,13 +299,23 @@ proc getReadCtgFromPafLine(line: string): (string, string) =
         ctg = util.getNthWord(line, 5, delim = '\t')
     return (read, ctg)
 
-proc get_Contig2ReadsFromPaf(sin: streams.Stream): Contig2Reads =
+proc get_Contig2ReadsFromPaf(sin: streams.Stream, blacklist: HashSet[string]): Contig2Reads =
     new(result)
+    const max_logged = 8
     var
+        skipped = 0
         line: string
     while streams.readLine(sin, line):
         let (read, ctg) = getReadCtgFromPafLine(line)
+        if ctg in blacklist:
+            if skipped < max_logged:
+                log("Skipping blacklisted sequence: contig = '{ctg}'".fmt)
+            elif skipped == max_logged:
+                log("...")
+            skipped += 1
+            continue
         tables.mgetOrPut(result, ctg, @[]).add(read)
+    log("Skipped a total of {skipped} blacklisted sequences from .paf".fmt)
 
 proc combineContigs(target_mb: int, contigs: seq[string], contig2len: tables.TableRef[string, int]): ContigLists =
     # Combine contigs into subsets, where each has at least mb MegaBases
@@ -313,10 +334,12 @@ proc combineContigs(target_mb: int, contigs: seq[string], contig2len: tables.Tab
         for contig_idx in contig_indices[block_idx]:
             result[block_idx].add(contigs[contig_idx])
 
-proc partitionContigs(contig2len: tables.TableRef[string, int], mb: int): ContigLists =
+proc partitionContigs(contig2len: tables.TableRef[string, int],
+        contig2reads: Contig2Reads,
+        mb: int): ContigLists =
     # We want multiple contigs per block, as many as slightly over mb
     # MegaBases of contig lengths.
-    var contigs = sequtils.toSeq(tables.keys(contig2len))
+    var contigs = sequtils.toSeq(tables.keys(contig2reads))
     algorithm.sort(contigs) # Sort only for stable tests. Random order is fine too.
 
     return combineContigs(mb, contigs, contig2len)
@@ -408,7 +431,7 @@ proc writeBlocksLikeAwk(contig2reads: Contig2Reads, prefix: string) =
             fout.writeLine(read)
         system.close(fout)
 
-proc updateChromLens(chrom2len: tables.TableRef[string, int], fai_fn: string, blacklist: HashSet[string]) =
+proc updateChromLens(chrom2len: tables.TableRef[string, int], fai_fn: string) =
     # Raise if a new chrom already exists in this table.
     var fin: hts.Fai
     let fn = fai_fn[0 ..< ^4]
@@ -416,9 +439,6 @@ proc updateChromLens(chrom2len: tables.TableRef[string, int], fai_fn: string, bl
         util.raiseEx("Could not open '{fai_fn}' ({fn})".fmt)
     let nchroms = hts.len(fin)
     log("{nchroms} reads in '{fn}'".fmt)
-    const max_logged = 8
-    var
-        skipped = 0
     for i in 0 ..< nchroms:
         let chrom: string = fin[i]
         # echo " chrom:", chrom
@@ -428,15 +448,7 @@ proc updateChromLens(chrom2len: tables.TableRef[string, int], fai_fn: string, bl
                 msg = "Error: chrom '{chrom}' was already seen {n}. Read names in fasta input files must be unique!".fmt
             util.raiseEx(msg)
         let n = hts.chrom_len(fin, chrom)
-        if blacklist.contains(chrom):
-            if skipped < max_logged:
-                log("Skipping blacklisted sequence: chrom = {chrom}, len = {n}".fmt)
-            elif skipped == max_logged:
-                log("...")
-            skipped += 1
-            continue
         chrom2len[chrom] = n
-    log("Skipped a total of {skipped} blacklisted sequences from '{fai_fn}'.".fmt)
     #hts.destroy_fai(fin) # We may need to activate destructors to do this properly. Oh, well.
 
 proc loadSet(sin: streams.Stream): HashSet[string] =
@@ -464,18 +476,19 @@ proc split_paf*(max_nshards: int, shard_prefix = "shard", block_prefix = "block"
     log("split_paf {max_nshards} shard:{shard_prefix} block:{block_prefix} in:'{in_paf_fn}' out:'{out_ids_fn}'".fmt)
     var chrom2len = tables.newTable[string, int]()
     for fn in in_fai_fns:
-        chrom2len.updateChromLens(fn, blacklist)
-    let blocks = partitionContigs(chrom2len, mb_per_block)
-    log(" split into {len(blocks)} blocks.".fmt)
+        chrom2len.updateChromLens(fn)
 
     var contig2reads: Contig2Reads
     try:
         var sin = streams.openFileStream(in_paf_fn)
-        contig2reads = get_Contig2ReadsFromPaf(sin)
+        contig2reads = get_Contig2ReadsFromPaf(sin, blacklist)
         streams.close(sin)
     except Exception as exc:
         log("Error: '{in_paf_fn}' might not be a paf-file.".fmt)
         raise
+
+    let blocks = partitionContigs(chrom2len, contig2reads, mb_per_block)
+    log(" split into {len(blocks)} blocks.".fmt)
 
     # Note: contig2reads may be larger than chrom2len, which excludes blacklist.
     writeBlocksMulti(blocks, contig2reads, block_prefix)
@@ -510,12 +523,13 @@ proc split*(max_nshards: int, shard_prefix = "shard", block_prefix = "block",
     log("split {max_nshards} shard:{shard_prefix} block:{block_prefix} in:'{in_read_to_contig_fn}' out:'{out_ids_fn}'".fmt)
     var chrom2len = tables.newTable[string, int]()
     for fn in in_fai_fns:
-        chrom2len.updateChromLens(fn, blacklist)
-    let blocks = partitionContigs(chrom2len, mb_per_block)
+        chrom2len.updateChromLens(fn)
 
     var sin = streams.openFileStream(in_read_to_contig_fn)
-    let contig2reads = get_Contig2Reads(sin, in_read_to_contig_fn, chrom2len)
+    let contig2reads = get_Contig2Reads(sin, in_read_to_contig_fn, chrom2len, blacklist)
     streams.close(sin)
+
+    let blocks = partitionContigs(chrom2len, contig2reads, mb_per_block)
 
     # Note: contig2reads may be larger than chrom2len, which excludes blacklist.
     writeBlocksMulti(blocks, contig2reads, block_prefix)
