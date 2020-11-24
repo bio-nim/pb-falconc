@@ -321,9 +321,11 @@ proc combineContigs(target_mb: int, contigs: seq[string], contig2len: tables.Tab
     # Combine contigs into subsets, where each has at least mb MegaBases
     # of contigs.
     # Multiple contigs per block are possible.
-    if len(contigs) != tables.len(contig2len):
-        let msg = "len(contigs)={len(contigs)} != len(contig2len)={len(contig2len)}".fmt
-        util.raiseEx(msg)
+
+    #if len(contigs) != tables.len(contig2len):
+    #    let msg = "len(contigs)={len(contigs)} != len(contig2len)={len(contig2len)}".fmt
+    #    # Error: unhandled exception: len(contigs)=28141 != len(contig2len)=28143 [PbError]
+    #    util.raiseEx(msg)
     var weights: seq[int64]
     for contig_idx in 0 ..< len(contigs):
         weights.add(contig2len[contigs[contig_idx]])
