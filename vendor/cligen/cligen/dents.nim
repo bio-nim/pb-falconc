@@ -18,7 +18,7 @@
 ## & its sibling ``fstatat`` which largely eliminates the need to deal with full
 ## paths instead of just dirent filenames.
 
-import os, sets, posix, cligen/[osUt, posixUt, statx]
+import std/[os, sets, posix], cligen/[osUt, posixUt, statx]
 export perror, st_dev, Dev
 
 type csize_t = uint #For older Nim
@@ -168,8 +168,11 @@ template forPath*(root: string; maxDepth: int; lstats, follow, xdev, eof0: bool;
             bat[i].nr     = cshort(SYS_statx)
             bat[i].argc   = cchar(5)
             bat[i].arg[0] = dfd
-            bat[i].arg[1] = cast[clong](d.d_name[0].addr)
-            bat[i].arg[2] = AT_SYMLINK_NOFOLLOW or AT_NO_AUTOMOUNT
+            bat[i].arg[1] = if d.d_name[0] == '.' and d.d_name[1] == '/':
+                                  cast[clong](d.d_name[2].addr)
+                            else: cast[clong](d.d_name[0].addr)
+            bat[i].arg[2] = AT_NO_AUTOMOUNT or
+                            (if follow: 0 else: AT_SYMLINK_NOFOLLOW)
             bat[i].arg[3] = STATX_ALL
             bat[i].arg[4] = cast[clong](sts[i].addr)
           discard batch(rvs[0].addr, bat[0].addr, nB, clong(0), clong(0))
@@ -333,7 +336,7 @@ template forPath*(root: string; maxDepth: int; lstats, follow, xdev, eof0: bool;
 
 proc find*(roots: seq[string], recurse=0, stats=false, chase=false,
            xdev=false, eof0=false, zero=false) =
-  ## 2.75-4.5X faster than GNU "find /usr|.."; 1.7x faster than FreeBSD find
+  ## 2.75-4.5X faster than GNU "find /usr|.."; 1.7x faster than BSD find|fd
   let term = if zero: '\0' else: '\n'
   for root in (if roots.len > 0: roots else: @[ "." ]):
     forPath(root, recurse, stats, chase, xdev, eof0, stderr,

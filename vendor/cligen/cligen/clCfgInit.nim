@@ -1,7 +1,9 @@
 ## This is an ``include`` file used by ``cligen.nim`` proper to initialize the
 ## ``clCfg`` global.  Here we use only a parsecfg config file to do so.
+when defined(nimHasWarningObservableStores):
+  {.push warning[ObservableStores]: off.}
 
-import std/[streams, parsecfg, tables]
+import std/[os, streams, parsecfg, tables]
 const cgConfigFileBaseName = "config"
 
 proc apply(c: var ClCfg, path: string, plain=false) =
@@ -22,7 +24,9 @@ proc apply(c: var ClCfg, path: string, plain=false) =
     of cfgSectionStart:
       if e.section.startsWith("include__"):
         let sub = e.section[9..^1]
-        let subp = if sub == sub.toUpperAscii: getEnv(sub) else: sub
+        let subs = sub.split("__") # Allow include__VAR_NAME__DEFAULT[__..IGNOR]
+        let subp = if subs.len>0 and subs[0] == subs[0].toUpperAscii:
+                     getEnv(subs[0], if subs.len>1: subs[1] else: "") else: sub
         c.apply(if subp.startsWith("/"): subp else: relTo & subp, plain)
       else:
         let sec = e.section.optionNormalize
@@ -114,9 +118,12 @@ proc apply(c: var ClCfg, path: string, plain=false) =
     c.render = renderMarkup
 
 var cfNm = getEnv("CLIGEN", os.getConfigDir()/"cligen"/cgConfigFileBaseName)
-if cfNm.existsFile: clCfg.apply(move(cfNm), existsEnv("NO_COLOR"))
-elif cfNm.splitPath.head == "config" and (cfNm/cgConfigFileBaseName).existsFile:
+if cfNm.fileExists: clCfg.apply(move(cfNm), existsEnv("NO_COLOR"))
+elif cfNm.splitPath.head == "config" and (cfNm/cgConfigFileBaseName).fileExists:
   clCfg.apply(cfNm/cgConfigFileBaseName, existsEnv("NO_COLOR"))
 # Any given end CL user likely wants just one global system of color aliases.
 # Default to leaving initial ones defined, but clear if an env.var says to.
 if existsEnv("CLIGEN_COLORS_CLEAR"): textAttrAliasClear()
+
+when defined(nimHasWarningObservableStores):
+  {.pop.}

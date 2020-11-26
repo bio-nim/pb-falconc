@@ -12,6 +12,8 @@ proc cmemrchr*(s: pointer, c: char, n: csize): pointer {.
   importc: "memchr", header: "<string.h>" .}
 proc cmemcmp*(a, b: pointer, n: csize): cint {. #Exported by system/ansi_c??
   importc: "memcmp", header: "<string.h>", noSideEffect.}
+proc cmemcpy*(a, b: pointer, n: csize): cint {.
+  importc: "memcpy", header: "<string.h>", noSideEffect.}
 proc `-!`*(p, q: pointer): int {.inline.} =
   (cast[int](p) -% cast[int](q)).int
 proc `+!`*(p: pointer, i: int): pointer {.inline.} =
@@ -92,7 +94,7 @@ proc `==`*(a: string, ms: MSlice): bool {.inline.} =
   a.len == ms.len and cmemcmp(unsafeAddr a[0], ms.mem, a.len.csize) == 0
 proc `==`*(ms: MSlice, b: string): bool {.inline.} = b == ms
 
-import hashes # hashData
+import std/hashes # hashData
 proc hash*(ms: MSlice): Hash {.inline.} =
   ## hash MSlice data; With ``==`` all we need to put in a Table/Set
   result = hashData(ms.mem, ms.len)

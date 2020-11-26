@@ -1,6 +1,6 @@
 when (NimMajor,NimMinor,NimPatch) > (0,20,2):
   {.push warning[UnusedImport]: off.} # This is only for gcarc
-import os, macros, tables, strutils, critbits,
+import std/[os, macros, tables, strutils, critbits],
        cligen/[parseopt3, argcvt, textUt, sysUt, macUt, humanUt,  gcarc]
 export commandLineParams, lengthen, initOptParser, next, optionNormalize,
        ArgcvtParams, argParse, argHelp, getDescription, join, `%`, CritBitTree,
@@ -340,7 +340,10 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
   for p in implDef:
     if not fpars.containsParam(p):
       error $proNm&" has no param matching `implicitDefault` key \"" & $p & "\""
+  var hasVsn = false
   for i in 1 ..< len(fpars):            #..non-defaulted/mandatory parameters.
+    if ident($(fpars[i][0])) == ident("version"):
+      hasVsn = true
     dpars[i][0] = ident($(fpars[i][0]) & "ParamDefault")   # unique suffix
     spars[i][0] = ident($(fpars[i][0]) & "ParamDispatch")  # unique suffix
     if fpars[i][2].kind == nnkEmpty:
@@ -525,13 +528,19 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
             `setByParseId`[].add(("helpsyntax","", `cf`.helpSyntax, clHelpOnly))
           if not `prsOnlyId`:
             stdout.write(`cf`.helpSyntax); raise newException(HelpOnly, "")))
-    result.add(newNimNode(nnkOfBranch).add(
-      newStrLitNode("version"), newStrLitNode(vsnSh)).add(
-        quote do:
-          if cast[pointer](`setByParseId`) != nil:
-            `setByParseId`[].add(("version", "", `cf`.version, clVersionOnly))
-          if not `prsOnlyId`:
-            stdout.write(`cf`.version,"\n");raise newException(VersionOnly,"")))
+    if not hasVsn:
+      result.add(newNimNode(nnkOfBranch).add(
+        newStrLitNode("version"), newStrLitNode(vsnSh)).add(
+          quote do:
+            if cast[pointer](`setByParseId`) != nil:
+              `setByParseId`[].add(("version", "", `cf`.version, clVersionOnly))
+            if not `prsOnlyId`:
+              if `cf`.version.len > 0:
+                stdout.write(`cf`.version, "\n")
+                raise newException(VersionOnly, "")
+              else:
+                stdout.write("Unknown version\n")
+                raise newException(VersionOnly, "")))
     if aliasDefL.strVal.len > 0 and aliasRefL.strVal.len > 0: #CL user aliases
       result.add(newNimNode(nnkOfBranch).add(
         newStrLitNode(aliasDefN), aliasDefS).add(
@@ -620,7 +629,7 @@ macro dispatchGen*(pro: typed{nkSym}, cmdName: string="", doc: string="",
       let posId = spars[posIx][0]
       let tmpId = ident("tmp" & $posId)
       result[0].add(newNimNode(nnkElse).add(quote do:
-        var `tmpId`: typeof(`posId`[0])
+        var `tmpId`: type(`posId`[0])
         `apId`.key = "positional $" & $`posNoId`
         `apId`.val = `pId`.key
         `apId`.sep = "="
