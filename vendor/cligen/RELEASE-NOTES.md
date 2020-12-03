@@ -1,6 +1,38 @@
 RELEASE NOTES
 =============
 
+Version: 1.3.2
+--------------
+  Remove prefetching optimization idea, anyway.  On AMD 2950X, it was quite a
+  bit slower anyway.
+
+  Better fix to deactivate prefetch doing anything unless user activates (and
+  maybe uses special gcc flags, too.).  `cligen/prefix` module is retained for
+  backward compatibility { no longer touching compiler flags at all }.
+
+Version: 1.3.1
+--------------
+  Quick fix to deactivate mslice prefetch causing build problems for some.
+  { Should at least be guarded by defined(prefetch) or something. }
+
+Version: 1.3.0
+--------------
+  More compatibility fixes; Deprecation warning removals; Use std/ qualifiers
+  on many/most imports; Use `type` not `typeof` to still work on Nim-0.19.2.
+
+  Better github CI integration (thanks to @jiro4989)
+
+  Allow wrapped proc to have a `version` parameter already.
+
+  More efficient environment variable defaulting approach for `CLIGEN_CONFIG`.
+
+  Some library improvements..Make `mfile.mopen` more robust for FIFO/named pipe
+  `path` parameters; Generalize `textUt.stripSGR` to `textUt.stripEsc` to strip
+  both SGR and OSC terminal escape sequences (thanks to @SolitudeSF);
+  `dents.forPath` follows symlinks when filling in `lst` only `if follow`;
+  Improve `sysUt.toItr` based on excellent @slonik-az idea in the Forum;
+  Speed-up `posixUt.readFile` by just doing one big enough allocation+read.
+
 Version: 1.2.2
 --------------
   Just compatibility fixes.

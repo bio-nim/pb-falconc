@@ -1,18 +1,29 @@
 from strutils import split, join, strip, repeat, replace, count, Whitespace, startsWith
 from terminal import terminalWidth
-from unicode  import nil
+from unicode  import runeLen
 import critbits, math, ./mslice # math.^
 
-proc stripSGR*(a: string): string =
-  ## Return `a` with ANSI SGR escape sequences ("\e[..m") removed.
+proc stripEsc*(a: string): string =
+  ## Return `a` with terminal escape sequences ("\e[..m", "\e]..\e\\") removed.
   result = newStringOfCap(a.len)
   var postEsc = false
   var inSGR = false
-  for c in a:
+  var inOSC = false
+  var i = 0
+  while i < a.len:
+    let c = a[i]
     if inSGR:
       if c == 'm': inSGR = false
+    elif inOSC:
+      if c == '\e':
+        if (i + 1) < a.len and a[i + 1] == '\\':
+          inOSC = false
+          inc i
+      elif c == '\a':
+        inOSC = false
     elif postEsc:
       if c == '[': inSGR = true
+      elif c == ']': inOSC = true
       else:
         result.add '\e'
         result.add c
@@ -20,10 +31,15 @@ proc stripSGR*(a: string): string =
     elif c == '\e':
       postEsc = true
     else: result.add c
+    inc i
 
-proc printedLen*(a: string): int =
+proc stripSGR*(a: string): string =
+  ## Return `a` with terminal escape sequences ("\e[..m", "\e]..\e\\") removed.
+  ## Just an alias for `stripEsc`.
+  a.stripEsc
+
+proc printedLen*(a: string): int = a.stripEsc.runeLen
   ##Compute width when printed; Currently ignores "\e[..m" seqs&cnts utf8 runes.
-  unicode.runeLen a.stripSGR
 
 iterator paragraphs*(s: string, indent = {' ', '\t'}):
     tuple[pre: bool, para: string] =
