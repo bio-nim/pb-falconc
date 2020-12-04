@@ -35,9 +35,9 @@ proc summarize_gff_coverage*(sin: Stream): Table[string, Table[string, string]] 
     return results
 
 proc run*(gff_fn: string) =
+    ## Print summary of coverage stats for gff_fn.
     let gff_stream = newFileStream(gff_fn, fmRead)
     defer: gff_stream.close()
 
     let results = summarize_gff_coverage(gff_stream)
     echo json.pretty(parseJson($results), indent = 4)
-
