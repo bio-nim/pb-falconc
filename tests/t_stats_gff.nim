@@ -75,8 +75,8 @@ name0 1 2 30 40 5 6 7 8
 name0 1 2 34 38 5 6 7 8
 """
     expected1 = """
-name0	1	2	30	33	5	6	7	8
-name0	1	2	39	40	5	6	7	8
+name0 1 2 30 33 5 6 7 8
+name0 1 2 39 40 5 6 7 8
 """
     gff2 = """
 name0 1 2 3 4 5 6 7 8
@@ -91,6 +91,7 @@ name1 1 2 3 4 5 6 7 8
 """
 
 proc test_gffsubtract(gff, mask, expected: string) =
+    gfftools.SEP = ' '
     var
         gsin = streams.newStringStream(gff)
         msin = streams.newStringStream(mask)
@@ -99,6 +100,7 @@ proc test_gffsubtract(gff, mask, expected: string) =
     sout.setPosition(0)
     let myresult = sout.readAll()
     check myresult == expected
+    gfftools.SEP = '\t'
 
 suite "gffsubtract":
     test "loadGffLines":
