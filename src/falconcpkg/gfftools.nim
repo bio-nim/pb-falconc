@@ -22,8 +22,11 @@ type
     GffLine* = array[9, string]
     GffLines* = Table[string, seq[GffRow]]
 
+var
+    SEP* = '\t'
+
 proc `$`(row: GffRow): string =
-    return "{row.sequence}\t{row.source}\t{row.feature}\t{row.tstart}\t{row.tend}\t{row.score}\t{row.strand}\t{row.phase}\t{row.attributes}".fmt
+    return "{row.sequence}{SEP}{row.source}{SEP}{row.feature}{SEP}{row.tstart}{SEP}{row.tend}{SEP}{row.score}{SEP}{row.strand}{SEP}{row.phase}{SEP}{row.attributes}".fmt
 
 proc loadGffLines*(sin: streams.Stream, fn: string, sep: char): ref GffLines =
     # Allow 8-field line instead of 9.
