@@ -1,7 +1,10 @@
 # vim: sw=4 ts=4 sts=4 tw=0 et:
 import falconcpkg/stats_gff
+import falconcpkg/gfftools
+import json
 import unittest
 import streams
+import tables
 
 ##################
 ### Test data. ###
@@ -64,3 +67,28 @@ suite "stats_gff":
         except Exception as exc:
             assert true
 
+let
+    start3 = """
+name0 1 2 3 4 5 6 7 8
+name1 1 2 3 4 5 6 7 8
+name2 1 2 3 4 5 6 7 8
+"""
+    mask2 = """
+name0 1 2 3 4 5 6 7 8
+name1 1 2 3 4 5 6 7 8
+"""
+suite "gffsubtract":
+    test "loadGffLines":
+        let in_data = test_data_stats_gff_content_1
+        var sin = streams.newStringStream(in_data)
+        var gl = loadGffLines(sin)
+        check gl.len() == 1
+    test "gffsubtract":
+        var
+            gsin = streams.newStringStream(start3)
+            msin = streams.newStringStream(mask2)
+            sout = streams.newStringStream()
+        gffsubtractStreams(gsin, msin, sout)
+        sout.setPosition(0)
+        check sout.readAll() == ""
+        # Actually, we would want name2 in that case.
