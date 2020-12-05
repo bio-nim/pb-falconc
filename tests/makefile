@@ -1,5 +1,9 @@
+MACPORTS_LIBDIR=/opt/local/lib
+export DYLD_LIBRARY_PATH=${MACPORTS_LIBDIR}
+
 all:
-	nim c -r all.nim
+	nim -d:nimDebugDlOpen c -c all.nim
+	./all
 each:
 	nim c -r t_welcome.nim
 	nim c -r t_kmers.nim

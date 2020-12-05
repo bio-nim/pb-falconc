@@ -5,6 +5,8 @@ NIMBLE_DIR?=${CURDIR}/nimbleDir
 export NIMBLE_DIR
 # or use --nimbleDir:${NIMBLE_DIR} everywhere
 NIMBLE_INSTALL=nimble install --debug -y
+MACPORTS_LIBDIR=/opt/local/lib
+UNAME=$(shell uname -s)
 
 default: build
 nim:
@@ -37,6 +39,10 @@ build:
 	# "nim c" uses NIMBLE_DIR
 	nim c --listCmd --threads:on -d:release --styleCheck:hint -d:cGitSha1=$R src/falconc.nim
 	#nim c --listCmd --threads:on -d:release --styleCheck:hint src/falconc.nim
+ifeq (${UNAME}, Darwin)
+	install_name_tool -add_rpath @loader_path/../lib/ src/falconc
+	install_name_tool -add_rpath ${MACPORTS_LIBDIR} src/falconc
+endif
 install:
 	mkdir -p ${PREFIX}/bin
 	mv -f src/falconc ${PREFIX}/bin
