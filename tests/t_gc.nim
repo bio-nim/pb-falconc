@@ -6,7 +6,6 @@ suite "gc":
     test "okay_count":
         var dna: string = "ATCG"
         var c = gc.countBases(dna)
-        echo(c.okayBases)
         check c.okayBases == 4
         dna = "atcg"
         c = gc.countBases(dna)

@@ -105,9 +105,9 @@ proc loadWhiteList*(fin: string): WhiteList =
         return whitelist # nil
     new(whitelist)
     whitelist.specific = initHashSet[string]()
-    echo "whitelist:"
+    #echo "whitelist:"
     for l in fin.lines:
-        echo " whitelisted: ", l
+        #echo " whitelisted: ", l
         whitelist.specific.incl(l)
     return whitelist
 
@@ -206,10 +206,10 @@ iterator FastqReader*(fn: string, full_sequence,
             full_sequence &= line
             nseqlines += 1
 
-        if 0 == (n and (n-1)):
-            echo "header=", header
-            echo "#", n, " len=", len(full_sequence), " (nlines wrapped=",
-                    nseqlines, ")"
+        #if 0 == (n and (n-1)):
+        #    echo "header=", header
+        #    echo "#", n, " len=", len(full_sequence), " (nlines wrapped=",
+        #            nseqlines, ")"
 
         # skip 2nd header
 
