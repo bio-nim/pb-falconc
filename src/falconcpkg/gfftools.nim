@@ -94,12 +94,12 @@ proc gffsubtractStreams*(gsin, masksin, sout: streams.Stream) =
                     var newrow = gff1
                     newrow.tstart = start
                     newrow.tend = gff2.tstart - 1
-                    streams.write(sout, $newrow)
+                    streams.writeLine(sout, $newrow)
                 start = gff2.tend + 1
             if start <= gff1.tend:
                 var newrow = gff1
                 newrow.tstart = start
-                streams.write(sout, $newrow)
+                streams.writeLine(sout, $newrow)
 
 proc gffsubtract*(gff_fn, mask_gff_fn: string) =
     ## cut out everything in one GFF file that overlaps with a second
