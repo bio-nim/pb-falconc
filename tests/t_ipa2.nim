@@ -2,6 +2,7 @@
 
 import falconcpkg/ipa2_construct_config
 import falconcpkg/ipa2_polish
+import falconcpkg/ipa2Header2Falcon
 import unittest, streams, tables
 
 let expected_default_bash = """
@@ -9,6 +10,7 @@ config_autocomp_max_cov=1
 config_block_size=4096
 config_cleanup=0
 config_coverage=0
+config_erc_min_idt=99.9
 config_existing_db_prefix=''
 config_genome_size=0
 config_m4filt_high_copy_sample_rate=1.0
@@ -23,6 +25,7 @@ config_phasing_split_opt='--split-type noverlaps --limit 3000000'
 config_polish_min_len=50000
 config_polish_run=1
 config_purge_dups_calcuts=''
+config_purge_dups_get_seqs=''
 config_purge_dups_run=0
 config_purge_map_opt='--min-map-len 1000 --min-idt 98.0 --bestn 5'
 config_seeddb_opt='-k 32 -w 80 --space 2'
@@ -37,6 +40,7 @@ let expected_default_json = """
     "config_block_size": "4096",
     "config_cleanup": "0",
     "config_coverage": "0",
+    "config_erc_min_idt": "99.9",
     "config_existing_db_prefix": "",
     "config_genome_size": "0",
     "config_m4filt_high_copy_sample_rate": "1.0",
@@ -51,6 +55,7 @@ let expected_default_json = """
     "config_polish_min_len": "50000",
     "config_polish_run": "1",
     "config_purge_dups_calcuts": "",
+    "config_purge_dups_get_seqs": "",
     "config_purge_dups_run": "0",
     "config_purge_map_opt": "--min-map-len 1000 --min-idt 98.0 --bestn 5",
     "config_seeddb_opt": "-k 32 -w 80 --space 2",
@@ -65,7 +70,7 @@ suite "ipa2_construct_config":
         var
             outs = streams.newStringStream()
             ins = streams.newStringStream()
-        run(outs, ins, 'b', true)
+        run(outs, ins, "", 'b', true)
         outs.setPosition(0)
         check outs.readAll() == expected_default_bash
 
@@ -73,7 +78,7 @@ suite "ipa2_construct_config":
         var
             outs = streams.newStringStream()
             ins = streams.newStringStream()
-        run(outs, ins, 'j', true)
+        run(outs, ins, "", 'j', true)
         outs.setPosition(0)
         check outs.readAll() == expected_default_json
 
@@ -99,9 +104,9 @@ suite "ipa2_construct_config":
         check cfg["config_genome_size"] == "12"
         check cfg["config_block_size"] == "4096"
 
-    test "bad input":
-        expect PbError:
-            let cfg = parse("foo=bar")
+    #test "bad input":
+    #    expect PbError:
+    #        let cfg = parse("foo=bar")
 
 suite "ipa_polish_prepare":
     test "countLines":
@@ -303,3 +308,19 @@ suite "ipa_polish_prepare":
 0 2 3
 1 2 3
 """
+
+suite "ipa-separate-p-from-a":
+    test "isHaplotigHeader":
+        check isHaplotigHeader(">foo-bar") == true
+        check isHaplotigHeader(">name foo-bar") == false
+        check isHaplotigHeader(">foo") == false
+
+suite "ipa2Header2Falcon":
+    test "renamedSeq":
+        expect system.Exception:
+            discard renamedSeq("foo")
+        check renamedSeq("foo.bar") == "bar"
+        check renamedSeq("foo-bar") == "bar"
+        check renamedSeq("foo.bar.baz") == ""
+        check renamedSeq("foo-01-02") == ""
+        check renamedSeq("foo-01-01") == "01_01"

@@ -9,7 +9,7 @@
 ##    for path in both(fileStrings(file, delim), paths)(): discard
 ##  dispatch(something)
 
-import os, terminal, strutils, dynlib, times, stats, math
+import std/[os, terminal, strutils, dynlib, times, stats, math]
 type csize = uint
 
 proc perror*(x: cstring, len: int, err=stderr) =
@@ -31,7 +31,7 @@ proc perror*(x: cstring, len: int, err=stderr) =
 
 proc useStdin*(path: string): bool =
   ## Decide if ``path`` means stdin ("-" or "" and ``not isatty(stdin)``).
-  (path in ["-", "/dev/stdin"] or (path.len==0 and not terminal.isatty(stdin)))
+  path in ["-", "/dev/stdin"] or (path.len == 0 and not stdin.isatty)
 
 proc c_getdelim*(p: ptr cstring, nA: ptr csize, dlm: cint, stream: File): int {.
   importc: "getdelim", header: "<stdio.h>".}
@@ -53,10 +53,11 @@ iterator getDelim*(stream: File, dlm: char='\n'): string =
 
 proc fileStrings*(path: string, delim: char): auto =
   ## Return an iterator yielding ``delim``-delimited records in file ``path``.
+  ## Note ``path = "/"`` is equivalent to a Unix ``path = "/dev/null"``.
   result = iterator(): string =
     if path.useStdin:
       for entry in getDelim(stdin, delim): yield entry
-    elif path.len > 0:
+    elif path.len > 0 and path != "/":
       for entry in getDelim(open(path), delim): yield entry
 
 proc both*[T](s: seq[T], it: iterator(): T): iterator(): T =

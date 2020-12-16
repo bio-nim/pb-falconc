@@ -160,32 +160,44 @@ let fp_30455 = stream("data/chimera/fp_30455.ovlp")
 let fp_32757 = stream("data/chimera/fp_32757.ovlp")
 let tp_5600 = stream("data/chimera/tp_5600.ovlp")
 let tp_15210 = stream("data/chimera/tp_15210.ovlp")
+let fn_000048406 = stream("data/chimera/fn_000048406.ovlp")
+let fn_000176547 = stream("data/chimera/fn_000176547.ovlp")
+let fn_000152097 = stream("data/chimera/fn_000152097.ovlp")
 
 suite "chimera filter":
     test "5600 tp marked":
         for i in getNextPile(tp_5600):
-            check gapInCoverage(i, coverageProfile(i), 4, 90.0) == true
+            check gapInCoverage(i, coverageProfile(i), 4, 5, 90.0) == true
     test "15210 tp marked":
         for i in getNextPile(tp_15210):
-            check gapInCoverage(i, coverageProfile(i), 4, 90.0) == true
+            check gapInCoverage(i, coverageProfile(i), 4, 5, 90.0) == true
     test "32757 fp not marked":
         for i in getNextPile(fp_32757):
-            check gapInCoverage(i, coverageProfile(i), 4, 90.0) == false
+            check gapInCoverage(i, coverageProfile(i), 4, 5, 90.0) == false
     test "17238 fp not marked":
         for i in getNextPile(fp_17238):
-            check gapInCoverage(i, coverageProfile(i), 4, 90.0) == false
+            check gapInCoverage(i, coverageProfile(i), 4, 5, 90.0) == false
     test "30455 FP not marked ":
         for i in getNextPile(fp_30455):
-            check gapInCoverage(i, coverageProfile(i), 4, 90.0) == false
+            check gapInCoverage(i, coverageProfile(i), 4, 5, 90.0) == false
     test "118816930 CCS tp marked":
         for i in getNextPile(fn_118816930):
-            check gapInCoverage(i, coverageProfile(i), 4, 90.0) == true
+            check gapInCoverage(i, coverageProfile(i), 4, 5, 90.0) == true
     test "90965490 CCS tp marked":
         for i in getNextPile(fn_90965490):
-            check gapInCoverage(i, coverageProfile(i), 4, 90.0) == true
+            check gapInCoverage(i, coverageProfile(i), 4, 5, 90.0) == true
     test "105513170 CCS FN, this should be marked, kept for future improvements":
         for i in getNextPile(fn_105513170):
-            check gapInCoverage(i, coverageProfile(i), 4, 90.0) == false
+            check gapInCoverage(i, coverageProfile(i), 4, 5, 90.0) == false
+    test "000048406 CCS FN, this should be marked, kept for future improvements":
+        for i in getNextPile(fn_000048406):
+            check gapInCoverage(i, coverageProfile(i), 4, 0, 90.0) == true
+    test "000176547 CCS FN, this should be marked, kept for future improvements":
+        for i in getNextPile(fn_000176547):
+            check gapInCoverage(i, coverageProfile(i), 3, 0, 90.0) == true
+    test "000152097 CCS FN, this should be marked, kept for future improvements":
+        for i in getNextPile(fn_000152097):
+            check gapInCoverage(i, coverageProfile(i), 4, 0, 90.0) == true
 
 suite "m4filt workflow":
     test "check sanity of output":

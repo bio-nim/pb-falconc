@@ -5,6 +5,8 @@ NIMBLE_DIR?=${CURDIR}/nimbleDir
 export NIMBLE_DIR
 # or use --nimbleDir:${NIMBLE_DIR} everywhere
 NIMBLE_INSTALL=nimble install --debug -y
+MACPORTS_LIBDIR=/opt/local/lib
+UNAME=$(shell uname -s)
 
 default: build
 nim:
@@ -19,9 +21,9 @@ rsync:
 	mkdir -p ${NIMBLE_DIR}/pkgs/
 	rsync -av vendor/nim-networkx/src/ ${NIMBLE_DIR}/pkgs/networkx-1.0.0/
 	rsync -av vendor/nim-heap/ ${NIMBLE_DIR}/pkgs/binaryheap-0.1.1/
-	rsync -av vendor/hts-nim/src/ ${NIMBLE_DIR}/pkgs/hts-0.3.10/
+	rsync -av vendor/hts-nim/src/ ${NIMBLE_DIR}/pkgs/hts-0.3.14/
 	rsync -av vendor/msgpack4nim/ ${NIMBLE_DIR}/pkgs/msgpack4nim-0.2.9/
-	rsync -av vendor/cligen/ ${NIMBLE_DIR}/pkgs/cligen-0.9.41/
+	rsync -av vendor/cligen/ ${NIMBLE_DIR}/pkgs/cligen-1.3.2/
 	rsync -av vendor/threadpools/ ${NIMBLE_DIR}/pkgs/threadpools-0.1.0/
 	rsync -av vendor/comprehension/ ${NIMBLE_DIR}/pkgs/comprehension-0.1.0/
 	rsync -av vendor/c_alikes/ ${NIMBLE_DIR}/pkgs/c_alikes-0.2.0/
@@ -37,6 +39,10 @@ build:
 	# "nim c" uses NIMBLE_DIR
 	nim c --listCmd --threads:on -d:release --styleCheck:hint -d:cGitSha1=$R src/falconc.nim
 	#nim c --listCmd --threads:on -d:release --styleCheck:hint src/falconc.nim
+ifeq (${UNAME}, Darwin)
+	install_name_tool -add_rpath @loader_path/../lib/ src/falconc
+	install_name_tool -add_rpath ${MACPORTS_LIBDIR} src/falconc
+endif
 install:
 	mkdir -p ${PREFIX}/bin
 	mv -f src/falconc ${PREFIX}/bin

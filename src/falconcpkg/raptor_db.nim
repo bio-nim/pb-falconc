@@ -263,7 +263,7 @@ proc get_length_cutoff*(rdb_stream: streams.Stream, genome_size: int64,
 proc alarm(e: ref Exception, fn: string) =
     ## Write a special JSON object expected by pbcommand.models.common.
     var fout = open(fn, fmWrite)
-    if nil == fout:
+    if fout == nil:
         util.raiseEx("Could not open '" & fn & "' for write.")
     defer: fout.close()
     let uuid = nuuid.generateUUID()

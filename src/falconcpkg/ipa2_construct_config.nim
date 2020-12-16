@@ -6,6 +6,8 @@ import json, tables, sets, sequtils, strutils, streams
 
 export PbError
 
+var failOnUnexpectedKey = false
+
 var default_config = """
 config_genome_size = 0
 config_coverage = 0
@@ -29,9 +31,11 @@ config_phasing_split_opt = --split-type noverlaps --limit 3000000
 config_polish_min_len = 50000
 config_max_polish_block_mb = 100
 config_use_hpc = 0
+config_purge_dups_get_seqs =
 config_purge_dups_calcuts =
 config_m4filt_high_copy_sample_rate = 1.0
 config_purge_map_opt=--min-map-len 1000 --min-idt 98.0 --bestn 5
+config_erc_min_idt = 99.9
 """
 
 type
@@ -87,7 +91,9 @@ proc validate_param_names(valid_params, test_params: ConfigTable) =
             unknown_params.add(p)
     if len(unknown_params) != 0:
         let msg = "Unknown config parameters specified: " & $unknown_params
-        raiseEx(msg)
+        log("WARNING: " & msg)
+        if failOnUnexpectedKey:
+            raiseEx(msg)
 
 proc parse*(in_str: string): ConfigTable =
     # Load the defaults.
@@ -105,10 +111,13 @@ proc parse*(in_str: string): ConfigTable =
     for k, v in tables.pairs(user_config_dict):
         result[k] = v
 
-proc run*(fp_out, fp_in: streams.Stream, out_fmt: char, sort: bool) =
+proc run*(fp_out, fp_in: streams.Stream, defaults_fn: string, out_fmt: char, sort: bool) =
     # Collect the input lines.
     let in_str = strutils.join(sequtils.toSeq(lines(fp_in)), ";")
 
+    if "" != defaults_fn:
+        default_config = system.readFile(defaults_fn)
+        failOnUnexpectedKey = true
     var config_dict = parse(in_str)
     if sort:
         # Sort to match Python behavior.
@@ -119,12 +128,43 @@ proc run*(fp_out, fp_in: streams.Stream, out_fmt: char, sort: bool) =
     let out_str = formatter(config_dict)
     fp_out.writeLine(out_str)
 
-proc main*(out_fn: string, out_fmt: string = "json", in_fn = "-", no_sort = false) =
+proc main*(out_fn: string, out_fmt: string = "json", in_defaults_fn = "", in_fn = "-", no_sort = false) =
     ## Takes an advanced options string, and reformats it into JSON format.
     ## Input/output is on stdin/stdout. Options which aren't set explicitly in the input
     ## will be set to default (configurable via args).
 
-    var fp_in = if in_fn == "-": streams.newFileStream(stdin) else: streams.newFileStream(in_fn, fmRead)
-    var fp_out = streams.newFileStream(out_fn, fmWrite)
-    run(fp_out, fp_in, out_fmt[0], not no_sort)
+    var fp_in = if in_fn == "-": streams.newFileStream(stdin) else: streams.openFileStream(in_fn, fmRead)
+    var fp_out = streams.openFileStream(out_fn, fmWrite)
+    defer: streams.close(fp_out)
+    run(fp_out, fp_in, in_defaults_fn, out_fmt[0], not no_sort)
     fp_out.close()
+
+proc isHaplotigHeader*(line: string): bool =
+    # >foo-bar is a haplotig.
+    # >foo is not.
+    assert line.len > 0
+    assert line[0] == '>'
+    for c in line:
+        if c == '-':
+            return true
+        elif c == ' ' or c == '\t':
+            return false
+    return false
+
+proc main_separate_p_from_a*(out_p_fn, out_a_fn, in_fn: string) =
+    ## Given a merged fasta, separate into primary and alternate contigs.
+    ## Only .fasta is supported. An index is neither required nor generated.
+    var
+        out_curr: streams.Stream = nil
+        out_p = streams.openFileStream(out_p_fn, fmWrite)
+        out_a = streams.openFileStream(out_a_fn, fmWrite)
+        in_merged = streams.openFileStream(in_fn)
+    defer:
+        streams.close(in_merged)
+        streams.close(out_a)
+        streams.close(out_p)
+
+    for line in streams.lines(in_merged):
+        if line.startsWith('>'):
+            out_curr = if isHaplotigHeader(line): out_a else: out_p
+        streams.writeLine(out_curr, line)

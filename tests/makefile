@@ -1,5 +1,10 @@
+MACPORTS_LIBDIR=/opt/local/lib
+export DYLD_LIBRARY_PATH=${MACPORTS_LIBDIR}
+
 all:
-	nim c -r all.nim
+	rm -f ./all
+	nim -d:nimDebugDlOpen c all.nim
+	./all
 each:
 	nim c -r t_welcome.nim
 	nim c -r t_kmers.nim
@@ -10,6 +15,7 @@ each:
 	nim c -r t_pbcromwell.nim
 	nim c -r t_pbreports.nim
 	nim c -r t_stats.nim
+	nim c -r t_stats_gff.nim
 	nim c -r t_rotate.nim
 	nim c -r t_raptor_db.nim
 	nim c -r t_align.nim

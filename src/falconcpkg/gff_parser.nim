@@ -53,4 +53,3 @@ iterator yield_gff_record*(sin: Stream): GFFCoverageLine =
         if buff[0] == '#':
             continue
         yield(parse_gff_line(buff))
-
