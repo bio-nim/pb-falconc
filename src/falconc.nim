@@ -25,11 +25,17 @@ const
     cNimbleData = staticRead("../falconc.nimble")
     cGitSha1 {.strdefine.} = staticExec("git describe --always --tags HEAD")
     cToolVersion = cNimbleData.fromNimble("version")
+    cBoilerPlate = """
+Copyright (C) 2004-2021     Pacific Biosciences of California, Inc.
+This program comes with ABSOLUTELY NO WARRANTY; it is intended for
+Research Use Only and not for use in diagnostic procedures.
+"""
 
 proc get_version(): auto =
     cToolVersion & "+git." & cGitSha1
 
 proc version() =
+    stdout.writeLine(cBoilerPlate)
     stdout.writeLine("falconc version=", get_version(), ", nim-version=",
             system.NimVersion)
 
