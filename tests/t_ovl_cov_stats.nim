@@ -34,7 +34,7 @@ suite "ovl_cov_stats calc_stats":
     test "empty input":
         let data: seq[int] = @[]
         let results = ovl_cov_stats.calc_stats(data)
-        let expected = (mean: float(0.0), stddev: float(NaN), median: float(0.0), min: 0, max: 0, n: 0)
+        let expected = (mean: float(0.0), stddev: float(0.0), median: float(0.0), min: 0, max: 0, n: 0)
         # If this is not converted to string, tuple comparison fails for some reason.
         check $results == $expected
 
@@ -48,14 +48,14 @@ suite "ovl_cov_stats calc_stats":
 suite "ovl_cov_stats collect_from_stream":
     # This implicitly tests the count_overlaps proc.
 
-    test "empty input":
+    test "empty stream":
         let inStr = ""
         let inStream: Stream = newStringStream(inStr)
         let results = ovl_cov_stats.collect_from_stream(inStream)
         let expected: seq[int] = @[]
         check results == expected
 
-    test "empty input":
+    test "test data 1":
         let inStr = testDataCollectFromStream1
         let inStream: Stream = newStringStream(inStr)
         let results = ovl_cov_stats.collect_from_stream(inStream)

@@ -3,6 +3,19 @@ import falconcpkg/stats
 import unittest
 
 
+let expected_json_on_empty = """{
+    "sum": 0,
+    "mean": 0.0,
+    "median": 0,
+    "max": 0,
+    "N100": 0,
+    "L100": 0,
+    "N90": 0,
+    "L90": 0,
+    "N50": 0,
+    "L50": 0,
+    "esize": 0.0
+}"""
 let expected_json = """{
     "sum": 120,
     "mean": 40.0,
@@ -37,3 +50,8 @@ suite "stats":
 
         check stats.to_json(st) == expected_json
         check stats.to_table(st) == expected_table
+    test "calc_stats empty":
+        let reads = newSeq[int32](0)
+        let st = stats.calc_stats(reads)
+
+        check stats.to_json(st) == expected_json_on_empty
