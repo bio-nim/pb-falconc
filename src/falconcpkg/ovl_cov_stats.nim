@@ -44,6 +44,12 @@ proc collect_from_fofn*(in_fn_list: seq[string]): seq[int] =
         allCounts.add(counts)
     return allCounts
 
+proc standardDeviation(s: RunningStat): float =
+    if s.n == 0:
+        return 0.0
+    else:
+        return stats.standardDeviation(s)
+
 proc calc_stats*(counts: seq[int]): tuple[mean, stddev, median: float, min, max, n: int] =
     var rs: RunningStat
     rs.push(counts)
